@@ -26,7 +26,7 @@ import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
 import kotlin.collections.HashMap
 
-open class IncludeChildrenReducer(
+open class ChildrenIncludedReducer(
     localReducer: AbstractLocalReducer,
     val childrenReducer: AbstractLocalReducer
 )
@@ -49,7 +49,6 @@ open class IncludeChildrenReducer(
             localAttributes.put(AttributeType.childrenStructure, childStructure)
             localAttributes.put(AttributeType.childrenText,childText)
         }
-
 
         if (childrenReducer is LocalReducerLV3) {
             var siblingInfos = ""
@@ -87,7 +86,10 @@ open class IncludeChildrenReducer(
                 || guiWidget.className.contains("ListView")
                 || guiWidget.className.contains("ViewPager")
                 || guiWidget.className.contains("WebView")
-        )
+        ) {
+            return false
+        }
+        if (guiWidget.childHashes.isEmpty())
             return false
         return true
 

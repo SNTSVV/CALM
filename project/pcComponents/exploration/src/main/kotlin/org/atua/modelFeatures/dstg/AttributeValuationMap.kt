@@ -46,6 +46,7 @@ class AttributeValuationMap {
             ALL_ATTRIBUTE_VALUATION_MAP.put(window, HashMap())
         }
         ALL_ATTRIBUTE_VALUATION_MAP[window]!!.put(avmId,this)
+        hashCode = this.fullAttributeValuationMap().hashCode()
         maxId++
     }
 
@@ -55,7 +56,15 @@ class AttributeValuationMap {
         }
         attributePath_AttributeValuationMap.putIfAbsent(window, HashMap())
         localAttributes.putAll(attributePath.localAttributes)
-        avmId = "${localAttributes.get(AttributeType.className)}_${localAttributes.get(AttributeType.resourceId)}_${maxId++}"
+        var tempId = "${localAttributes.get(AttributeType.className)}_${localAttributes.get(AttributeType.resourceId)}_${maxId++}"
+        while (true) {
+            if (ALL_ATTRIBUTE_VALUATION_MAP[window]!!.containsKey(tempId)) {
+                tempId = "${localAttributes.get(AttributeType.className)}_${localAttributes.get(AttributeType.resourceId)}_${maxId++}"
+            } else {
+                break
+            }
+        }
+        avmId = tempId
 
         if (attributePath.parentAttributePathId == emptyUUID) {
             parentAttributeValuationMapId = ""
@@ -375,7 +384,11 @@ class AttributeValuationMap {
     }
 
     fun haveTheSameAttributePath(attributePath: AttributePath): Boolean {
-
+        val fullAttributePath = attributePath.fullAttributePath()
+        val fullAttributeValuationMap = this.fullAttributeValuationMap
+        if (fullAttributePath.hashCode() == hashCode)
+            return true
+        return false
         if (localAttributes.hashCode() != attributePath.localAttributes.hashCode()) {
             return false
         }
@@ -632,7 +645,8 @@ class AttributeValuationMap {
             var attributeValuationSet =  attributePath_AttributeValuationMap.get(window)!!.get(attributePath)
             if (attributeValuationSet == null) {
                 // find the same AVM
-                attributeValuationSet = ALL_ATTRIBUTE_VALUATION_MAP.get(window)!!.values.find { it.haveTheSameAttributePath(attributePath) }
+                val avmsOfWindow = ALL_ATTRIBUTE_VALUATION_MAP.get(window)!!.values
+                attributeValuationSet = avmsOfWindow.find { it.haveTheSameAttributePath(attributePath) }
             }
             return attributeValuationSet
         }

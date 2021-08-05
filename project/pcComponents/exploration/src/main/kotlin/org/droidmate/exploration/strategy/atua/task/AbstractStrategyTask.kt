@@ -334,9 +334,10 @@ abstract class AbstractStrategyTask (val atuaStrategy: ATUATestingStrategy,
     }
 
      fun doRandomKeyboard(currentState: State<*>, data: Any?): ExplorationAction? {
-        var childWidgets = currentState.widgets.filter { it.isKeyboard }
-        val allAvailableActions = childWidgets.map { it.click()}
-        return allAvailableActions.random()
+        var childWidgets = currentState.widgets.filter { it.isKeyboard && it.isInteractive}
+         if (childWidgets.isEmpty())
+             return null
+        return childWidgets.random().click()
     }
 
     private fun doSwipe(currentState: State<*>, data: String): ExplorationAction? {

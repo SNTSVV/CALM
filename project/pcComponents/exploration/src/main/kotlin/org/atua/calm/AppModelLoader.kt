@@ -231,7 +231,11 @@ class AppModelLoader {
             val interactedAVSId = if (data[3] == "null") {
                 ""
             } else {
-                data[3]
+                val avmId = data[3]
+                if (updatedAVMId.containsKey(avmId)) {
+                    updatedAVMId[avmId]!!
+                } else
+                    avmId
             }
             val actionData = if (data[4] == "null") {
                 null
@@ -359,13 +363,7 @@ class AppModelLoader {
             val destAbstractState = abstractTransition.dest
             if (abstractTransition.abstractAction.attributeValuationMap == null)
             {
-                var newInput = Input(
-                        eventType = eventType,
-                        widget = null,
-                        sourceWindow = sourceAbstractState.window,
-                        eventHandlers = HashSet(),
-                        createdAtRuntime = true
-                )
+                var newInput = Input.getOrCreateInput(emptySet(),eventType.toString(),null,sourceAbstractState.window,true)
                 result.add(newInput)
                 newInput.data = abstractTransition.abstractAction.extra
                 newInput.eventHandlers.addAll(abstractTransition.handlers.map { it.key })
@@ -413,13 +411,8 @@ class AppModelLoader {
                 {
                     val staticWidget = sourceAbstractState.EWTGWidgetMapping[attributeValuationSet]!!
                     atuaMF.allTargetStaticWidgets.add(staticWidget)
-                    val newInput = Input(
-                            eventType = eventType,
-                            widget = staticWidget,
-                            sourceWindow = sourceAbstractState.window,
-                            eventHandlers = HashSet(),
-                            createdAtRuntime = true
-                    )
+                    val newInput = Input.getOrCreateInput(emptySet(),eventType.toString(),
+                    staticWidget,sourceAbstractState.window,true)
                     result.add(newInput)
                     newInput.data = abstractTransition.abstractAction.extra
                     newInput.eventHandlers.addAll(abstractTransition.handlers.map { it.key })
@@ -457,6 +450,8 @@ class AppModelLoader {
         }
 
         val updatedAbstractStateId = HashMap<String, String>()
+        val updatedAVMId = HashMap<String,String>()
+
         private fun loadAbstractState(line: String, dstgFolderPath: Path) {
             val data = splitCSVLineToField(line)
             val uuid = data[0]
@@ -524,7 +519,7 @@ class AppModelLoader {
                                                widgetMapping: HashMap<AttributeValuationMap, String>,
                                                avmCardinaties: HashMap<AttributeValuationMap, Cardinality>,
                                                window: Window): List<AttributeValuationMap> {
-            val attributeValuationSets = ArrayList<AttributeValuationMap>()
+            val capturedAttributeValuationSets = ArrayList<AttributeValuationMap>()
             val abstractStateFilePath = dstgFolderPath.resolve("AbstractStates").resolve("AbstractState_$uuid.csv")
             if (!Files.exists(abstractStateFilePath)) {
                 throw Exception("Cannot find the AbstractState $uuid")
@@ -543,60 +538,77 @@ class AppModelLoader {
             }
             for (attributeValuationSetRecord in attributeValuationSetRawData) {
                 val avmuuid = attributeValuationSetRecord.key
-                if (attributeValuationSets.any { it.avmId == avmuuid }) {
+                if (capturedAttributeValuationSets.any { it.avmId == avmuuid }) {
                     continue
                 }
-                val attributeValuationSet = createAttributeValuationSet(attributeValuationSetRecord.value,attributeValuationSets,
-                        window, widgetMapping,avmCardinaties)
-                assert(avmuuid == attributeValuationSet.avmId )
+                val attributeValuationMap: AttributeValuationMap
+                val existingAVM = AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP.get(window)?.values?.find { it.avmId == avmuuid }
+                if (existingAVM != null) {
+                    attributeValuationMap = existingAVM
+                } else {
+                    attributeValuationMap = createAttributeValuationMap(
+                        attributeValuationSetRecord.value, capturedAttributeValuationSets,
+                        window, widgetMapping, avmCardinaties
+                    )
+                    if (attributeValuationMap.avmId != avmuuid)
+                        updatedAVMId.put(avmuuid, attributeValuationMap.avmId)
+                }
+                val cardinality = Cardinality.values().find { it.name == attributeValuationSetRecord.value[AttributeValuationMapPropertyIndex.cardinality] }!!
+                val captured =  attributeValuationSetRecord.value[AttributeValuationMapPropertyIndex.captured]
+                val ewtgWidgetIds = splitCSVLineToField( attributeValuationSetRecord.value[AttributeValuationMapPropertyIndex.wtgWidgetMapping])
+                if (captured.toBoolean()) {
+                    capturedAttributeValuationSets.add(attributeValuationMap)
+                    avmCardinaties.put(attributeValuationMap,cardinality)
+                }
+                if (!(ewtgWidgetIds.size == 1 &&
+                            (ewtgWidgetIds.single().isBlank() || ewtgWidgetIds.single() == "null" ))) {
+                    widgetMapping.put(attributeValuationMap, ewtgWidgetIds.first())
+                }
             }
-            AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP.get(window)?.values?.forEach {
+            /*AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP.get(window)?.values?.forEach {
                 it.computeHashCode()
-            }
-            return attributeValuationSets
+            }*/
+            return capturedAttributeValuationSets
         }
-        private fun createAttributeValuationSet(attributeValuationSetRawRecord: List<String>,
+        private fun createAttributeValuationMap(attributeValuationSetRawRecord: List<String>,
                                                 attributeValuationMaps: ArrayList<AttributeValuationMap>,
                                                 window: Window,
                                                 widgetMapping: HashMap<AttributeValuationMap, String>,
                                                 avmCardinaties: HashMap<AttributeValuationMap,Cardinality>):AttributeValuationMap {
             //TODO("Not implemented")
-            val parentAVSId = if (attributeValuationSetRawRecord[1] !="null")
-                attributeValuationSetRawRecord[1]
+            val parentAVSId = if (attributeValuationSetRawRecord[AttributeValuationMapPropertyIndex.parentAVMID] !="null")
+                attributeValuationSetRawRecord[AttributeValuationMapPropertyIndex.parentAVMID]
             else
                 ""
-            var index = 2
+            var index = AttributeValuationMapPropertyIndex.startAttributeValue
             val attributes = HashMap<AttributeType,String>()
             AttributeType.values().toSortedSet().forEach { attributeType ->
                 val value = attributeValuationSetRawRecord[index]!!
                 addAttributeIfNotNull(attributeType,value,attributes)
                 index++
             }
-            val cardinality = Cardinality.values().find { it.name == attributeValuationSetRawRecord[index] }!!
-            val captured = attributeValuationSetRawRecord[index+1]
-            val ewtgWidgetIds = splitCSVLineToField(attributeValuationSetRawRecord[index+2])
-            val attributeValuationSet = AttributeValuationMap(
-                    avmId = attributeValuationSetRawRecord[0],
+
+
+            var attributeValuationMap = AttributeValuationMap(
+                    avmId = attributeValuationSetRawRecord[AttributeValuationMapPropertyIndex.AttributeValuationSetID],
                     localAttributes = attributes,
                     parentAVMId = parentAVSId,
                     window = window)
+            val existingAVM = AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP[window]!!
+                .values.find { it != attributeValuationMap && it.hashCode == attributeValuationMap.hashCode }
+            if (existingAVM != null) {
+                AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP[window]!!.remove(attributeValuationMap.avmId)
+                attributeValuationMap = existingAVM
+            } else {
+                AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP[window]!!.put(
+                    attributeValuationMap.avmId,
+                    attributeValuationMap
+                )
+            }
 
-            if (!AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP.containsKey(window)) {
-                AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP.put(window, HashMap())
-            }
-            AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP[window]!!.put(attributeValuationSet.avmId,attributeValuationSet)
-
-            if (captured.toBoolean()) {
-                attributeValuationMaps.add(attributeValuationSet)
-                avmCardinaties.put(attributeValuationSet,cardinality)
-            }
-            if (!(ewtgWidgetIds.size == 1 &&
-                            (ewtgWidgetIds.single().isBlank() || ewtgWidgetIds.single() == "null" ))) {
-                widgetMapping.put(attributeValuationSet, ewtgWidgetIds.first())
-            }
             val hashcode =  (attributeValuationSetRawRecord[index+3]).toInt()
-            assert(hashcode == attributeValuationSet.hashCode)
-           return attributeValuationSet
+            assert(hashcode == attributeValuationMap.hashCode)
+           return attributeValuationMap
         }
 
         private fun parseAttributes(attributeValuationSetRawDatum: List<String>): HashMap<AttributeType, String> {
@@ -921,4 +933,34 @@ class AppModelLoader {
             return modelPath.resolve("EWTG")
         }
     }
+}
+ class AttributeValuationMapPropertyIndex{
+     companion object {
+         val AttributeValuationSetID = 0
+         val parentAVMID = 1
+         val startAttributeValue = 2
+         val xpath = 2
+         val resourceId = 3
+         val className = 4
+         val contentDesc = 5
+         val text = 6
+         val checkable = 7
+         val enabled = 8
+         val password = 9
+         val selected = 10
+         val isInputField = 11
+         val clickable = 12
+         val longClickable = 13
+         val scrollable = 14
+         val scrollDirection = 15
+         val checked = 16
+         val isLeaf = 17
+         val childrenStructure = 18
+         val childrenText = 19
+         val siblingsInfo = 20
+         val cardinality = 21
+         val captured = 22
+         val wtgWidgetMapping = 23
+         val hashcode = 24
+     }
 }

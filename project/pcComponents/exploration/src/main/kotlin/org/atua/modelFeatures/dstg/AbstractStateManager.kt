@@ -1374,7 +1374,6 @@ class AbstractStateManager() {
 
                     val newAbstractTransition = recomputeActionQueueAbstractTransition(oldAbstractEdge)
                     newAbstractTransitions.add(newAbstractTransition)
-
                 } else {
                     val isTarget = oldAbstractState.targetActions.contains(oldAbstractEdge.label.abstractAction)
                     val interactions = oldAbstractEdge.label.interactions.toList()
@@ -1393,6 +1392,7 @@ class AbstractStateManager() {
                                     atuaMF.dstg.remove(oldAbstractEdge)
                                 }
                                 newAbstractTransitions.add(newEdge.label)
+
                             }
                         }
                     }
@@ -1500,6 +1500,8 @@ class AbstractStateManager() {
             throw Exception("Cannot find new resState's abstract state")
         }
         val newEdge = updateAbstractTransition(oldAbstractEdge, isTarget, sourceAbstractState!!, destinationAbstractState!!, interaction, sourceState!!, destState!!)
+        if (newEdge != null)
+            ModelBackwardAdapter.instance.checkingEquivalence(destState,destinationAbstractState,newEdge.label,null, atuaMF.dstg)
         return newEdge
     }
 

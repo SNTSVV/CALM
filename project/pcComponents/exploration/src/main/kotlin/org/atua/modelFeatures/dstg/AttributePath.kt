@@ -50,6 +50,14 @@ data class AttributePath (
         return attributePathId.hashCode()
     }
 
+    fun fullAttributePath(): String {
+        val parentAttributeValuationMapString =  if (parentAttributePathId!= emptyUUID)
+            AttributePath.allAttributePaths.get(window)!!.get(parentAttributePathId)!!.fullAttributePath()
+        else
+            ""
+        val s =  listOf<String>(parentAttributeValuationMapString,localAttributes.toSortedMap().toString()).joinToString("<;>")
+       return s
+    }
     fun contains(containedAttributePath: AttributePath, window: Window): Boolean {
         if (this.attributePathId == containedAttributePath.attributePathId)
             return true

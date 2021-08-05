@@ -50,10 +50,14 @@ class EWTGDiff private constructor(){
     }
 
     fun getWidgetReplacement(): List<EWTGWidget> {
+        val replacementWidgets = ArrayList<EWTGWidget>()
         if (widgetDifferentSets.containsKey("ReplacementSet")) {
-            return (widgetDifferentSets["ReplacementSet"]!! as ReplacementSet<EWTGWidget>).replacedElements.map { it.new }
+            replacementWidgets.addAll ((widgetDifferentSets["ReplacementSet"]!! as ReplacementSet<EWTGWidget>).replacedElements.map { it.new })
         }
-        return emptyList<EWTGWidget>()
+        if (widgetDifferentSets.containsKey("RetainerSet")) {
+            replacementWidgets.addAll ((widgetDifferentSets["RetainerSet"]!! as RetainerSet<EWTGWidget>).replacedElements.map { it.new })
+        }
+        return replacementWidgets
     }
 
     fun loadFromFile(filePath: Path, atuamf: org.atua.modelFeatures.ATUAMF) {
@@ -79,6 +83,7 @@ class EWTGDiff private constructor(){
                 AbstractStateManager.INSTANCE.ABSTRACT_STATES.removeAll(toRemoves)
                 AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP.remove(deleted)
                 AttributeValuationMap.allWidgetAVMHashMap.remove(deleted)
+                AttributeValuationMap.attributePath_AttributeValuationMap.remove(deleted)
                 AttributePath.allAttributePaths.remove(deleted)
                 WindowManager.instance.baseModelWindows.remove(deleted)
                 toRemoves.forEach {
@@ -164,8 +169,8 @@ class EWTGDiff private constructor(){
             }
         }
         if (transitionDifferentSets.containsKey("RetainerSet")) {
-            for (replacement in (transitionDifferentSets.get("RetainerSet")!! as RetainerSet<Edge<Window, Input>>).replacedElements) {
-                replacement.new.label.eventHandlers.addAll(replacement.old.label.eventHandlers)
+            for (replacement in (transitionDifferentSets.get("RetainerSet")!! as RetainerSet<Edge<Window, WindowTransition>>).replacedElements) {
+                replacement.new.label.input.eventHandlers.addAll(replacement.old.label.input.eventHandlers)
             }
         }
 
@@ -286,6 +291,13 @@ class EWTGDiff private constructor(){
         if (oldWindowAttributePaths!=null) {
             AttributePath.allAttributePaths.put(replacement.new,oldWindowAttributePaths )
             oldWindowAttributePaths.forEach { t, u ->
+                u.window = replacement.new
+            }
+        }
+        val oldWindowAttributePathsByAVM = AttributeValuationMap.attributePath_AttributeValuationMap.get(replacement.old)
+        if (oldWindowAttributePathsByAVM!=null) {
+            AttributeValuationMap.attributePath_AttributeValuationMap.put(replacement.new,oldWindowAttributePathsByAVM )
+            oldWindowAttributePathsByAVM.forEach { t, u ->
                 u.window = replacement.new
             }
         }
@@ -500,7 +512,14 @@ class EWTGDiff private constructor(){
             val newWidgetFullId = replacementJson.get("newElement").toString()
             val oldWindowId = oldWidgetFullId.split("_")[0]!!.replace("WIN","")
             val oldWidgetId = oldWidgetFullId.split("_")[1]!!.replace("WID","")
-            val oldWindow = WindowManager.instance.baseModelWindows.find { it.windowId == oldWindowId }
+            var oldWindow = WindowManager.instance.baseModelWindows.find { it.windowId == oldWindowId }
+            if (oldWindow==null) {
+                // this could be an OptionsMenu
+                val haveSimilarWidgetWindow =  WindowManager.instance.baseModelWindows.find { it.widgets.any { it.widgetId == oldWidgetId } }
+                if (haveSimilarWidgetWindow != null)
+                    oldWindow = haveSimilarWidgetWindow
+
+            }
             if (oldWindow==null) {
                log.warn("Cannot get the old window with id $oldWindowId")
                 continue
@@ -512,7 +531,13 @@ class EWTGDiff private constructor(){
             }
             val newWindowId = newWidgetFullId.split("_")[0]!!.replace("WIN","")
             val newWidgetId = newWidgetFullId.split("_")[1]!!.replace("WID","")
-            val newWindow = WindowManager.instance.updatedModelWindows.find { it.windowId == newWindowId }
+            var newWindow = WindowManager.instance.updatedModelWindows.find { it.windowId == newWindowId }
+            if (newWindow == null) {
+                // this could be an OptionsMenu
+                val haveSimilarWidgetWindow =  WindowManager.instance.updatedModelWindows.find { it.widgets.any { it.widgetId == newWidgetId } }
+                if (haveSimilarWidgetWindow != null)
+                    newWindow = haveSimilarWidgetWindow
+            }
             if (newWindow==null) {
                 throw Exception("Cannot get the window with id $newWidgetId")
             }
@@ -531,8 +556,15 @@ class EWTGDiff private constructor(){
             val newWidgetFullId = replacementJson.get("newElement").toString()
             val oldWindowId = oldWidgetFullId.split("_")[0]!!.replace("WIN","")
             val oldWidgetId = oldWidgetFullId.split("_")[1]!!.replace("WID","")
-            val oldWindow = WindowManager.instance.baseModelWindows.find { it.windowId == oldWindowId }
+            var oldWindow = WindowManager.instance.baseModelWindows.find { it.windowId == oldWindowId }
             if (oldWindow==null) {
+                // this could be an OptionsMenu
+                    val haveSimilarWidgetWindow =  WindowManager.instance.baseModelWindows.find { it.widgets.any { it.widgetId == oldWidgetId } }
+                    if (haveSimilarWidgetWindow != null)
+                        oldWindow = haveSimilarWidgetWindow
+
+            }
+            if (oldWindow == null) {
                 log.warn("Cannot get the old window with id $oldWindowId")
                 continue
             }
@@ -543,7 +575,13 @@ class EWTGDiff private constructor(){
             }
             val newWindowId = newWidgetFullId.split("_")[0]!!.replace("WIN","")
             val newWidgetId = newWidgetFullId.split("_")[1]!!.replace("WID","")
-            val newWindow = WindowManager.instance.updatedModelWindows.find { it.windowId == newWindowId }
+            var newWindow = WindowManager.instance.updatedModelWindows.find { it.windowId == newWindowId }
+            if (newWindow == null) {
+                // this could be an OptionsMenu
+                val haveSimilarWidgetWindow =  WindowManager.instance.updatedModelWindows.find { it.widgets.any { it.widgetId == newWidgetId } }
+                if (haveSimilarWidgetWindow != null)
+                    newWindow = haveSimilarWidgetWindow
+            }
             if (newWindow==null) {
                 log.warn("Cannot get the old window with id $newWidgetId")
             } else {
@@ -563,7 +601,13 @@ class EWTGDiff private constructor(){
             val widgetFullId = item.toString()
             val windowId = widgetFullId.split("_")[0]!!.replace("WIN","")
             val widgetId = widgetFullId.split("_")[1]!!.replace("WID","")
-            val window = WindowManager.instance.baseModelWindows.find { it.windowId == windowId }
+            var window = WindowManager.instance.baseModelWindows.find { it.windowId == windowId }
+            if (window == null) {
+                val haveSimilarWidgetWindow =  WindowManager.instance.baseModelWindows
+                    .find { it.widgets.any { it.widgetId == widgetId } }
+                if (haveSimilarWidgetWindow != null)
+                    window = haveSimilarWidgetWindow
+            }
             if (window==null) {
                 log.warn("Cannot get the old window with id $windowId")
             } else{
@@ -582,7 +626,13 @@ class EWTGDiff private constructor(){
             val widgetFullId = item.toString()
             val windowId = widgetFullId.split("_")[0]!!.replace("WIN","")
             val widgetId = widgetFullId.split("_")[1]!!.replace("WID","")
-            val window = WindowManager.instance.updatedModelWindows.find { it.windowId == windowId }
+            var window = WindowManager.instance.updatedModelWindows.find { it.windowId == windowId }
+            if (window == null) {
+                // this could be an OptionsMenu
+                val haveSimilarWidgetWindow =  WindowManager.instance.updatedModelWindows.find { it.widgets.any { it.widgetId == widgetId } }
+                if (haveSimilarWidgetWindow != null)
+                    window = haveSimilarWidgetWindow
+            }
             if (window==null) {
                 log.warn("Cannot get the old window with id $windowId")
             } else {

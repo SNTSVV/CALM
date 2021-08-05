@@ -662,14 +662,17 @@ class RandomExplorationTask constructor(
             //prioritize the less frequent widget
             val actionByScore = HashMap<AbstractAction, Double>()
             val windowWidgetFrequency = AbstractStateManager.INSTANCE.attrValSetsFrequency[currentAbstractState.window]!!
-            candidateActions.forEach {
-                var actionScore = it.getScore()
-                val widgetGroup = it.attributeValuationMap!!
-                val actionCount = it.attributeValuationMap!!.actionCount.get(it)?:0
+            candidateActions.forEach { abstractAction ->
+                var actionScore = abstractAction.getScore()
+                val widgetGroup = abstractAction.attributeValuationMap!!
+                val actionCount = abstractAction.attributeValuationMap!!.actionCount.get(abstractAction)?:0
+                var witnessInThePast = currentAbstractState.abstractTransitions.any { it.abstractAction == abstractAction }
+                if (witnessInThePast)
+                    actionScore = actionScore/10
                 if (windowWidgetFrequency.containsKey(widgetGroup)) {
-                    actionByScore.put(it, actionScore.toDouble() /(actionCount+1) /  windowWidgetFrequency[widgetGroup]!!)
+                    actionByScore.put(abstractAction, actionScore /  windowWidgetFrequency[widgetGroup]!!)
                 } else {
-                    actionByScore.put(it, actionScore.toDouble() / (actionCount+1))
+                    actionByScore.put(abstractAction, actionScore)
                 }
             }
 

@@ -197,11 +197,11 @@ class AbstractionFunction2 (val root: DecisionNode2) {
             root.nextNode = lv2Node
             val lv3Node = DecisionNode2(reducer = BaseReducer(localReducer = LocalReducerLV3()))
             lv2Node.nextNode = lv3Node
-            val lv4Node = DecisionNode2(reducer = IncludeChildrenReducer(localReducer = LocalReducerLV3(),childrenReducer = LocalReducerLV1()))
+            val lv4Node = DecisionNode2(reducer = ChildrenIncludedReducer(localReducer = LocalReducerLV3(),childrenReducer = LocalReducerLV1()))
             lv3Node.nextNode = lv4Node
-            val lv5Node = DecisionNode2(reducer = IncludeChildrenReducer(localReducer = LocalReducerLV3(),childrenReducer = LocalReducerLV2()))
+            val lv5Node = DecisionNode2(reducer = ChildrenIncludedReducer(localReducer = LocalReducerLV3(),childrenReducer = LocalReducerLV2()))
             lv4Node.nextNode = lv5Node
-            val lv6Node = DecisionNode2(reducer = IncludeChildrenReducer(localReducer = LocalReducerLV3(),childrenReducer = LocalReducerLV3()))
+            val lv6Node = DecisionNode2(reducer = ChildrenIncludedReducer(localReducer = LocalReducerLV3(),childrenReducer = LocalReducerLV3()))
             lv5Node.nextNode = lv6Node
             INSTANCE = AbstractionFunction2(root)
         }
@@ -216,11 +216,11 @@ class AbstractionFunction2 (val root: DecisionNode2) {
             root.nextNode = lv2Node
             val lv3Node = DecisionNode2(reducer = BaseReducer(localReducer = LocalReducerLV3()))
             lv2Node.nextNode = lv3Node
-            val lv4Node = DecisionNode2(reducer = IncludeChildrenReducer(localReducer = LocalReducerLV3(),childrenReducer = LocalReducerLV1()))
+            val lv4Node = DecisionNode2(reducer = ChildrenIncludedReducer(localReducer = LocalReducerLV3(),childrenReducer = LocalReducerLV1()))
             lv3Node.nextNode = lv4Node
-            val lv5Node = DecisionNode2(reducer = IncludeChildrenReducer(localReducer = LocalReducerLV3(),childrenReducer = LocalReducerLV2()))
+            val lv5Node = DecisionNode2(reducer = ChildrenIncludedReducer(localReducer = LocalReducerLV3(),childrenReducer = LocalReducerLV2()))
             lv4Node.nextNode = lv5Node
-            val lv6Node = DecisionNode2(reducer = IncludeChildrenReducer(localReducer = LocalReducerLV3(),childrenReducer = LocalReducerLV3()))
+            val lv6Node = DecisionNode2(reducer = ChildrenIncludedReducer(localReducer = LocalReducerLV3(),childrenReducer = LocalReducerLV3()))
             lv5Node.nextNode = lv6Node
             backupAbstractionFunction = AbstractionFunction2(root)
             var decisionNode: DecisionNode2? = INSTANCE.root

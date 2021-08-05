@@ -24,6 +24,7 @@ import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.calm.ewtgdiff.AdditionSet
 import org.atua.calm.ewtgdiff.EWTGDiff
 import org.atua.calm.modelReuse.ModelVersion
+import org.atua.modelFeatures.ewtg.EWTGWidget
 import org.droidmate.explorationModel.interaction.State
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
@@ -177,6 +178,9 @@ class ModelBackwardAdapter {
     }
 
     private fun registerBackwardEquivalence(observedAbstractState: AbstractState, expected: AbstractState, dstg: DSTG, matchedAVMs2: HashMap<AttributeValuationMap, ArrayList<AttributeValuationMap>>) {
+        // TODO this is for debug only
+        isBackwardEquivant(observedAbstractState,expected, HashMap(),HashMap(),false)
+
         backwardEquivalentAbstractStateMapping.putIfAbsent(observedAbstractState, HashSet())
         backwardEquivalentAbstractStateMapping[observedAbstractState]!!.add(expected)
         copyAbstractTransitions(observedAbstractState, expected, dstg, matchedAVMs2)
@@ -292,77 +296,100 @@ class ModelBackwardAdapter {
         val unmatchedAVMs2 = ArrayList<AttributeValuationMap>() // expected
         val addedAVMS = ArrayList<AttributeValuationMap>()
         val addedWidgets = EWTGDiff.instance.widgetDifferentSets.get("AdditionSet") as AdditionSet
+        matchingAVMs(
+            observedAbstractState,
+            addedWidgets,
+            addedAVMS,
+            expectedAbstractState,
+            matchedAVMs1,
+            matchedAVMs2,
+            unmatchedAVMs1,
+            unmatchedAVMs2
+        )
+        if (unmatchedAVMs1.size == 0 && unmatchedAVMs2.size == 0) {
+            return true
+        }
+        val unmatchedWidgets1 =  ArrayList(unmatchedAVMs1.map {  observedAbstractState.EWTGWidgetMapping.get(it)})
+        val unmatchedWidgets2 = ArrayList(unmatchedAVMs2.map { expectedAbstractState.EWTGWidgetMapping.get(it) })
+        unmatchedWidgets1.removeIf { it == null }
+        unmatchedWidgets2.removeIf { it == null }
+        if (!strict) {
+            if (unmatchedWidgets1.intersect(unmatchedWidgets2).isEmpty())
+                return true
+        }
+        /*val baseAbstractStateToAttributeValuationMaps = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
+            it.window == observedAbstractState.window
+                    && it.modelVersion == ModelVersion.BASE
+        }. map { it to it.attributeValuationMaps }*/
+        val updateWindowCreatedRuntimeWidgets = observedAbstractState.window.widgets
+            .filter { (it.createdAtRuntime ) &&  it.modelVersion == ModelVersion.RUNNING }
+        val baseWindowCreatedRuntimeWidgets = expectedAbstractState.window.widgets
+            .filter { (it.createdAtRuntime  )&&  it.modelVersion == ModelVersion.BASE }
+        val condition1 = if (unmatchedWidgets1.isNotEmpty()) unmatchedWidgets1.all {
+            updateWindowCreatedRuntimeWidgets.contains(it)
+                    && !baseWindowCreatedRuntimeWidgets.contains(it)} else true
+        val condition2 = if (unmatchedWidgets2.isNotEmpty()) unmatchedWidgets2.all {
+            baseWindowCreatedRuntimeWidgets.contains(it)
+                    && !updateWindowCreatedRuntimeWidgets.contains(it)} else true
+        if (condition1 && condition2) {
+            return true
+        }
+
+        // we consider only avm having abstractTransitions associated to
+        unmatchedAVMs1.removeIf { avm -> !observedAbstractState.abstractTransitions.any { it.abstractAction.attributeValuationMap == avm  }}
+        unmatchedAVMs2.removeIf { avm -> !expectedAbstractState.abstractTransitions.any { it.abstractAction.attributeValuationMap == avm } }
+        val unmatchedWidgets1_2 =  ArrayList(unmatchedAVMs1.map {  observedAbstractState.EWTGWidgetMapping.get(it)})
+        val unmatchedWidgets2_2 = ArrayList(unmatchedAVMs2.map { expectedAbstractState.EWTGWidgetMapping.get(it) })
+        unmatchedWidgets1_2.removeIf { it == null }
+        unmatchedWidgets2_2.removeIf { it == null }
+        val condition1_2 = if (unmatchedWidgets1_2.isNotEmpty()) unmatchedWidgets1_2.all {
+            updateWindowCreatedRuntimeWidgets.contains(it)
+                    && !baseWindowCreatedRuntimeWidgets.contains(it)} else true
+        val condition2_2 = if (unmatchedWidgets2_2.isNotEmpty()) unmatchedWidgets2_2.all {
+            baseWindowCreatedRuntimeWidgets.contains(it)
+                    && !updateWindowCreatedRuntimeWidgets.contains(it)} else true
+        if (condition1_2 && condition2_2) {
+            return true
+        }
+        return false
+    }
+
+    private fun matchingAVMs(
+        observedAbstractState: AbstractState,
+        addedWidgets: AdditionSet<EWTGWidget>,
+        addedAVMS: ArrayList<AttributeValuationMap>,
+        expectedAbstractState: AbstractState,
+        matchedAVMs1: HashMap<AttributeValuationMap, ArrayList<AttributeValuationMap>>,
+        matchedAVMs2: HashMap<AttributeValuationMap, ArrayList<AttributeValuationMap>>,
+        unmatchedAVMs1: ArrayList<AttributeValuationMap>,
+        unmatchedAVMs2: ArrayList<AttributeValuationMap>
+    ) {
         observedAbstractState.EWTGWidgetMapping.forEach { avm, widget ->
             if (addedWidgets.addedElements.contains(widget)) {
                 addedAVMS.add(avm)
             }
         }
-        observedAbstractState.attributeValuationMaps.filterNot{ addedAVMS.contains(it) }.forEach {avm1->
-            var matchedAVMs = expectedAbstractState.attributeValuationMaps.filter { it == avm1  }
-            if (matchedAVMs.isEmpty()) { // this could be caused by over fine-grained of abstraction function
-                matchedAVMs = expectedAbstractState.attributeValuationMaps.filter { avm1.isDerivedFrom(it) }
-            }
-            if (matchedAVMs.isEmpty() ) {
-                val associatedWidget = observedAbstractState.EWTGWidgetMapping.get(avm1)
-                val matchedAVM1 = expectedAbstractState.EWTGWidgetMapping.filter { it.value == associatedWidget }.keys.find {
-                    it.isClickable() == avm1.isClickable()
-                            /*&& it.isLongClickable() == avm1.isLongClickable()*/
-                            && it.isChecked() == avm1.isChecked()
-                            && it.isScrollable() == avm1.isScrollable()
-                }
-                val replacedWidgets = EWTGDiff.instance.getWidgetReplacement()
-                if (replacedWidgets.contains(associatedWidget) || true) {
-                    matchedAVMs = expectedAbstractState.EWTGWidgetMapping.filter { it.value == associatedWidget }.keys.filter {
-                        it.isClickable() == avm1.isClickable()
-                                /*&& it.isLongClickable() == avm1.isLongClickable()*/
-                                && it.isChecked() == avm1.isChecked()
-                                /*&& it.isScrollable() == avm1.isScrollable()*/
-                    }
-                }
-            }
-            if (matchedAVMs.isNotEmpty()){
-                matchedAVMs1.putIfAbsent(avm1, ArrayList())
-                val matchedList = matchedAVMs1.get(avm1)!!
-                matchedAVMs.forEach {
-                    if (!matchedList.contains(it))
-                        matchedList.add(it)
-                    matchedAVMs2.putIfAbsent(it, ArrayList())
-                    val matchedList2 = matchedAVMs2.get(it)!!
-                    if (!matchedList2.contains(avm1))
-                        matchedList2.add(avm1)
-                }
-            } else {
-                unmatchedAVMs1.add(avm1)
-            }
-        }
-        expectedAbstractState.attributeValuationMaps.filterNot{ matchedAVMs2.keys.contains(it) }.forEach { avm1 ->
-            var matchedAVMs = observedAbstractState.attributeValuationMaps.filter { it == avm1  }
-            if (matchedAVMs.isEmpty() ) {
-                val associatedWidget = expectedAbstractState.EWTGWidgetMapping.get(avm1)
-                matchedAVMs = observedAbstractState.EWTGWidgetMapping.filter { it.value == associatedWidget }.keys.filter {
-                    it.isClickable() == avm1.isClickable()
-                            /*&& it.isLongClickable() == avm1.isLongClickable()*/
-                            && it.isChecked() == avm1.isChecked()
-                         /*   && it.isScrollable() == avm1.isScrollable()*/
-                }
-            }
-            if (matchedAVMs.isNotEmpty()){
-                matchedAVMs2.putIfAbsent(avm1, ArrayList())
-                val matchedList = matchedAVMs2.get(avm1)!!
-                matchedAVMs.forEach {
-                    if (!matchedList.contains(it))
-                        matchedList.add(it)
-                    matchedAVMs1.putIfAbsent(it, ArrayList())
-                    val matchedList2 = matchedAVMs1.get(it)!!
-                    if (!matchedList2.contains(avm1))
-                        matchedList2.add(avm1)
-                }
-            } else {
-                unmatchedAVMs2.add(avm1)
-            }
-        }
-        unmatchedAVMs1.forEach { avm1->
-            val matches = unmatchedAVMs2.filter { avm2-> isEquivalentAttributeValuationMaps(avm1,avm2) }
+        phase1MatchingAVMs(
+            observedAbstractState,
+            addedAVMS,
+            expectedAbstractState,
+            matchedAVMs1,
+            matchedAVMs2,
+            unmatchedAVMs1,
+            unmatchedAVMs2
+        )
+        phase2MatchingAVMs(observedAbstractState,expectedAbstractState, unmatchedAVMs1, unmatchedAVMs2, matchedAVMs1, matchedAVMs2)
+        phase3MatchingAVMs(unmatchedAVMs1, unmatchedAVMs2, matchedAVMs1, matchedAVMs2)
+    }
+
+    private fun phase3MatchingAVMs(
+        unmatchedAVMs1: ArrayList<AttributeValuationMap>,
+        unmatchedAVMs2: ArrayList<AttributeValuationMap>,
+        matchedAVMs1: HashMap<AttributeValuationMap, ArrayList<AttributeValuationMap>>,
+        matchedAVMs2: HashMap<AttributeValuationMap, ArrayList<AttributeValuationMap>>
+    ) {
+        unmatchedAVMs1.forEach { avm1 ->
+            val matches = unmatchedAVMs2.filter { avm2 -> isEquivalentAttributeValuationMaps(avm1, avm2) }
             if (matches.isNotEmpty()) {
                 matchedAVMs1.putIfAbsent(avm1, ArrayList())
                 val matchedList = matchedAVMs1.get(avm1)!!
@@ -377,8 +404,8 @@ class ModelBackwardAdapter {
         }
         unmatchedAVMs1.removeIf { matchedAVMs1.containsKey(it) }
         unmatchedAVMs2.removeIf { matchedAVMs2.containsKey(it) }
-        unmatchedAVMs2.forEach { avm2->
-            val matches = unmatchedAVMs1.filter { avm1-> isEquivalentAttributeValuationMaps(avm2, avm1) }
+        unmatchedAVMs2.forEach { avm2 ->
+            val matches = unmatchedAVMs1.filter { avm1 -> isEquivalentAttributeValuationMaps(avm2, avm1) }
             if (matches.isNotEmpty()) {
                 matchedAVMs2.putIfAbsent(avm2, ArrayList())
                 val matchedList = matchedAVMs2.get(avm2)!!
@@ -393,52 +420,91 @@ class ModelBackwardAdapter {
         }
         unmatchedAVMs1.removeIf { matchedAVMs1.containsKey(it) }
         unmatchedAVMs2.removeIf { matchedAVMs2.containsKey(it) }
-        if (unmatchedAVMs1.size == 0 && unmatchedAVMs2.size == 0) {
-            return true
-        } else {
+    }
 
-            val unmatchedWidgets1 =  ArrayList(unmatchedAVMs1.map {  observedAbstractState.EWTGWidgetMapping.get(it)})
-            val unmatchedWidgets2 = ArrayList(unmatchedAVMs2.map { expectedAbstractState.EWTGWidgetMapping.get(it) })
-            unmatchedWidgets1.removeIf { it == null }
-            unmatchedWidgets2.removeIf { it == null }
-            if (!strict) {
-                if (unmatchedWidgets1.intersect(unmatchedWidgets2).isEmpty())
-                    return true
-                return false
+    private fun phase2MatchingAVMs(
+        observedAbstractState: AbstractState,
+        expectedAbstractState: AbstractState,
+        unmatchedAVMs1: ArrayList<AttributeValuationMap>,
+        unmatchedAVMs2: ArrayList<AttributeValuationMap>,
+        matchedAVMs1: HashMap<AttributeValuationMap, ArrayList<AttributeValuationMap>>,
+        matchedAVMs2: HashMap<AttributeValuationMap, ArrayList<AttributeValuationMap>>
+    ) {
+        val replacedWidgets = EWTGDiff.instance.getWidgetReplacement()
+
+        unmatchedAVMs1.forEach { avm1 ->
+            val associatedWidget = observedAbstractState.EWTGWidgetMapping.get(avm1)
+            if (replacedWidgets.contains(associatedWidget)) {
+                val matches =
+                    expectedAbstractState.EWTGWidgetMapping.filter { it.value == associatedWidget }.keys.filter {
+                        it.isClickable() == avm1.isClickable()
+                                /*&& it.isLongClickable() == avm1.isLongClickable()*/
+                                && it.isChecked() == avm1.isChecked()
+                        /*&& it.isScrollable() == avm1.isScrollable()*/
+                    }
+                if (matches.isNotEmpty()) {
+                    matchedAVMs1.putIfAbsent(avm1, ArrayList())
+                    val matchedList = matchedAVMs1.get(avm1)!!
+                    matches.forEach {
+                        if (!matchedList.contains(it))
+                            matchedList.add(it)
+                        matchedAVMs2.putIfAbsent(it, ArrayList())
+                        if (!matchedAVMs2.get(it)!!.contains(avm1))
+                            matchedAVMs2.get(it)!!.add(avm1)
+                    }
+                }
             }
-            /*val baseAbstractStateToAttributeValuationMaps = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
-                it.window == observedAbstractState.window
-                        && it.modelVersion == ModelVersion.BASE
-            }. map { it to it.attributeValuationMaps }*/
-            val updateWindowCreatedRuntimeWidgets = observedAbstractState.window.widgets
-                    .filter { (it.createdAtRuntime ) &&  it.modelVersion == ModelVersion.RUNNING }
-            val baseWindowCreatedRuntimeWidgets = expectedAbstractState.window.widgets
-                    .filter { (it.createdAtRuntime  )&&  it.modelVersion == ModelVersion.BASE }
-            val condition1 = if (unmatchedWidgets1.isNotEmpty()) unmatchedWidgets1.all {
-                updateWindowCreatedRuntimeWidgets.contains(it)
-                        && !baseWindowCreatedRuntimeWidgets.contains(it)} else true
-            val condition2 = if (unmatchedWidgets2.isNotEmpty()) unmatchedWidgets2.all {
-                baseWindowCreatedRuntimeWidgets.contains(it)
-                        && !updateWindowCreatedRuntimeWidgets.contains(it)} else true
-            if (condition1 && condition2) {
-                return true
+
+
+        }
+        unmatchedAVMs1.removeIf { matchedAVMs1.containsKey(it) }
+        unmatchedAVMs2.removeIf { matchedAVMs2.containsKey(it) }
+
+    }
+
+    private fun phase1MatchingAVMs(
+        observedAbstractState: AbstractState,
+        addedAVMS: ArrayList<AttributeValuationMap>,
+        expectedAbstractState: AbstractState,
+        matchedAVMs1: HashMap<AttributeValuationMap, ArrayList<AttributeValuationMap>>,
+        matchedAVMs2: HashMap<AttributeValuationMap, ArrayList<AttributeValuationMap>>,
+        unmatchedAVMs1: ArrayList<AttributeValuationMap>,
+        unmatchedAVMs2: ArrayList<AttributeValuationMap>
+    ) {
+        observedAbstractState.attributeValuationMaps.filterNot { addedAVMS.contains(it) }.forEach { avm1 ->
+            var matchedAVMs = expectedAbstractState.attributeValuationMaps.filter { it == avm1 || it.hashCode == avm1.hashCode}
+
+            if (matchedAVMs.isNotEmpty()) {
+                matchedAVMs1.putIfAbsent(avm1, ArrayList())
+                val matchedList = matchedAVMs1.get(avm1)!!
+                matchedAVMs.forEach {
+                    if (!matchedList.contains(it))
+                        matchedList.add(it)
+                    matchedAVMs2.putIfAbsent(it, ArrayList())
+                    val matchedList2 = matchedAVMs2.get(it)!!
+                    if (!matchedList2.contains(avm1))
+                        matchedList2.add(avm1)
+                }
+            } else {
+                unmatchedAVMs1.add(avm1)
             }
-            unmatchedAVMs1.removeIf { avm ->  ! observedAbstractState.abstractTransitions.any { it.abstractAction.attributeValuationMap == avm  }}
-            unmatchedAVMs2.removeIf {avm ->  !expectedAbstractState.abstractTransitions.any { it.abstractAction.attributeValuationMap == avm } }
-            val unmatchedWidgets1_2 =  ArrayList(unmatchedAVMs1.map {  observedAbstractState.EWTGWidgetMapping.get(it)})
-            val unmatchedWidgets2_2 = ArrayList(unmatchedAVMs2.map { expectedAbstractState.EWTGWidgetMapping.get(it) })
-            unmatchedWidgets1_2.removeIf { it == null }
-            unmatchedWidgets2_2.removeIf { it == null }
-            val condition1_2 = if (unmatchedWidgets1_2.isNotEmpty()) unmatchedWidgets1_2.all {
-                updateWindowCreatedRuntimeWidgets.contains(it)
-                        && !baseWindowCreatedRuntimeWidgets.contains(it)} else true
-            val condition2_2 = if (unmatchedWidgets2_2.isNotEmpty()) unmatchedWidgets2_2.all {
-                baseWindowCreatedRuntimeWidgets.contains(it)
-                        && !updateWindowCreatedRuntimeWidgets.contains(it)} else true
-            if (condition1_2 && condition2_2) {
-                return true
+        }
+        expectedAbstractState.attributeValuationMaps.filterNot { matchedAVMs2.keys.contains(it) }.forEach { avm2 ->
+            var matchedAVMs = observedAbstractState.attributeValuationMaps.filter { it == avm2 || it.hashCode == avm2.hashCode }
+            if (matchedAVMs.isNotEmpty()) {
+                matchedAVMs2.putIfAbsent(avm2, ArrayList())
+                val matchedList = matchedAVMs2.get(avm2)!!
+                matchedAVMs.forEach {
+                    if (!matchedList.contains(it))
+                        matchedList.add(it)
+                    matchedAVMs1.putIfAbsent(it, ArrayList())
+                    val matchedList2 = matchedAVMs1.get(it)!!
+                    if (!matchedList2.contains(avm2))
+                        matchedList2.add(avm2)
+                }
+            } else {
+                unmatchedAVMs2.add(avm2)
             }
-            return false
         }
     }
 
@@ -451,6 +517,7 @@ class ModelBackwardAdapter {
                 return  false
         }
 
+
         return true
     }
 
@@ -458,7 +525,13 @@ class ModelBackwardAdapter {
 
     }
      fun produceReport(context: ExplorationContext<*,*,*>) {
-            val sb2 = StringBuilder()
+        backwardEquivalentAbstractStateMapping.entries.removeIf{
+            it.key.guiStates.isEmpty()
+        }
+        backwardEquivalentAbstractTransitionMapping.entries.removeIf {
+            it.key.source.guiStates.isEmpty()
+        }
+         val sb2 = StringBuilder()
 
             val keptBaseAbstractStates = instance.keptBaseAbstractStates
             val initialBaseAbstractStates = instance.initialBaseAbstractStates
@@ -502,7 +575,7 @@ class ModelBackwardAdapter {
             sb2.appendln("Transfered abstract transitions;${transferedAbstractTransitions.size}")
             val newAbstractTransitions =  AbstractStateManager.INSTANCE.ABSTRACT_STATES
                     .flatMap { it.abstractTransitions }
-                    .filter { it.isExplicit() && it.modelVersion == ModelVersion.RUNNING }
+                    .filter { it.isExplicit() && it.modelVersion == ModelVersion.RUNNING && it.interactions.isNotEmpty() }
             sb2.appendln("Total new abstract transitions;${newAbstractTransitions.size}")
             val newATsBaseToBaseAS = newAbstractTransitions.filter {
                 (it.source.modelVersion == ModelVersion.BASE
