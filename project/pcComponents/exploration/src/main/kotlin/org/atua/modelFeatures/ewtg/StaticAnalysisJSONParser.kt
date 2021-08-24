@@ -62,7 +62,7 @@ class StaticAnalysisJSONParser() {
                 readActivityDialogs(jObj, atuaMF.allDialogOwners)
                 readWindowHandlers(jObj,atuaMF.windowHandlersHashMap,atuaMF.wtg,atuaMF.statementMF!!)
                 org.atua.modelFeatures.ATUAMF.log.debug("Reading modified method invocation")
-                readModifiedMethodTopCallers(jObj, atuaMF.modifiedMethodTopCallersMap,atuaMF.statementMF!!,
+                readModifiedMethodTopCallers(jObj, atuaMF.modifiedMethodWithTopCallers,atuaMF.statementMF!!,
                         atuaMF.allTargetHandlers,atuaMF.windowHandlersHashMap,atuaMF.modifiedMethodsByWindow,atuaMF.untriggeredTargetHiddenHandlers)
                 readModifiedMethodInvocation(jObj, atuaMF.wtg, atuaMF.notFullyExercisedTargetInputs,atuaMF.allTargetStaticWidgets,
                         atuaMF.statementMF!!,atuaMF.modifiedMethodsByWindow,atuaMF.targetItemEvents)

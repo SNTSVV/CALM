@@ -266,23 +266,9 @@ class RandomExplorationTask constructor(
         isClickedShutterButton = false
 
         if (currentState.widgets.any { it.isKeyboard } && currentAbstractState.shouldNotCloseKeyboard == false) {
-            if (random.nextBoolean()) {
-                return GlobalAction(actionType = ActionType.CloseKeyboard)
-            }
-            if (random.nextBoolean()) {
-                return doRandomKeyboard(currentState, null)!!
-            }
-            //find search button
-            val searchButtons = currentState.visibleTargets.filter { it.isKeyboard }.filter { it.contentDesc.toLowerCase().contains("search") }
-            if (searchButtons.isNotEmpty()) {
-                //Give a 50/50 chance to click on the search button
-                if (random.nextBoolean()) {
-                    dataFilled = false
-                    val randomButton = searchButtons.random()
-                    log.info("Widget: $random")
-                    return randomButton.click()
-                }
-            }
+            val keyboardAction = dealWithKeyboard(currentState)
+            if (keyboardAction != null)
+                return keyboardAction
         }
         if (isTrapActivity(currentAbstractState)) {
             if (currentState.visibleTargets.any { it.text == "I agree" || it.text == "Save and continue" || it.text == "Accept all" || it.text.contains("Go to end")}) {
@@ -342,14 +328,17 @@ class RandomExplorationTask constructor(
             it.attributeValuationMap == null
         }
         if (widgetActions.isEmpty()) {
-            if (fillingData && !fillDataTask.isTaskEnd(currentState))
-                action = fillDataTask.chooseAction(currentState)
-            else
-                fillingData = false
-            if (action != null) {
-                return action
+            if (fillingData) {
+                if (!fillDataTask.isTaskEnd(currentState))
+                    action = fillDataTask.chooseAction(currentState)
+                if (action != null) {
+                    return action
+                } else {
+                    fillingData = false
+                }
             }
-            if (dataFilled) {
+
+            /*if (dataFilled) {
                 val userlikedInputs = currentAbstractState.attributeValuationMaps.filter { it.isUserLikeInput() }
                 val userlikedInputsEWidget = userlikedInputs.map { currentAbstractState.EWTGWidgetMapping.get(it) }
                 val previousStateWidgets = prevAbstractState.EWTGWidgetMapping.values
@@ -358,8 +347,8 @@ class RandomExplorationTask constructor(
                 ) {
                     dataFilled = false
                 }
-            }
-            if (!dataFilled) {
+            }*/
+            if (!dataFilled && !fillingData) {
                 val lastAction = atuaStrategy.eContext.getLastAction()
                 if (!lastAction.actionType.isTextInsert() && !currentAbstractState.isOpeningKeyboard) {
                     if (fillDataTask.isAvailable(currentState, alwaysUseRandomInput)) {
@@ -370,11 +359,10 @@ class RandomExplorationTask constructor(
                         if (action != null)
                             return action
                     }
-                } else {
-                    dataFilled = true
                 }
             }
         }
+        fillingData = false
         attemptCount++
         if (currentAbstractState.window is OutOfApp) {
             actionOnOutOfAppCount += 1
@@ -575,19 +563,26 @@ class RandomExplorationTask constructor(
         } else {
             unexploredWidgets
         }
-        val lessExercisedWidgets = runBlocking {
-            ArrayList(
-                getCandidates(
-                    candidates
+        if (candidates.isEmpty()) {
+            val chosenWidget = unexploredWidgets.random()
+            log.info("Widget: $chosenWidget")
+            return doRandomActionOnWidget(chosenWidget, currentState)
+        } else {
+            val lessExercisedWidgets = runBlocking {
+                ArrayList(
+                    getCandidates(
+                        candidates
+                    )
                 )
-            )
+            }
+            val chosenWidget = if (unexploredWidgets.any { lessExercisedWidgets.contains(it) })
+                unexploredWidgets.filter { lessExercisedWidgets.contains(it) }.random()
+            else
+                lessExercisedWidgets.random()
+            log.info("Widget: $chosenWidget")
+            return doRandomActionOnWidget(chosenWidget, currentState)
         }
-        val chosenWidget = if (unexploredWidgets.any { lessExercisedWidgets.contains(it) })
-            unexploredWidgets.filter { lessExercisedWidgets.contains(it) }.random()
-        else
-            lessExercisedWidgets.random()
-        log.info("Widget: $chosenWidget")
-        return doRandomActionOnWidget(chosenWidget, currentState)
+
     }
 
     private fun goToUnexploredStates(
@@ -627,20 +622,6 @@ class RandomExplorationTask constructor(
             }
         }
         return false
-    }
-
-    private fun shouldRandomExplorationOutOfApp(currentAbstractState: AbstractState,currentState: State<*>): Boolean {
-        if (isCameraOpening(currentState)) {
-            return true
-        }
-        if (currentAbstractState.window is OutOfApp)
-            return false
-        if (currentAbstractState.window is Dialog) {
-            if (WindowManager.instance.updatedModelWindows.filter { it is OutOfApp }.map { it.classType }.contains(currentAbstractState.activity) ){
-                return false
-            }
-        }
-        return true
     }
 
     private fun isTrapActivity(currentAbstractState: AbstractState) =

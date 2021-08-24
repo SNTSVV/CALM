@@ -1034,7 +1034,7 @@ class PhaseThreeStrategy(
 
             if (atuaMF.windowHandlersHashMap.containsKey(n)) {
                 atuaMF.windowHandlersHashMap[n]!!.forEach { handler ->
-                    val methods = atuaMF.modifiedMethodTopCallersMap.filter { it.value.contains(handler) }.map { it.key }
+                    val methods = atuaMF.modifiedMethodWithTopCallers.filter { it.value.contains(handler) }.map { it.key }
                     modifiedMethods.addAll(methods)
                 }
             }

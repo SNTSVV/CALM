@@ -84,6 +84,8 @@ open class GoToAnotherWindow constructor(
             return true
         if (currentPath == null)
             return true
+        if (pathTraverser!!.getCurrentTransition() == null)
+            return true
         val currentAppState = atuaMF.getAbstractState(currentState)!!
         if (isWindowAsTarget && currentAppState.window == destWindow) {
             return true
@@ -456,7 +458,6 @@ open class GoToAnotherWindow constructor(
                 PathFindingHelper.PathType.NORMAL
         else
             computeNextPathType(currentPath!!.pathType,includeResetAction)
-
         if (useInputTargetWindow && destWindow!=null) {
             while (possiblePaths.isEmpty()) {
                 possiblePaths.addAll(atuaStrategy.phaseStrategy.getPathsToWindowToExplore(currentState,destWindow!!,nextPathType,isExploration))
@@ -465,10 +466,9 @@ open class GoToAnotherWindow constructor(
                 nextPathType = computeNextPathType(nextPathType,includeResetAction)
             }
         } else {
-            val curentPathType = nextPathType
             while (possiblePaths.isEmpty()) {
                 possiblePaths.addAll(atuaStrategy.phaseStrategy.getPathsToExploreStates(currentState,nextPathType))
-                if (computeNextPathType(curentPathType,includeResetAction)==PathFindingHelper.PathType.NORMAL)
+                if (computeNextPathType(nextPathType,includeResetAction)==PathFindingHelper.PathType.NORMAL)
                     break
                 nextPathType = computeNextPathType(nextPathType,includeResetAction)
             }
@@ -659,7 +659,7 @@ open class GoToAnotherWindow constructor(
                         ?: ExplorationAction.pressBack()
             } else {
                 log.debug("Can not get target widget. Random exploration.")
-                if (currentEdge.fromWTG && currentEdge.dest is VirtualAbstractState && atuaMF.actionCount.getUnexploredWidget(currentState).isNotEmpty()) {
+                if (currentEdge.fromWTG && currentEdge.dest is VirtualAbstractState) {
                     pathTraverser!!.latestEdgeId = pathTraverser!!.latestEdgeId!! - 1
                 } else {
                     mainTaskFinished = true

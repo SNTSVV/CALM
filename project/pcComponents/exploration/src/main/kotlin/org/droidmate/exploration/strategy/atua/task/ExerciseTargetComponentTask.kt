@@ -31,7 +31,7 @@ class ExerciseTargetComponentTask private constructor(
     var dataFilled = false
     var randomRefillingData = false
     var alwaysUseRandomInput = false
-    var randomBudget: Int = 5*atuaTestingStrategy.scaleFactor.toInt()
+    var randomBudget: Int = 3*atuaTestingStrategy.scaleFactor.toInt()
     private var prevAbstractState: AbstractState?=null
     val originalEventList: ArrayList<AbstractAction> = ArrayList()
     val exercisedInputs: ArrayList<AbstractAction> = ArrayList()
@@ -62,10 +62,10 @@ class ExerciseTargetComponentTask private constructor(
         if (isDoingRandomExplorationTask && !randomExplorationTask.isTaskEnd(currentState)) {
             return false
         }
-        if (currentAbstractState.window != targetWindow) {
-            if (randomBudget>=0)
-                return false
-            return true
+        if (currentAbstractState.window != targetWindow && currentAbstractState.isRequireRandomExploration()) {
+            /*if (randomBudget>=0)
+                return false*/
+            return false
         }
         val abstractState = atuaMF.getAbstractState(currentState)!!
         eventList.removeIf {
@@ -82,7 +82,7 @@ class ExerciseTargetComponentTask private constructor(
             if (randomBudget<0)
                 return true
         }
-        return false
+        return true
     }
 
     private var mainTaskFinished:Boolean = false
@@ -190,23 +190,9 @@ class ExerciseTargetComponentTask private constructor(
             }*/
         }
         if (currentState.widgets.any { it.isKeyboard }) {
-            if (random.nextBoolean()) {
-                return GlobalAction(actionType = ActionType.CloseKeyboard)
-            }
-            if (random.nextBoolean()) {
-                return doRandomKeyboard(currentState, null)!!
-            }
-            //find search button
-            val searchButtons = currentState.visibleTargets.filter { it.isKeyboard }.filter { it.contentDesc.toLowerCase().contains("search") }
-            if (searchButtons.isNotEmpty()) {
-                //Give a 50/50 chance to click on the search button
-                if (random.nextBoolean()) {
-                    dataFilled = false
-                    val randomButton = searchButtons.random()
-                    log.info("Widget: $random")
-                    return randomButton.click()
-                }
-            }
+            val keyboardAction = dealWithKeyboard(currentState)
+            if (keyboardAction != null)
+                return keyboardAction
         }
        /* if (randomRefillingData
                 && originalEventList.size > eventList.size
@@ -222,7 +208,7 @@ class ExerciseTargetComponentTask private constructor(
             return doRandomExploration(currentState)
         }
         isDoingRandomExplorationTask = false
-        randomBudget=5*atuaStrategy.scaleFactor.toInt()
+        randomBudget=3*atuaStrategy.scaleFactor.toInt()
         if (atuaMF.havingInternetConfiguration(currentAbstractState.window)) {
             if (!recentChangedSystemConfiguration && environmentChange && random.nextBoolean()) {
                 recentChangedSystemConfiguration = true
@@ -245,8 +231,6 @@ class ExerciseTargetComponentTask private constructor(
         var action: ExplorationAction? = null
         if (fillingData && !fillDataTask.isTaskEnd(currentState))
             action = fillDataTask.chooseAction(currentState)
-        else
-            fillingData = false
         if (action != null) {
             return action
         }

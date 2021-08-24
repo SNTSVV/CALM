@@ -236,8 +236,11 @@ object DefaultStrategies: Logging {
 				}
 				// by default, if it cannot explore, presses back
 				else -> {
-
-					if (!s.actionableWidgets.any { it.clickable }  ) {
+					// if current state is not a relevent state
+					if ( !s.widgets.any { it.packageName == eContext.model.config.appName }) {
+						pressbackCnt +=1
+						ExplorationAction.pressBack()
+					} else if ( !s.actionableWidgets.any { it.clickable }  ) {
 						// for example: vlc video player
 						log.debug("Cannot explore because of no actionable widgets. Randomly choose PressBack or Click")
 						if (pressEnter || clickScreen) {

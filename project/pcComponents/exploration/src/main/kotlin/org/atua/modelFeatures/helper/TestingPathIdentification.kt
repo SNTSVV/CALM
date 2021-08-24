@@ -497,7 +497,7 @@ class PathFindingHelper {
                         if (!isDisablePath(fullGraph, followTrace)) {
                             if (isArrived(transition, finalTarget, stopWhenHavingUnexercisedAction, includeWTG,atuamf = atuaMF)) {
                                 allPaths.add(fullGraph)
-                                registerTransitionPath(root, nextState, fullGraph)
+//                                registerTransitionPath(root, nextState, fullGraph)
                             }
                             val nextAbstateStack = if (transition.abstractAction.isLaunchOrReset()) {
                                 Stack<Window>().also { it.add(Launcher.getOrCreateNode())}
@@ -1010,7 +1010,10 @@ class PathFindingHelper {
                     }
 
                 }
-                if (edge1.abstractAction == edge2.abstractAction && edge1.dependentAbstractStates.intersect(edge2.dependentAbstractStates).isNotEmpty()) {
+                if (edge1.abstractAction == edge2.abstractAction &&
+                    (edge1.dependentAbstractStates.intersect(edge2.dependentAbstractStates).isNotEmpty()
+                            || edge1.dependentAbstractStates.isEmpty()
+                            || edge2.dependentAbstractStates.isEmpty())) {
                     continue
                 } else {
                     samePrefix = false

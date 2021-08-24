@@ -106,4 +106,5 @@ enum class EventType {
 
     val isItemEvent: Boolean
         get() = (this== item_selected)||(this== item_long_click)||(this== item_click)
+
 }

@@ -44,8 +44,8 @@ class AbstractTransition(
     val changeEffects = HashSet<ChangeEffect>()
     // ----------Guard
     val userInputs = ArrayList<HashMap<UUID,String>>()
-    val inputGUIStates = ArrayList<ConcreteId>()
-    var dependentAbstractStates = ArrayList<AbstractState>()
+    val inputGUIStates = HashSet<ConcreteId>()
+    var dependentAbstractStates = HashSet<AbstractState>()
     var requiringPermissionRequestTransition: AbstractTransition? = null
 
     var guardEnabled: Boolean = false

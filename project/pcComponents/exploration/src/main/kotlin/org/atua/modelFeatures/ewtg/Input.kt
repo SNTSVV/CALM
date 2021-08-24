@@ -28,8 +28,6 @@ open class Input{
     var widget: EWTGWidget?
     var sourceWindow: Window
     set(value) {
-        if (field != null)
-            field.inputs.remove(this)
         field = value
         value.inputs.add(this)
     }
@@ -49,7 +47,8 @@ open class Input{
         this.createdAtRuntime = createdAtRuntime
         allInputs.add(this)
         sourceWindow.inputs.add(this)
-        val exisingInput = allInputs.find { it!= this
+        val exisingInput = allInputs.find {
+                it!= this
                 && it.eventType == this.eventType
                 && it.sourceWindow == this.sourceWindow
                 && it.widget == this.widget}
@@ -101,6 +100,7 @@ open class Input{
                     || action == EventType.implicit_power_event.name
                     || action == EventType.implicit_home_event.name
                     || action == EventType.implicit_on_activity_newIntent.name
+                    || action == EventType.implicit_lifecycle_event.name
                     || action == EventType.implicit_on_activity_result.name
                     || action == EventType.dialog_dismiss.name
                     || action == EventType.dialog_cancel.name

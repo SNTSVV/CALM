@@ -13,6 +13,9 @@ import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
 import org.atua.modelFeatures.inputRepo.intent.IntentFilter
 import org.atua.modelFeatures.ewtg.Helper
+import org.atua.modelFeatures.ewtg.WindowManager
+import org.atua.modelFeatures.ewtg.window.Dialog
+import org.atua.modelFeatures.ewtg.window.OutOfApp
 import org.droidmate.exploration.strategy.atua.ATUATestingStrategy
 import org.atua.modelFeatures.inputRepo.textInput.TextInput
 import org.droidmate.explorationModel.ExplorationTrace
@@ -223,6 +226,9 @@ abstract class AbstractStrategyTask (val atuaStrategy: ATUATestingStrategy,
     }
 
     private fun doUnderivedAction(data: Any?, currentState: State<*>): ExplorationAction? {
+        if (data !is Interaction<Widget>) {
+            return null
+        }
         val interaction = data as Interaction<Widget>
         var action: ExplorationAction?=null
         if (interaction.targetWidget==null) {
@@ -773,6 +779,46 @@ abstract class AbstractStrategyTask (val atuaStrategy: ATUATestingStrategy,
     }
     /** filters out all crashing marked widgets from the actionable widgets of the current state **/
     suspend fun Collection<Widget>.nonCrashingWidgets() = filterNot { atuaStrategy.eContext.crashlist.isBlacklistedInState(it.uid,atuaStrategy.eContext.getCurrentState().uid) }
+    protected fun dealWithKeyboard(currentState: State<*>): ExplorationAction? {
+        val currentAbstractState = atuaMF.getAbstractState(currentState)!!
+        if (atuaMF.packageName == "de.rampro.activitydiary" || currentAbstractState.shouldNotCloseKeyboard) {
+            if (random.nextBoolean()) {
+                return GlobalAction(actionType = ActionType.CloseKeyboard)
+            }
+            if (random.nextBoolean()) {
+                return doRandomKeyboard(currentState, null)!!
+            }
+            //find search button
+            val searchButtons = currentState.visibleTargets.filter { it.isKeyboard }
+                .filter { it.contentDesc.toLowerCase().contains("search") }
+            if (searchButtons.isNotEmpty()) {
+                //Give a 50/50 chance to click on the search button
+                if (random.nextBoolean()) {
+                    val randomButton = searchButtons.random()
+                    log.info("Widget: $random")
+                    return randomButton.click()
+                }
+            }
+            return null
+        } else {
+            return GlobalAction(actionType = ActionType.CloseKeyboard)
+        }
+    }
+
+    protected fun shouldRandomExplorationOutOfApp(currentAbstractState: AbstractState, currentState: State<*>): Boolean {
+        if (isCameraOpening(currentState)) {
+            return true
+        }
+        if (currentAbstractState.window is OutOfApp)
+            return false
+        if (currentAbstractState.window is Dialog) {
+            if (WindowManager.instance.updatedModelWindows.filter { it is OutOfApp }.map { it.classType }.contains(currentAbstractState.activity) ){
+                return false
+            }
+        }
+        return true
+    }
+
     companion object {
         private val log: Logger by lazy { LoggerFactory.getLogger(this.javaClass.name) }
     }

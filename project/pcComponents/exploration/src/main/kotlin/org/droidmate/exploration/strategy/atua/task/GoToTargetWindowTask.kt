@@ -23,11 +23,10 @@ class GoToTargetWindowTask (
             PathFindingHelper.PathType.PARTIAL_TRACE*/
         else
             computeNextPathType(currentPath!!.pathType,includeResetAction)
-        val currentPathType = nextPathType
         while (possiblePaths.isEmpty()) {
             possiblePaths.addAll(atuaStrategy.phaseStrategy.getPathsToTargetWindows(currentState,pathType = nextPathType))
             nextPathType = computeNextPathType(nextPathType,includeResetAction)
-            if (nextPathType == currentPathType)
+            if (nextPathType ==PathFindingHelper.PathType.NORMAL)
                 break
         }
         if (possiblePaths.isEmpty() && destWindow!=null) {

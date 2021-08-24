@@ -142,9 +142,9 @@ class EWTGDiff private constructor(){
 
         if (widgetDifferentSets.containsKey("DeletionSet")) {
             for (deleted in (widgetDifferentSets.get("DeletionSet")!! as DeletionSet<EWTGWidget>).deletedElements) {
+                updateEWTGWidgetAVMMappingWithDeleted(deleted,atuamf)
                 deleted.window.widgets.remove(deleted)
                 updateWindowHierarchyWithDeleted(deleted)
-                updateEWTGWidgetAVMMappingWithDeleted(deleted,atuamf)
             }
         }
 
@@ -302,16 +302,16 @@ class EWTGDiff private constructor(){
             }
         }
         atuamf.modifiedMethodsByWindow.remove(replacement.old)
-        replacement.old.widgets.filter { it.createdAtRuntime }.forEach {
+        replacement.old.widgets.forEach {
             replacement.new.widgets.add(it)
-            replacement.old.widgets.remove(it)
             it.window = replacement.new
         }
-        replacement.old.inputs.filter { it.createdAtRuntime }.forEach {
+        replacement.old.widgets.clear()
+        replacement.old.inputs.forEach {
             it.sourceWindow = replacement.new
-            replacement.old.inputs.remove(it)
             replacement.new.inputs.add(it)
         }
+        replacement.old.inputs.clear()
         val toRemoveEdges = ArrayList<Edge<Window, WindowTransition>>()
         atuamf.wtg.edges(replacement.old).forEach {
             atuamf.wtg.add(replacement.new, it.destination?.data, it.label)

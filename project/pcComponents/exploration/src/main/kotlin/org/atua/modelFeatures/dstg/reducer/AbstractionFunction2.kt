@@ -26,6 +26,7 @@ import org.atua.modelFeatures.dstg.AttributeValuationMap
 import org.atua.modelFeatures.ewtg.EWTGWidget
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.window.Window
+import org.droidmate.explorationModel.interaction.Interaction
 import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
 import java.io.File
@@ -36,17 +37,19 @@ import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
 class AbstractionFunction2 (val root: DecisionNode2) {
-    val abandonedAbstractTransitions: ArrayList<AbstractTransition> = ArrayList()
+    val abandonedAbstractTransitions: ArrayList<Interaction<*>> = ArrayList()
 
     fun isAbandonedAbstractTransition(activity: String, abstractTransition: AbstractTransition):Boolean {
-        return abandonedAbstractTransitions.filter { it.source.activity == activity }.any {
+        /*return abandonedAbstractTransitions.filter { it.source.activity == activity }.any {
             abstractTransition.abstractAction == it.abstractAction
                     && ((!abstractTransition.abstractAction.isWidgetAction() && !it.abstractAction.isWidgetAction())
                             || abstractTransition.abstractAction.attributeValuationMap!!.isDerivedFrom(it.abstractAction.attributeValuationMap!!))
                     && abstractTransition.source.equals(it.source)
                     && abstractTransition.dest.equals(it.dest)
-                    /*&& abstractTransition.prevWindow == it.prevWindow*/
-        }
+                    *//*&& abstractTransition.prevWindow == it.prevWindow*//*
+        }*/
+        val result = abandonedAbstractTransitions.any { abstractTransition.interactions.contains(it) }
+        return result
         // TODO check
     }
 
@@ -96,16 +99,16 @@ class AbstractionFunction2 (val root: DecisionNode2) {
      */
     fun increaseReduceLevel(guiWidget: Widget, guiState: State<*>, ewtgWidget: EWTGWidget, classType: String, rotation: org.atua.modelFeatures.Rotation, atuaMF: org.atua.modelFeatures.ATUAMF, maxlevel: Int=6): Boolean
     {
-        val isInteractiveLeaf = guiWidget.isInteractiveLeaf(guiState)
+//        val isInteractiveLeaf = guiWidget.isInteractiveLeaf(guiState)
         var currentDecisionNode: DecisionNode2?=null
         var attributePath: AttributePath? = null
         val guiTreeRectangle = Helper.computeGuiTreeDimension(guiState)
-        var isOptionsMenu = if (!Helper.isDialog(rotation,guiTreeRectangle, guiState, atuaMF))
-            Helper.isOptionsMenuLayout(guiState)
-        else
-            false
+//        var isOptionsMenu = if (!Helper.isDialog(rotation,guiTreeRectangle, guiState, atuaMF))
+//            Helper.isOptionsMenuLayout(guiState)
+//        else
+//            false
         val tempWidgetReduceMap = HashMap<Widget,AttributePath>()
-        val tempChildWidgetAttributePaths = HashMap<Widget,AttributePath>()
+//        val tempChildWidgetAttributePaths = HashMap<Widget,AttributePath>()
         var level = 0
         do {
             tempWidgetReduceMap.remove(guiWidget)
@@ -158,10 +161,10 @@ class AbstractionFunction2 (val root: DecisionNode2) {
         File(parentDirectory.resolve("abandonedAttributeValuationSet.csv").toUri()).bufferedWriter().use { all ->
             all.write("Activity;AttributeValuationSetID;Action Type")
 
-            abandonedAbstractTransitions.forEach { tripple->
+           /* abandonedAbstractTransitions.forEach { tripple->
                 all.newLine()
                 all.write("${tripple.source.activity};${tripple.abstractAction.attributeValuationMap!!.avmId};${tripple.abstractAction.actionType}")
-            }
+            }*/
         }
     }
 

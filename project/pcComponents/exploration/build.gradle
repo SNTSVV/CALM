@@ -56,6 +56,8 @@ dependencies {
 	// used in VisualizationGraph
 	implementation 'org.json:json:20160212'
 	implementation 'com.google.code.gson:gson:2.8.5'
+	// https://mvnrepository.com/artifact/com.github.mpkorstanje/simmetrics
+	implementation 'com.github.mpkorstanje:simmetrics-core:4.1.1'
 
 
 }

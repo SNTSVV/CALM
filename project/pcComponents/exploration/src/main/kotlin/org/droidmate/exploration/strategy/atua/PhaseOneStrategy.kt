@@ -69,7 +69,6 @@ class PhaseOneStrategy(
         atuaMF.modifiedMethodsByWindow.keys.forEach {
                 targetWindowTryCount.put(it,0)
         }
-
         atuaMF.notFullyExercisedTargetInputs.forEach {
             untriggeredTargetInputs.add(it)
         }
@@ -215,9 +214,9 @@ class PhaseOneStrategy(
                 newWidgets.add(w)
             }
         } else {
-            interactableWidgets.filter { it.resourceId.isNotBlank() }.forEach { w ->
+            interactableWidgets.filter { it.resourceId.isNotBlank() }. forEach { w ->
             //interactableWidgets.filter { w -> !widgets.any { it.uid == w.uid } }.forEach { w ->
-                if (!widgets.any { w.resourceId == it.resourceId }) {
+                if (!widgets.any { it.uid == w.uid }) {
                     newWidgets.add(w)
                     widgets.add(w)
                 }
@@ -232,13 +231,14 @@ class PhaseOneStrategy(
         }
         var newActions = 0
         newWidgets.forEach {
-            if (it.visibleBounds.width > 200 && it.visibleBounds.height > 200 ) {
+            /*if (it.visibleBounds.width > 200 && it.visibleBounds.height > 200 ) {
                newActions += it.availableActions(delay, useCoordinateClicks).filterNot { it is Swipe}.size
             } else {
                 newActions += it.availableActions(delay, useCoordinateClicks).filterNot { it is Swipe }.size
-            }
+            }*/
+            newActions += 1
             if (it.className == "android.webkit.WebView") {
-                newActions += (25*scaleFactor).toInt()
+                newActions += (10*scaleFactor).toInt()
             }
         }
         windowRandomExplorationBudget[window] = windowRandomExplorationBudget[window]!! + (newActions*scaleFactor).toInt()
@@ -440,11 +440,14 @@ class PhaseOneStrategy(
     ) {
         if (isCountAction(chosenAction)
             && windowRandomExplorationBudgetUsed.containsKey(currentAppState.window)
-            && (
+            && ((
                     strategyTask is RandomExplorationTask
                             && (strategyTask as RandomExplorationTask).fillingData == false
                             && (strategyTask as RandomExplorationTask).goToLockedWindowTask == null
-                    )
+                    ) ||
+                    ( strategyTask is ExerciseTargetComponentTask
+                            && !(strategyTask as ExerciseTargetComponentTask).fillingData
+                            && !(strategyTask as ExerciseTargetComponentTask).isDoingRandomExplorationTask))
         ) {
             windowRandomExplorationBudgetUsed[currentAppState.window] =
                 windowRandomExplorationBudgetUsed[currentAppState.window]!! + 1
@@ -1008,6 +1011,9 @@ class PhaseOneStrategy(
             }
         }
         getPathToStatesBasedOnPathType(pathType,transitionPaths,stateScores,currentAbstractState,currentState)
+        if (transitionPaths.isEmpty()) {
+            log.debug("No path from $currentAbstractState to $targetWindow!!")
+        }
         return transitionPaths
     }
 

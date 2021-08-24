@@ -752,7 +752,7 @@ class AppModelLoader {
                 val methodId = autMF.statementMF!!.getMethodId(handler)
                 if (methodId.isNotBlank()) {
                     if (!event.eventHandlers.contains(methodId)) {
-                        autMF.modifiedMethodTopCallersMap.filter { it.value.contains(methodId) }.forEach { updatedMethod, callers ->
+                        autMF.modifiedMethodWithTopCallers.filter { it.value.contains(methodId) }.forEach { updatedMethod, callers ->
                             if (!event.modifiedMethods.containsKey(updatedMethod)) {
                                 event.modifiedMethods.putIfAbsent(updatedMethod, false)
                                 val updatedStatements = autMF.statementMF!!.getMethodStatements(methodId)
@@ -785,7 +785,13 @@ class AppModelLoader {
             if (eventType == null) {
                 throw Exception("Not supported eventType ${data[0]}")
             }
-            val input = Input(eventType = eventType,widget = widget,sourceWindow = window,createdAtRuntime = createdAtRuntime,eventHandlers = HashSet())
+            val input = Input.getOrCreateInput(
+                eventHandlers = HashSet(),
+                eventTypeString = eventType.toString(),
+                widget = widget,
+                sourceWindow = window,
+                createdAtRuntime = createdAtRuntime
+            )
             return input
 
         }

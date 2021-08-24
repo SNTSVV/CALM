@@ -110,60 +110,24 @@ open class AbstractState(
                 actionType = AbstractActionType.RESET_APP
         )
         actionCount.put(resetAction,0)
-        if(!window.inputs.any { it.eventType == EventType.resetApp }) {
-            val newInput = Input(
-                    eventType = EventType.resetApp,
-                    eventHandlers = HashSet(),
-                    widget = null,
-                    sourceWindow = window,
-                    createdAtRuntime = true
-            )
-        }
+        Input.getOrCreateInput(HashSet(),EventType.resetApp.toString(),null,window,true)
         val launchAction = AbstractAction(
                 actionType = AbstractActionType.LAUNCH_APP
         )
         actionCount.put(launchAction,0)
-        if (!window.inputs.any { it.eventType == EventType.implicit_launch_event }) {
-            val newInput = Input(
-                    eventType = EventType.implicit_launch_event,
-                    eventHandlers = HashSet(),
-                    widget = null,
-                    sourceWindow = window,
-                    createdAtRuntime = true
-            )
-
-        }
+        Input.getOrCreateInput(HashSet(),EventType.implicit_launch_event.toString(),null,window,true)
         if (isOpeningKeyboard) {
             val closeKeyboardAction = AbstractAction(
                     actionType = AbstractActionType.CLOSE_KEYBOARD
             )
             actionCount.put(closeKeyboardAction, 0)
-
-            if (!window.inputs.any { it.eventType == EventType.closeKeyboard }) {
-                val newInput = Input(
-                        eventType = EventType.closeKeyboard,
-                        eventHandlers = HashSet(),
-                        widget = null,
-                        sourceWindow = window,
-                        createdAtRuntime = true
-                )
-
-            }
+            Input.getOrCreateInput(HashSet(),EventType.closeKeyboard.toString(),null,window,true)
         } else {
             val pressBackAction = AbstractAction(
                     actionType = AbstractActionType.PRESS_BACK
             )
             actionCount.put(pressBackAction, 0)
-            if (!window.inputs.any { it.eventType == EventType.press_back }) {
-                val newInput = Input(
-                        eventType = EventType.press_back,
-                        eventHandlers = HashSet(),
-                        widget = null,
-                        sourceWindow = window,
-                        createdAtRuntime = true
-                )
-
-            }
+            Input.getOrCreateInput(HashSet(),EventType.press_back.toString(),null,window,true)
             /*if (!this.isMenusOpened && this.hasOptionsMenu && this.window !is Dialog) {
                 val pressMenuAction = AbstractAction(
                         actionType = AbstractActionType.PRESS_MENU
@@ -180,17 +144,7 @@ open class AbstractState(
                             actionType = AbstractActionType.ROTATE_UI
                     )
                     actionCount.put(rotationAction, 0)
-                    if (!window.inputs.any { it.eventType == EventType.implicit_rotate_event }) {
-                        val newInput = Input(
-                                eventType = EventType.implicit_rotate_event,
-                                eventHandlers = HashSet(),
-                                widget = null,
-                                sourceWindow = window,
-                                createdAtRuntime = true
-                        )
-
-                    }
-
+                    Input.getOrCreateInput(HashSet(),EventType.implicit_rotate_event.toString(),null,window,true)
                 }
             }
             if (window is Dialog) {
@@ -208,89 +162,23 @@ open class AbstractState(
         }
         EWTGWidgetMapping.forEach { avm, ewgtwidget ->
             avm.actionCount.keys.forEach { abstractAction->
-                if (abstractAction.actionType==AbstractActionType.CLICK) {
-                    if (!window.inputs.any { it.widget == ewgtwidget
-                                    && it.eventType == EventType.click
-                            }) {
-                        val newInput = Input(
-                                eventType = EventType.click,
-                                widget = ewgtwidget,
-                                eventHandlers = HashSet(),
-                                createdAtRuntime = true,
-                                sourceWindow = window
-                        )
-
-                    }
+                if (abstractAction.actionType == AbstractActionType.CLICK) {
+                    Input.getOrCreateInput(HashSet(),EventType.click.toString(),ewgtwidget,window,true)
                 }
                 if (abstractAction.actionType==AbstractActionType.LONGCLICK) {
-                    if (!window.inputs.any { it.widget == ewgtwidget
-                                    && it.eventType == EventType.long_click
-                            }) {
-                        val newInput = Input(
-                                eventType = EventType.long_click,
-                                widget = ewgtwidget,
-                                eventHandlers = HashSet(),
-                                createdAtRuntime = true,
-                                sourceWindow = window
-                        )
-
-                    }
+                    Input.getOrCreateInput(HashSet(),EventType.long_click.toString(),ewgtwidget,window,true)
                 }
                 if (abstractAction.actionType==AbstractActionType.ITEM_CLICK) {
-                    if (!window.inputs.any { it.widget == ewgtwidget
-                                    && it.eventType == EventType.item_click
-                            }) {
-                        val newInput = Input(
-                                eventType = EventType.item_click,
-                                widget = ewgtwidget,
-                                eventHandlers = HashSet(),
-                                createdAtRuntime = true,
-                                sourceWindow = window
-                        )
-
-                    }
+                    Input.getOrCreateInput(HashSet(),EventType.item_click.toString(),ewgtwidget,window,true)
                 }
                 if (abstractAction.actionType==AbstractActionType.ITEM_LONGCLICK) {
-                    if (!window.inputs.any { it.widget == ewgtwidget
-                                    && it.eventType == EventType.item_long_click
-                            }) {
-                        val newInput = Input(
-                                eventType = EventType.item_long_click,
-                                widget = ewgtwidget,
-                                eventHandlers = HashSet(),
-                                createdAtRuntime = true,
-                                sourceWindow = window
-                        )
-
-                    }
+                    Input.getOrCreateInput(HashSet(),EventType.item_long_click.toString(),ewgtwidget,window,true)
                 }
                 if (abstractAction.actionType==AbstractActionType.TEXT_INSERT) {
-                    if (!window.inputs.any { it.widget == ewgtwidget
-                                    && it.eventType == EventType.enter_text
-                            }) {
-                        val newInput = Input(
-                                eventType = EventType.enter_text,
-                                widget = ewgtwidget,
-                                eventHandlers = HashSet(),
-                                createdAtRuntime = true,
-                                sourceWindow = window
-                        )
-
-                    }
+                    Input.getOrCreateInput(HashSet(),EventType.enter_text.toString(),ewgtwidget,window,true)
                 }
                 if (abstractAction.actionType==AbstractActionType.SWIPE) {
-                    if (!window.inputs.any { it.widget == ewgtwidget
-                                    && it.eventType == EventType.swipe
-                            }) {
-                        val newInput = Input(
-                                eventType = EventType.swipe,
-                                widget = ewgtwidget,
-                                eventHandlers = HashSet(),
-                                createdAtRuntime = true,
-                                sourceWindow = window
-                        )
-
-                    }
+                    Input.getOrCreateInput(HashSet(),EventType.swipe.toString(),ewgtwidget,window,true)
                 }
             }
         }

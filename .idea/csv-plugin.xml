@@ -3,7 +3,168 @@
   <component name="CsvFileAttributes">
     <option name="attributeMap">
       <map>
-        <entry key="/apks/model/de.rampro.activitydiary/DSTG/AbstractStates/AbstractState_0aa8022d-c095-375f-a87f-c3d817da846d.csv">
+        <entry key="/apks/model/bbc.mobile.news.ww/states/4140f5d5-2bc9-ace9-16a3-729489c1bd63_e6762b72-82d6-f97c-bbd8-a831e0cf09f6.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/states/48a95999-e459-e025-1e0b-d6594251f09f_2feaf838-a455-0bd2-054d-74f8024d1c4c.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=":" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/states/5aeaf456-3de9-ca0d-304d-71159be1da87_13d457b2-52fe-7370-e936-d471b0f683ea.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/states/a72069b5-d24f-9458-7c82-e6753047a4d2_e5b9d9f6-e855-8d74-bb1c-56b6464d9dee.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=":" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/states/ecc3584a-6026-a1ea-c225-d509be1eb264_faff3ff1-a936-fe4f-d061-bcb1072f0ec9.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=":" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_1617.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/33f371d1-3ebb-41d1-0955-ee909cb3524b_a74e5e26-f3e6-307c-7cb0-dae651de40f6.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/358615ec-fd13-4e09-0ae8-92ac5b0b5e83_d83c4506-d45c-2cf0-ad9e-c1c632543d6a.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/37ab1bbf-96ac-f013-0d0d-987ef4a5008d_037266ce-3896-f243-d8d4-e38d968f02bd.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=":" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/87a8f65b-49fd-d942-5d0b-731aa7f5e9bc_2503a87d-f4d0-cc15-fa66-253d52c8dc8f.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=":" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/tracedcec933c-73bf-40e6-8c69-d4e376338717.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/traceffe2585d-0265-4028-a250-d35016a406a3.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/states/972b1506-6ca3-3a28-6c8d-91c5ca9b4aa2_bb5dfae2-175a-c4af-90c0-77a17552d529.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/trace5ddd0ea9-b983-4cbb-9d4a-129d4d83a4aa_atua.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/de.rampro.activitydiary/EWTG/WindowsWidget/Widgets_1218.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/de.rampro.activitydiary/EWTG/WindowsWidget/Widgets_Dialog-1.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/de.rampro.activitydiary/actionCoverage.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/de.rampro.activitydiary/states/fd3118ed-a004-59da-d293-95acfdfc6a54_c70a209e-38d9-a8d0-9c6c-9d5d96d1b94a.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=":" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/de.rampro.activitydiary/traceb20e9704-0cea-4b2c-a7ae-f3a309f87b01.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/de.rampro.activitydiary/traceb20e9704-0cea-4b2c-a7ae-f3a309f87b01_atua.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/org.wikipedia/EWTG/WindowsWidget/Widgets_2748.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/org.wikipedia/EWTG/WindowsWidget/Widgets_2872.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/org.wikipedia/EWTG/WindowsWidget/Widgets_3075.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/org.wikipedia/EWTG/WindowsWidget/Widgets_3102.csv">
           <value>
             <Attribute>
               <option name="separator" value=";" />

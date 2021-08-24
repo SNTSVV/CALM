@@ -532,7 +532,7 @@ class Helper {
 
         private fun verifyMatchingHierchyWindowLayout2(guiWidget: Widget, ewtgWidget: EWTGWidget, wtgNode: Window, guiState: State<*>, guiWidgetId_EWTGWidgets: HashMap<ConcreteId,EWTGWidget>): Double {
             if (guiWidget.parentId == null && ewtgWidget.parent == null)
-                return 1.0
+                return 0.0
             var traversingWidget: Widget = guiWidget
             while (traversingWidget.parentId!= null && ewtgWidget.parent != null) {
                 if (!guiWidgetId_EWTGWidgets.containsKey(traversingWidget.parentId!!)) {
@@ -574,11 +574,26 @@ class Helper {
         private fun calculateEWTGWidgetAncestorCorrectness(ewtgWidget1: EWTGWidget, ewtgWidget2: EWTGWidget,
                                                            traversedWidgets1: ArrayList<EWTGWidget>,traversedWidgets2: ArrayList<EWTGWidget>): Double {
             if (ewtgWidget1 == ewtgWidget2)
-                return 1.0
+                return 0.0
             if (ewtgWidget1.parent == ewtgWidget1) // avoid loop
                 return Double.POSITIVE_INFINITY
+            if (ewtgWidget2.parent == ewtgWidget2)
+                return Double.POSITIVE_INFINITY
             var distance: Double = Double.POSITIVE_INFINITY
-            if (ewtgWidget1.parent!=null && !traversedWidgets1.contains(ewtgWidget1.parent!!)) {
+            val ancestors1 = ArrayList<EWTGWidget>()
+            val ancestors2 = ArrayList<EWTGWidget>()
+            getAllAncestors(ewtgWidget1,ancestors1)
+            getAllAncestors(ewtgWidget2,ancestors2)
+            for (item1 in ancestors1) {
+                val indexInAncestors1 = ancestors1.indexOf(item1)
+                val indexInAncestors2 = ancestors2.indexOf(item1)
+                if (indexInAncestors2!=-1) {
+                    val score = indexInAncestors2 - indexInAncestors1
+                    return score.toDouble()
+                }
+            }
+            return Double.POSITIVE_INFINITY
+            /*if (ewtgWidget1.parent!=null && !traversedWidgets1.contains(ewtgWidget1.parent!!)) {
                 traversedWidgets1.add(ewtgWidget1.parent!!)
                 distance = calculateEWTGWidgetAncestorCorrectness(ewtgWidget1.parent!!, ewtgWidget2,traversedWidgets1,traversedWidgets2)
                 traversedWidgets1.remove(ewtgWidget1.parent!!)
@@ -592,7 +607,14 @@ class Helper {
                     traversedWidgets2.remove(ewtgWidget2.parent!!)
                 }
             }
-            return 1.0+distance
+            return 1.0+distance*/
+        }
+
+        private fun getAllAncestors(ewtgWidget: EWTGWidget, ancestors: ArrayList<EWTGWidget>) {
+            if (ewtgWidget.parent!=null && ewtgWidget.parent!=ewtgWidget && !ancestors.contains(ewtgWidget.parent!!)) {
+                ancestors.add(ewtgWidget.parent!!)
+                getAllAncestors(ewtgWidget.parent!!,ancestors)
+            }
         }
 
         internal var changeRatioCriteria: Double = 0.05
@@ -698,6 +720,11 @@ class Helper {
 
         fun getUnqualifiedResourceId(widget: Widget): String {
             val unqualifiedResourceId = widget.resourceId.substring(widget.resourceId.indexOf("/") + 1)
+            return unqualifiedResourceId
+        }
+
+        fun getUnqualifiedResourceId1(qualifiedResourceId: String): String {
+            val unqualifiedResourceId = qualifiedResourceId.substring(qualifiedResourceId.indexOf("/") + 1)
             return unqualifiedResourceId
         }
 

@@ -63,6 +63,7 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                           private val methodFileName: String = "methodCoverage.txt",
                           private val modifiedMethodFileName: String = "updatedMethodCoverage.txt") : ModelFeature() {
     override val coroutineContext: CoroutineContext = CoroutineName("StatementCoverageMF") + Job()
+    val statementUUIDByRawString = HashMap<String,String>()
 
      val executedMethodsMap: ConcurrentHashMap<String, Date> = ConcurrentHashMap() //methodid -> first executed
     val executedStatementsMap: ConcurrentHashMap<String, Date> = ConcurrentHashMap()
@@ -71,6 +72,7 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
     val statementInstrumentationMap= HashMap<String, String>() //statementid -> statement
      val statementMethodInstrumentationMap = HashMap<String, String>() //statementid -> methodid
      val methodInstrumentationMap= HashMap<String, String>() //method id -> method
+
 
     val modifiedMethodsList = HashSet<String>()
     val fullyCoveredMethods = HashSet<String>()
@@ -134,6 +136,8 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                         val timestamp = statement[0]
                         val tms = dateFormat.parse(timestamp)
                         //NGO
+                        val statementId = statementUUIDByRawString.get(statement[1])!!
+                        /*
                         val uuidIndex = statement[1].toString().lastIndexOf(" uuid=")
                         //val parts = statement[1].toString().split(" uuid=".toRegex()).toTypedArray()
                         val statementId = statement[1].toString().substring(uuidIndex+" uuid=".length)
@@ -141,7 +145,8 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                         // val l = "9946a686-9ef6-494f-b893-ac8b78efb667"
                         val methodIdIndex = fullStatement.lastIndexOf(" methodId=")
                         //val methodId = parts2.last()
-                        val methodId = fullStatement.substring(methodIdIndex+" methodId=".length)
+                        val methodId = fullStatement.substring(methodIdIndex+" methodId=".length)*/
+                        val methodId = statementMethodInstrumentationMap.get(statementId)!!
                         // Add the statement if it wasn't executed before
                         if (!recentExecutedMethods.contains(methodId))
                             recentExecutedMethods.add(methodId)
@@ -334,6 +339,7 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                     val uuid = parts.last()
                     assert(uuid.length == l, { "Invalid UUID $uuid $statement" })
                     statementInstrumentationMap[uuid] = statement.toString()
+                    statementUUIDByRawString.put(statement.toString(),uuid)
                     val uuidIndex = statement.toString().lastIndexOf(" uuid=")
                     //val parts = statement[1].toString().split(" uuid=".toRegex()).toTypedArray()
                     val fullStatement = statement.toString().substring(0,uuidIndex)

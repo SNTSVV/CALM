@@ -778,29 +778,36 @@ class PhaseTwoStrategy(
 
     fun selectTargetWindow(currentState: State<*>, numberOfTried: Int, in_maxTried: Int = 0) {
         log.info("Select a target Window.")
-        computeAppStatesScore()
-        var leastExercise = targetWindowsCount.values.min()
-        var leastTriedWindows = targetWindowsCount.filter { windowScores.containsKey(it.key) }.map { Pair<Window, Int>(first = it.key, second = it.value) }.filter { it.second == leastExercise }
+        if (targetWindowsCount.isEmpty()) {
+            targetWindow = null
+        } else {
+            computeAppStatesScore()
+            var leastExercise = targetWindowsCount.values.min()
+            var leastTriedWindows = targetWindowsCount.filter { windowScores.containsKey(it.key) }
+                .map { Pair<Window, Int>(first = it.key, second = it.value) }.filter { it.second == leastExercise }
 
-        if (leastTriedWindows.isEmpty()) {
-            leastTriedWindows = targetWindowsCount.map { Pair<Window, Int>(first = it.key, second = it.value) }.filter { it.second == leastExercise }
-        }
+            if (leastTriedWindows.isEmpty()) {
+                leastTriedWindows = targetWindowsCount.map { Pair<Window, Int>(first = it.key, second = it.value) }
+                    .filter { it.second == leastExercise }
+            }
 
-        val leastTriedWindowScore = leastTriedWindows.associate { Pair(it.first, windowScores.get(it.first) ?: 1.0) }
-        val maxTried =
+            val leastTriedWindowScore =
+                leastTriedWindows.associate { Pair(it.first, windowScores.get(it.first) ?: 1.0) }
+            val maxTried =
                 if (in_maxTried == 0) {
                     leastTriedWindowScore.size / 2 + 1
                 } else {
                     in_maxTried
                 }
-        if (leastTriedWindowScore.isNotEmpty()) {
-            val pb = ProbabilityDistribution<Window>(leastTriedWindowScore)
-            val targetNode = pb.getRandomVariable()
-            targetWindow = targetNode
-        } else {
-            targetWindow = targetWindowsCount.map { it.key }.random()
+            if (leastTriedWindowScore.isNotEmpty()) {
+                val pb = ProbabilityDistribution<Window>(leastTriedWindowScore)
+                val targetNode = pb.getRandomVariable()
+                targetWindow = targetNode
+            } else {
+                targetWindow = targetWindowsCount.map { it.key }.random()
+            }
+            targetWindowsCount[targetWindow!!] = targetWindowsCount[targetWindow!!]!! + 1
         }
-        targetWindowsCount[targetWindow!!] = targetWindowsCount[targetWindow!!]!! + 1
         /*if (numberOfTried< maxTried && getPathsToWindowToExplore(currentState, targetWindow!!,PathFindingHelper.PathType.ANY,false).isEmpty()) {
              selectTargetWindow(currentState, numberOfTried+1,maxTried)
              return
@@ -933,7 +940,7 @@ class PhaseTwoStrategy(
 
             if (atuaMF.windowHandlersHashMap.containsKey(n)) {
                 atuaMF.windowHandlersHashMap[n]!!.forEach { handler ->
-                    val methods = atuaMF.modifiedMethodTopCallersMap.filter { it.value.contains(handler) }.map { it.key }
+                    val methods = atuaMF.modifiedMethodWithTopCallers.filter { it.value.contains(handler) }.map { it.key }
                     modifiedMethods.addAll(methods)
                 }
             }

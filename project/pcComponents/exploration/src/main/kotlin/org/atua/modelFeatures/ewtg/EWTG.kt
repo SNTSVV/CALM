@@ -167,10 +167,7 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
                 val edges = this.edges(owner, o)
 
                 if (edges.isEmpty()) {
-                    val input = Input(eventType = EventType.implicit_menu,
-                            eventHandlers = HashSet(),
-                            widget = null,
-                            sourceWindow = o)
+                    val input = Input.getOrCreateInput(HashSet(),EventType.implicit_menu.toString(),null,o)
                     this.add(owner, o, WindowTransition(owner,o,input,null))
                 }
             }
@@ -192,7 +189,7 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
             val activityNode = WindowManager.instance.updatedModelWindows.find { it.classType == wtgNode.classType && it is Activity }
             if (activityNode != null) {
                 if (this.edges(activityNode, wtgNode).isEmpty()) {
-                    val input = Input(EventType.press_menu, HashSet(), null, sourceWindow = activityNode)
+                    val input = Input.getOrCreateInput(HashSet(),EventType.press_menu.toString(),null,activityNode)
                     this.add(activityNode, wtgNode, WindowTransition(activityNode,wtgNode,input,null))
                 }
             }
@@ -312,6 +309,7 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
                     input = it.label.input,
                     prevWindow = it.label.prevWindow
             )
+            newTransition.input.sourceWindow.inputs.remove(newTransition.input)
             newTransition.input.sourceWindow = dest
             this.add(newTransition.source, newTransition.destination, newTransition)
         }

@@ -24,7 +24,9 @@ import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.calm.ewtgdiff.AdditionSet
 import org.atua.calm.ewtgdiff.EWTGDiff
 import org.atua.calm.modelReuse.ModelVersion
+import org.atua.modelFeatures.dstg.AttributeType
 import org.atua.modelFeatures.ewtg.EWTGWidget
+import org.atua.modelFeatures.ewtg.Helper
 import org.droidmate.explorationModel.interaction.State
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
@@ -76,6 +78,8 @@ class ModelBackwardAdapter {
         var backwardEquivalenceFound = false
         val matchedAVMs1 = HashMap<AttributeValuationMap,ArrayList<AttributeValuationMap>>() // observered - expected
         val matchedAVMs2 = HashMap<AttributeValuationMap,ArrayList<AttributeValuationMap>>() // expected - observered
+        val unmatchedAVMs1 = ArrayList<AttributeValuationMap>()
+        val unmatchedAVMs2 = ArrayList<AttributeValuationMap>()
         if (abstractTransition.abstractAction.isLaunchOrReset()) {
             val baseModelInitialStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
                 it.isInitalState && it.modelVersion == ModelVersion.BASE
@@ -84,12 +88,13 @@ class ModelBackwardAdapter {
                 val expectedAbstractState = baseModelInitialState
                 matchedAVMs1.clear()
                 matchedAVMs2.clear()
-                if (observedAbstractState == expectedAbstractState) {
-                    backwardEquivalenceFound = true
-                }
-                else if (isBackwardEquivant(observedAbstractState, expectedAbstractState,matchedAVMs1,matchedAVMs2,false)) {
+                unmatchedAVMs1.clear()
+                unmatchedAVMs2.clear()
+                if (isBackwardEquivant(observedAbstractState, expectedAbstractState,matchedAVMs1,matchedAVMs2,unmatchedAVMs1,unmatchedAVMs2, false)) {
                     registerBackwardEquivalence(observedAbstractState, expectedAbstractState, dstg, matchedAVMs2)
                     backwardEquivalenceFound = true
+                } else {
+                    // report unmatchedAVMs
                 }
             }
             if (backwardEquivalenceFound) {
@@ -126,9 +131,11 @@ class ModelBackwardAdapter {
                     val expected = it.dest
                     matchedAVMs1.clear()
                     matchedAVMs2.clear()
+                    unmatchedAVMs1.clear()
+                    unmatchedAVMs2.clear()
                     if (observedAbstractState == expected) {
                         backwardEquivalenceFound = true
-                    } else if (isBackwardEquivant(observedAbstractState, expected,matchedAVMs1,matchedAVMs2,false)) {
+                    } else if (isBackwardEquivant(observedAbstractState, expected,matchedAVMs1,matchedAVMs2,unmatchedAVMs1,unmatchedAVMs2, false)) {
                         registerBackwardEquivalence(observedAbstractState, expected, dstg, matchedAVMs2)
                         backwardEquivalenceFound = true
                         backwardEquivalentAbstractTransitionMapping.putIfAbsent(abstractTransition,HashSet())
@@ -138,7 +145,8 @@ class ModelBackwardAdapter {
                         incorrectTransitions.add(it)
                     }
                 }
-            } else {
+            }
+            if (!backwardEquivalenceFound) {
                 val candidates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
                     it.modelVersion == ModelVersion.BASE
                             && it.guiStates.isEmpty()
@@ -148,15 +156,13 @@ class ModelBackwardAdapter {
                             && it.isOpeningKeyboard == observedAbstractState.isOpeningKeyboard
                 }
                 candidates.forEach {
-                    if (!backwardEquivalenceFound) {
-                        matchedAVMs1.clear()
-                        matchedAVMs2.clear()
-                        if (observedAbstractState == it) {
-                            backwardEquivalenceFound = true
-                        } else if (isBackwardEquivant(observedAbstractState, it, matchedAVMs1, matchedAVMs2, true)) {
-                            registerBackwardEquivalence(observedAbstractState, it, dstg, matchedAVMs2)
-                            backwardEquivalenceFound = true
-                        }
+                    matchedAVMs1.clear()
+                    matchedAVMs2.clear()
+                    unmatchedAVMs1.clear()
+                    unmatchedAVMs2.clear()
+                    if (isBackwardEquivant(observedAbstractState, it, matchedAVMs1, matchedAVMs2,unmatchedAVMs1,unmatchedAVMs2,  true)) {
+                        registerBackwardEquivalence(observedAbstractState, it, dstg, matchedAVMs2)
+                        backwardEquivalenceFound = true
                     }
                 }
             }
@@ -179,7 +185,7 @@ class ModelBackwardAdapter {
 
     private fun registerBackwardEquivalence(observedAbstractState: AbstractState, expected: AbstractState, dstg: DSTG, matchedAVMs2: HashMap<AttributeValuationMap, ArrayList<AttributeValuationMap>>) {
         // TODO this is for debug only
-        isBackwardEquivant(observedAbstractState,expected, HashMap(),HashMap(),false)
+        // isBackwardEquivant(observedAbstractState,expected, HashMap(),HashMap(),false)
 
         backwardEquivalentAbstractStateMapping.putIfAbsent(observedAbstractState, HashSet())
         backwardEquivalentAbstractStateMapping[observedAbstractState]!!.add(expected)
@@ -189,7 +195,7 @@ class ModelBackwardAdapter {
 
     private fun isConsideringAbstractAction(abstractAction: AbstractAction): Boolean {
         val result = when (abstractAction.actionType) {
-            AbstractActionType.WAIT -> false
+            AbstractActionType.WAIT -> true
             AbstractActionType.PRESS_HOME -> false
             else -> true
         }
@@ -207,17 +213,31 @@ class ModelBackwardAdapter {
                 val destAVMs = sourceDestAVMMatching.get(sourceTransition.abstractAction.attributeValuationMap!!)
                 if (destAVMs!=null) {
                     destAVMs.forEach {destAVM->
-                        val destAbstractAction = AbstractAction(
+                        if (isActionValidOnAVM(sourceTransition.abstractAction.actionType,destAVM)) {
+                            val destAbstractAction = AbstractAction(
                                 actionType = sourceTransition.abstractAction.actionType,
                                 attributeValuationMap = destAVM,
                                 extra = sourceTransition.abstractAction.extra
-                        )
-                        copyAbstractTransitionFromBase(sourceTransition,destination, destAbstractAction,dstg)
+                            )
+                            copyAbstractTransitionFromBase(sourceTransition,destination, destAbstractAction,dstg)
+                        }
+
                     }
 
                 }
             }
         }
+    }
+
+    private fun isActionValidOnAVM(actionType: AbstractActionType, destAVM: AttributeValuationMap): Boolean {
+        val isValid = when (actionType) {
+            AbstractActionType.CLICK -> destAVM.isClickable()
+            AbstractActionType.LONGCLICK -> destAVM.isLongClickable()
+            AbstractActionType.SWIPE -> destAVM.isScrollable()
+            AbstractActionType.ITEM_CLICK, AbstractActionType.ITEM_LONGCLICK -> true
+            else -> false
+        }
+        return isValid
     }
 
     private fun copyAbstractTransitionFromBase(baseTransition: AbstractTransition, updatedAbstractState: AbstractState, updatedAbstractAction: AbstractAction, dstg: DSTG) {
@@ -283,6 +303,8 @@ class ModelBackwardAdapter {
                                    expectedAbstractState: AbstractState,
                                    matchedAVMs1: HashMap<AttributeValuationMap,ArrayList<AttributeValuationMap>>,
                                    matchedAVMs2: HashMap<AttributeValuationMap,ArrayList<AttributeValuationMap>>,
+                                   unmatchedAVMs1: ArrayList<AttributeValuationMap>,
+                                   unmatchedAVMs2: ArrayList<AttributeValuationMap>,
                                    strict: Boolean): Boolean {
         if (observedAbstractState.isOpeningKeyboard != expectedAbstractState.isOpeningKeyboard)
             return false
@@ -290,10 +312,6 @@ class ModelBackwardAdapter {
             return false
         if (observedAbstractState.rotation != expectedAbstractState.rotation)
             return false
-        val observedAbstractStateAVMCount = observedAbstractState.attributeValuationMaps.size
-        val expectedAbstractStateAVMCount = expectedAbstractState.attributeValuationMaps.size
-        val unmatchedAVMs1 = ArrayList<AttributeValuationMap>() // observered
-        val unmatchedAVMs2 = ArrayList<AttributeValuationMap>() // expected
         val addedAVMS = ArrayList<AttributeValuationMap>()
         val addedWidgets = EWTGDiff.instance.widgetDifferentSets.get("AdditionSet") as AdditionSet
         matchingAVMs(
@@ -309,10 +327,8 @@ class ModelBackwardAdapter {
         if (unmatchedAVMs1.size == 0 && unmatchedAVMs2.size == 0) {
             return true
         }
-        val unmatchedWidgets1 =  ArrayList(unmatchedAVMs1.map {  observedAbstractState.EWTGWidgetMapping.get(it)})
-        val unmatchedWidgets2 = ArrayList(unmatchedAVMs2.map { expectedAbstractState.EWTGWidgetMapping.get(it) })
-        unmatchedWidgets1.removeIf { it == null }
-        unmatchedWidgets2.removeIf { it == null }
+        val unmatchedWidgets1 =  unmatchedAVMs1.map { observedAbstractState.EWTGWidgetMapping.get(it)}.filter { it!=null }.distinct()
+        val unmatchedWidgets2 = unmatchedAVMs2.map { expectedAbstractState.EWTGWidgetMapping.get(it) }.filter{it !=null}.distinct()
         if (!strict) {
             if (unmatchedWidgets1.intersect(unmatchedWidgets2).isEmpty())
                 return true
@@ -335,7 +351,7 @@ class ModelBackwardAdapter {
             return true
         }
 
-        // we consider only avm having abstractTransitions associated to
+        /*// we consider only avm having abstractTransitions associated to
         unmatchedAVMs1.removeIf { avm -> !observedAbstractState.abstractTransitions.any { it.abstractAction.attributeValuationMap == avm  }}
         unmatchedAVMs2.removeIf { avm -> !expectedAbstractState.abstractTransitions.any { it.abstractAction.attributeValuationMap == avm } }
         val unmatchedWidgets1_2 =  ArrayList(unmatchedAVMs1.map {  observedAbstractState.EWTGWidgetMapping.get(it)})
@@ -350,7 +366,7 @@ class ModelBackwardAdapter {
                     && !updateWindowCreatedRuntimeWidgets.contains(it)} else true
         if (condition1_2 && condition2_2) {
             return true
-        }
+        }*/
         return false
     }
 
@@ -509,16 +525,33 @@ class ModelBackwardAdapter {
     }
 
     private fun isEquivalentAttributeValuationMaps(avm1: AttributeValuationMap, avm2: AttributeValuationMap): Boolean {
-        // avm1.localAttributes should have the same values of all localAttributes of avm2
+        val scoreDetails = HashMap<AttributeType,Float>()
         avm2.localAttributes.forEach {
-            if (!avm1.localAttributes.containsKey(it.key))
+            val score = when (it.key) {
+                AttributeType.resourceId,AttributeType.className -> if ( it.value == "" && avm1.localAttributes[it.key]!! == "" )
+                        -1.0f
+                    else
+                        StringComparison.compareStringsLevenshtein(Helper.getUnqualifiedResourceId1(it.value) , Helper.getUnqualifiedResourceId1(avm1.localAttributes[it.key]!!))
+                AttributeType.xpath -> StringComparison.compareStringsXpathConsine(it.value,avm1.localAttributes[it.key]!!)
+                /*AttributeType.clickable -> if (it.value == avm1.localAttributes[it.key])
+                    1.0f
+                else
+                    0.0f*/
+                else -> -1.0f
+            }
+            if (score != -1.0f) {
+                scoreDetails.put(it.key, score)
+            }
+            /*if (!avm1.localAttributes.containsKey(it.key))
                 return false
             if (avm1.localAttributes[it.key] != it.value)
-                return  false
+                return  false*/
         }
-
-
-        return true
+        if (scoreDetails.any { it.value == 0.0f })
+            return false
+        if (scoreDetails.any { it.value < 0.6f })
+            return false
+       return true
     }
 
     fun outputBackwardEquivalentResult(actionId: Int, guiState: State<*>, expectedAbstractState: AbstractState, observedAbstractState: AbstractState){
