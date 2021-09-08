@@ -21,6 +21,7 @@ import android.os.Environment
 import android.provider.Settings
 import android.support.test.uiautomator.By
 import android.support.test.uiautomator.UiDevice
+import android.support.test.uiautomator.UiSelector
 import android.support.test.uiautomator.Until
 import android.support.test.uiautomator.click
 import android.util.Log
@@ -214,14 +215,22 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 			env.waitForWindowUpdate()
 		}
 		is LaunchApp -> {
-
+			env.device.pressKeyCode(KeyEvent.KEYCODE_WAKEUP)
+			env.device.pressHome()
 			//reset wifi
 			val wfm = env.context.getSystemService(Context.WIFI_SERVICE) as WifiManager
 			wfm.setWifiEnabled(true).also {
 				if (!it) Log.w(logTag, "Failed to ensure WiFi is enabled!")
 			}
+
+			/*// close notification bar
+			val uiselector = UiSelector().packageName("com.android.systemui").resourceId("com.android.systemui:id/notification_stack_scroller")
+			val notification_stack_scroller = env.device.findObject(uiselector)
+			if (notification_stack_scroller.exists()) {
+				env.device.openNotification()
+			}*/
+
 			//launch app
-			env.device.pressKeyCode(KeyEvent.KEYCODE_WAKEUP)
 			env.automation.setRotation(0)
 			if (env.isKeyboardOpen())
 				env.device.pressBack()
@@ -231,13 +240,14 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 			true
 		}
 		is ResetApp -> {
+			env.device.pressKeyCode(KeyEvent.KEYCODE_WAKEUP)
+			env.device.pressHome()
 			//reset wifi
             val wfm = env.context.getSystemService(Context.WIFI_SERVICE) as WifiManager
             wfm.setWifiEnabled(true).also {
                 if (!it) Log.w(logTag, "Failed to ensure WiFi is enabled!")
             }
 			//launch app
-            env.device.pressKeyCode(KeyEvent.KEYCODE_WAKEUP)
 			env.device.setOrientationNatural()
 			if (env.isKeyboardOpen())
 				env.device.pressBack()
@@ -288,15 +298,20 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 
 
 //REMARK keep the order of first wait for windowUpdate, then wait for idle, then extract windows to minimize synchronization issues with opening/closing keyboard windows
-private suspend fun waitForSync(env: UiAutomationEnvironment, afterAction: Boolean) {
+private suspend fun waitForSync(env: UiAutomationEnvironment, afterAction: Boolean, useDefault: Boolean) {
+	val usingIdleTimeout = if (useDefault)
+		500
+	else
+		env.idleTimeout
 	try {
 /*		if (afterAction) {
 			env.lastWindows.firstOrNull { it.isApp() && !it.isKeyboard && !it.isLauncher }?.let {
 				env.device.waitForWindowUpdate(it.w.pkgName, env.interactiveTimeout) //wait sync on focused window
 			}
 		}*/
+
 		debugT("wait for IDLE avg = ${time / max(1, cnt)} ms", {
-			env.automation.waitForIdle(50, env.idleTimeout)
+			env.automation.waitForIdle(50,usingIdleTimeout)
 		//env.device.waitForIdle(env.idleTimeout) // this has a minimal delay of 500ms between events until the device is considered idle
 		}, inMillis = true,
 				timer = {
@@ -310,7 +325,7 @@ private suspend fun waitForSync(env: UiAutomationEnvironment, afterAction: Boole
 			UiHierarchy.waitFor(env, interactiveTimeout, actableAppElem)
 		}
 	} catch(e: java.util.concurrent.TimeoutException) {
-		Log.e(logTag, "No idle state with idle timeout: 100ms within global timeout: ${env.idleTimeout}ms", e)
+		Log.e(logTag, "No idle state with idle timeout: 100ms within global timeout: ${usingIdleTimeout}ms", e)
 	}
 }
 
@@ -346,9 +361,9 @@ private var wt = 0.0
 private var wc = 0
 private const val debugFetch = false
 private val isInteractive = { w: UiElementPropertiesI -> w.clickable || w.longClickable || w.checked!=null || w.isInputField}
-suspend fun fetchDeviceData(env: UiAutomationEnvironment, afterAction: Boolean = false): DeviceResponse = coroutineScope{
+suspend fun fetchDeviceData(env: UiAutomationEnvironment, afterAction: Boolean = false, useDefault: Boolean=false): DeviceResponse = coroutineScope{
 	debugOut("start fetch execution",debugFetch)
-	waitForSync(env,afterAction)
+	waitForSync(env,afterAction,useDefault)
 
 	var windows: List<DisplayedWindow> = env.getDisplayedWindows()
 	var isSuccessful = true

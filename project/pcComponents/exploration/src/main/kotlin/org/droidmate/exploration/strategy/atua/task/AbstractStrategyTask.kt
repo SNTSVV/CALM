@@ -439,7 +439,7 @@ abstract class AbstractStrategyTask (val atuaStrategy: ATUATestingStrategy,
                 }
 
             } else  if (action == AbstractActionType.SWIPE && data is String) {
-                val swipeableWidgets = childWidgets.filter { Helper.isScrollableWidget(it) }
+                val swipeableWidgets = childWidgets.union(listOf(chosenWidget)) .filter { Helper.isScrollableWidget(it) }
                 val actionWidget = if (swipeableWidgets.isEmpty()) {
                     chosenWidget
                 } else
@@ -476,7 +476,6 @@ abstract class AbstractStrategyTask (val atuaStrategy: ATUATestingStrategy,
             }
         }
         if (widgetActions.isNotEmpty()) {
-
             return widgetActions.random()
         }
         ExplorationTrace.widgetTargets.clear()
@@ -564,7 +563,7 @@ abstract class AbstractStrategyTask (val atuaStrategy: ATUATestingStrategy,
 
     private fun chooseActionForTextInput(chosenWidget: Widget, currentState: State<*>): ExplorationAction {
         val inputValue = TextInput.getSetTextInputValue(chosenWidget, currentState,true, InputCoverage.FILL_RANDOM)
-        val explorationAction = chosenWidget.setText(inputValue, delay = delay, sendEnter = true)
+        val explorationAction = chosenWidget.setText(inputValue, delay = delay, sendEnter = false)
         return explorationAction
     }
 
@@ -809,6 +808,8 @@ abstract class AbstractStrategyTask (val atuaStrategy: ATUATestingStrategy,
         if (isCameraOpening(currentState)) {
             return true
         }
+        if (currentAbstractState.activity == "com.android.internal.app.ChooserActivity")
+            return true
         if (currentAbstractState.window is OutOfApp)
             return false
         if (currentAbstractState.window is Dialog) {

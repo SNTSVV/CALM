@@ -89,6 +89,14 @@ class ActionCount  {
         if (!wCnt.get(widgetUid)!!.containsKey(prevActivity)) {
             wCnt.get(widgetUid)!!.put(prevActivity, 0)
         }
+        if (interaction.targetWidget!!.clickable &&
+                    interaction.actionType != "Click" && interaction.actionType != "ClickEvent") {
+            return
+        }
+        if (!interaction.targetWidget!!.clickable && interaction.targetWidget!!.longClickable
+            && interaction.actionType != "LongClick" && interaction.actionType != "LongClickEvent") {
+            return
+        }
         val currentCnt = wCnt.get(widgetUid)!!.get(prevActivity)!!
         wCnt.get(widgetUid)!!.put(prevActivity, currentCnt + 1)
 

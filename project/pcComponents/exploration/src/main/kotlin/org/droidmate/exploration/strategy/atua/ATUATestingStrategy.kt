@@ -92,13 +92,21 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
 
         if (!phaseStrategy.hasNextAction(eContext.getCurrentState())) {
             if (phaseStrategy is PhaseOneStrategy) {
-                val unreachableWindow = (phaseStrategy as PhaseOneStrategy).unreachableWindows
-                if (atuaMF.modifiedMethodsByWindow.keys.filterNot { unreachableWindow.contains(it) }.isNotEmpty()) {
-                    phaseStrategy = PhaseTwoStrategy(this, scaleFactor, delay, useCoordinateClicks, unreachableWindow)
-                    atuaMF.updateStage1Info(eContext)
+                val unreachableWindows = (phaseStrategy as PhaseOneStrategy).unreachableWindows
+                val potentialTargetWindows =
+                    atuaMF.modifiedMethodsByWindow.keys.filterNot { unreachableWindows.contains(it) && it !is Launcher }
+                if (potentialTargetWindows.isNotEmpty()) {
+                    if (potentialTargetWindows.any { window->
+                            val abstractStates = AbstractStateManager.INSTANCE.getPotentialAbstractStates().filter { it.window == window }
+                            abstractStates.isNotEmpty()
+                        }) {
+                        phaseStrategy = PhaseTwoStrategy(this, scaleFactor, delay, useCoordinateClicks, unreachableWindows)
+                        atuaMF.updateStage1Info(eContext)
+                      /*  phaseStrategy = PhaseThreeStrategy(this,scaleFactor, delay, useCoordinateClicks)
+                         atuaMF.updateStage2Info(eContext)*/
+                    }
                 }
-                    /*phaseStrategy = PhaseThreeStrategy(this,budgetScale, delay, useCoordinateClicks)
-                    regressionWatcher.updateStage2Info(eContext)*/
+
             } else if (phaseStrategy is PhaseTwoStrategy) {
                 if (targetInputAvailable()) {
                     phaseStrategy = PhaseThreeStrategy(this, scaleFactor, delay, useCoordinateClicks)
@@ -110,7 +118,7 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
         }
 
         log.info("Current abstract state: ${currentAbstractState}")
-        log.info("Abstract State counts: ${AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter{it !is VirtualAbstractState}.size}")
+        log.info("Abstract State counts: ${AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter{it.guiStates.isNotEmpty()}.size}")
         val availableWidgets = eContext.getCurrentState().widgets
         chosenAction = phaseStrategy.nextAction(eContext)
         prevNode = atuaMF.getAbstractState(eContext.getCurrentState())

@@ -153,12 +153,20 @@ open class Input{
                              widget: EWTGWidget?,
                              sourceWindow: Window,
                              createdAtRuntime: Boolean=false): Input {
-            var event = allInputs.firstOrNull { it.eventType.equals(EventType.valueOf(eventTypeString)) && it.widget == widget && it.sourceWindow == sourceWindow }
+            var events = allInputs.filter { it.eventType.equals(EventType.valueOf(eventTypeString)) && it.widget == widget && it.sourceWindow == sourceWindow }
             //var event = allTargetStaticEvents.firstOrNull {it.eventTypeString.equals(eventTypeString) && (it.widget!!.equals(widget)) }
-            if (event != null) {
-                return event
+            if (events.isNotEmpty()) {
+                val event = events.first()
+                event.eventHandlers.addAll(eventHandlers)
+                if (events.size>1) {
+
+                    allInputs.removeIf { events.contains(it) && it!=event }
+                    event.sourceWindow.inputs.removeIf { events.contains(it) && it != event }
+                    return event
+                }
+                return events.first()
             }
-            event = Input(eventHandlers = HashSet(eventHandlers)
+            val event = Input(eventHandlers = HashSet(eventHandlers)
                     , eventType = EventType.valueOf(eventTypeString)
                     , widget = widget, sourceWindow = sourceWindow, createdAtRuntime = createdAtRuntime)
             return event

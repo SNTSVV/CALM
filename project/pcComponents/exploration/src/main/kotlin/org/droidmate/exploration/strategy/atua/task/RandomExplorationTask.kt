@@ -1,6 +1,7 @@
 package org.droidmate.exploration.strategy.atua.task
 
 import kotlinx.coroutines.runBlocking
+import org.atua.calm.modelReuse.ModelVersion
 import org.droidmate.deviceInterface.exploration.*
 import org.droidmate.exploration.actions.*
 import org.atua.modelFeatures.dstg.AbstractAction
@@ -9,9 +10,7 @@ import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
 import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.modelFeatures.ewtg.Helper
-import org.atua.modelFeatures.ewtg.WindowManager
 import org.atua.modelFeatures.ewtg.window.Activity
-import org.atua.modelFeatures.ewtg.window.Dialog
 import org.atua.modelFeatures.ewtg.window.Window
 import org.atua.modelFeatures.ewtg.window.OutOfApp
 import org.atua.modelFeatures.helper.ProbabilityDistribution
@@ -207,6 +206,10 @@ class RandomExplorationTask constructor(
     override fun chooseAction(currentState: State<*>): ExplorationAction? {
         executedCount++
         val currentAbstractState = atuaMF.getAbstractState(currentState)!!
+        val unexercisedActions = currentAbstractState.getUnExercisedActions(currentState,atuaMF)
+        val widgetActions = unexercisedActions.filter {
+            it.attributeValuationMap == null
+        }
         if (shouldRandomExplorationOutOfApp(currentAbstractState,currentState)) {
             actionOnOutOfAppCount = 0
         }
@@ -217,9 +220,13 @@ class RandomExplorationTask constructor(
         if (goToLockedWindowTask != null) {
             // should go back to target Window
             //reset data filling
-            if (!goToLockedWindowTask!!.isTaskEnd(currentState)) {
-                return goToLockedWindowTask!!.chooseAction(currentState)
-            }
+                if (lockedWindow!=null && currentAbstractState.window == lockedWindow && widgetActions.isNotEmpty()) {
+                    goToLockedWindowTask = null
+                } else if(lockedWindow == null && widgetActions.isNotEmpty()){
+                    goToLockedWindowTask = null
+                } else if (!goToLockedWindowTask!!.isTaskEnd(currentState)) {
+                    return goToLockedWindowTask!!.chooseAction(currentState)
+                }
         } else {
             if (isCameraOpening(currentState)) {
                 return dealWithCamera(currentState)
@@ -228,7 +235,7 @@ class RandomExplorationTask constructor(
                     && lockedWindow != currentAbstractState.window) {
                 dataFilled = false
                 fillingData = false
-                if (!currentAbstractState.isRequireRandomExploration()
+                if (!currentAbstractState.isRequireRandomExploration() && !Helper.isOptionsMenuLayout(currentState)
                     || actionOnOutOfAppCount >= 5 // to avoid the case that we are in outOfApp too long
                 ) {
                     if (currentAbstractState.isOpeningKeyboard) {
@@ -247,7 +254,7 @@ class RandomExplorationTask constructor(
                     }
                 }
             }
-            if (actionOnOutOfAppCount >= 5 ){
+            if (actionOnOutOfAppCount >= 5 || !shouldRandomExplorationOutOfApp(currentAbstractState,currentState)){
                 dataFilled = false
                 fillingData = false
                 if (actionOnOutOfAppCount >= 11) {
@@ -323,10 +330,7 @@ class RandomExplorationTask constructor(
             fillingData = false
         }
         var action: ExplorationAction? = null
-        val unexercisedActions = currentAbstractState.getUnExercisedActions(currentState,atuaMF)
-        val widgetActions = unexercisedActions.filter {
-            it.attributeValuationMap == null
-        }
+
         if (widgetActions.isEmpty()) {
             if (fillingData) {
                 if (!fillDataTask.isTaskEnd(currentState))
@@ -369,6 +373,7 @@ class RandomExplorationTask constructor(
         }
         var randomAction: AbstractAction? = null
         if (qlearningRunning) {
+            // have not tested
             qlearningSteps-=1
             if (qlearningSteps==0) {
                 qlearningRunning = false
@@ -443,11 +448,13 @@ class RandomExplorationTask constructor(
                         recentGoToExploreState = false
                         return randomlyExploreLessExercisedWidgets(unexploredWidgets, currentState)
                     }  else {
-                        if (goToUnexploredStates(
+                        if (!isPureRandom && canGoToUnexploredStates(
                                 currentAbstractState,
                                 currentState
                             )
-                        ) return goToLockedWindowTask!!.chooseAction(currentState)
+                        ) {
+                            return goToLockedWindowTask!!.chooseAction(currentState)
+                        }
                         recentGoToExploreState = false
                         return randomlyExploreLessExercisedWidgets(visibleTargets,currentState)
                     }
@@ -585,11 +592,11 @@ class RandomExplorationTask constructor(
 
     }
 
-    private fun goToUnexploredStates(
+    private fun canGoToUnexploredStates(
         currentAbstractState: AbstractState,
         currentState: State<*>
     ): Boolean {
-        if (!currentAbstractState.isRequireRandomExploration() && !recentGoToExploreState) {
+        if (!currentAbstractState.isRequireRandomExploration() && !Helper.isOptionsMenuLayout(currentState) && !recentGoToExploreState) {
             var targetStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
                 it.window == currentAbstractState.window
                         && it != currentAbstractState
@@ -615,12 +622,15 @@ class RandomExplorationTask constructor(
                         isExploration = true
                     )
                 ) {
-                    recentGoToExploreState = true
-                    goToLockedWindowTask!!.initialize(currentState)
-                    return true
+                    if (goToLockedWindowTask!!.possiblePaths.any { it.path.size<5 }) {
+                        recentGoToExploreState = true
+                        goToLockedWindowTask!!.initialize(currentState)
+                        return true
+                    }
                 }
             }
         }
+        goToLockedWindowTask = null
         return false
     }
 
@@ -647,7 +657,10 @@ class RandomExplorationTask constructor(
                 var actionScore = abstractAction.getScore()
                 val widgetGroup = abstractAction.attributeValuationMap!!
                 val actionCount = abstractAction.attributeValuationMap!!.actionCount.get(abstractAction)?:0
-                var witnessInThePast = currentAbstractState.abstractTransitions.any { it.abstractAction == abstractAction }
+                var witnessInThePast = currentAbstractState.abstractTransitions.any {
+                    it.abstractAction == abstractAction && (
+                            it.interactions.isNotEmpty()
+                                    || it.modelVersion == ModelVersion.BASE) }
                 if (witnessInThePast)
                     actionScore = actionScore/10
                 if (windowWidgetFrequency.containsKey(widgetGroup)) {

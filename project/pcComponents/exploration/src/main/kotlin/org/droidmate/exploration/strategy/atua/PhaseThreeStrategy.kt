@@ -87,7 +87,7 @@ class PhaseThreeStrategy(
                 }
             }
         }
-
+        computeWindowsCorrelation()
     }
     override fun isTargetWindow(window: Window): Boolean {
         if (window == targetWindow)
@@ -135,6 +135,9 @@ class PhaseThreeStrategy(
         targetWindowsCount.entries.removeIf {
             !atuaMF.modifiedMethodsByWindow.containsKey(it.key)
         }
+        atuaMF.notFullyExercisedTargetInputs.forEach {
+            allTargetInputs.putIfAbsent(it,0)
+        }
         return true
     }
 
@@ -148,13 +151,8 @@ class PhaseThreeStrategy(
         }
         val currentAppState = atuaMF.getAbstractState(currentState)!!
         if (targetWindow == null) {
-            while (targetEvent==null) {
-                selectTargetWindow(currentState, 0, 0)
-                selectTargetStaticEvent(currentState)
-            }
-        }
-        if (relatedWindow==null) {
-            relatedWindow = WindowManager.instance.allMeaningWindows.random()
+            selectTargetWindow(currentState, 0, 0)
+            selectTargetStaticEvent(currentState)
         }
         log.info("Current abstract state: $currentAppState")
         log.info("Current window: ${currentAppState.window}")
@@ -312,11 +310,10 @@ class PhaseThreeStrategy(
         val currentAppState = atuaMF!!.getAbstractState(currentState)!!
         if (windowBudgetLeft < 0) {
             targetEvent = null
-            while (targetEvent==null) {
+            if (targetEvent==null) {
                 selectTargetWindow(currentState, 0, 0)
                 selectTargetStaticEvent(currentState)
             }
-
             phaseState = PhaseState.P3_INITIAL
         }
         if (phaseState == PhaseState.P3_INITIAL) {
@@ -344,6 +341,13 @@ class PhaseThreeStrategy(
     private fun isRandomBudgetAvailable() = randomBudgetLeft > 0 || randomBudgetLeft == -1
 
     private fun nextActionOnInitial(currentAppState: AbstractState, randomExplorationTask: RandomExplorationTask, currentState: State<*>, goToAnotherNode: GoToAnotherWindow) {
+        if (relatedWindow == null) {
+            log.warn("Related Window is null.")
+            setRandomExplorationBudget(currentState)
+            setRandomExploration(randomExplorationTask, currentState)
+            phaseState = PhaseState.P3_EXPLORATION_IN_RELATED_WINDOW
+            return
+        }
         if (currentAppState.window == relatedWindow) {
             setRandomExplorationBudget(currentState)
             setRandomExplorationInRelatedWindow(randomExplorationTask, currentState)
@@ -366,6 +370,12 @@ class PhaseThreeStrategy(
     }
 
     private fun nextActionOnGoToRelatedWindow(currentState: State<*>, currentAppState: AbstractState, randomExplorationTask: RandomExplorationTask, goToAnotherNode: GoToAnotherWindow) {
+        if (relatedWindow == null) {
+            log.warn("Related Window is null.")
+            setRandomExplorationBudget(currentState)
+            setRandomExploration(randomExplorationTask, currentState)
+            return
+        }
         if (strategyTask is GoToAnotherWindow && !strategyTask!!.isTaskEnd(currentState)) {
             log.info("Continue ${strategyTask!!.javaClass.name}")
             return
@@ -393,35 +403,93 @@ class PhaseThreeStrategy(
             return
         }
         selectTargetStaticEvent(currentState)
-        while (targetEvent==null) {
-            selectTargetWindow(currentState, 0, 0)
-            selectTargetStaticEvent(currentState)
-        }
         setRandomExploration(randomExplorationTask, currentState)
         phaseState = PhaseState.P3_INITIAL
         return
     }
 
     private fun nextActionOnRandomExplorationInRelatedWindow(randomExplorationTask: RandomExplorationTask, currentState: State<*>, currentAppState: AbstractState, exerciseTargetComponentTask: ExerciseTargetComponentTask, goToAnotherNode: GoToAnotherWindow, goToTargetNodeTask: GoToTargetWindowTask) {
+        if (relatedWindow == null) {
+            log.warn("Related Window is null.")
+            if (isRandomBudgetAvailable()) {
+                if (!strategyTask!!.isTaskEnd(currentState)) {
+                    log.info("Continue ${strategyTask!!.javaClass.name}")
+                    return
+                }
+                setRandomExploration(randomExplorationTask, currentState)
+                return
+            } else {
+                if (currentAppState.window == targetWindow) {
+                    if (exerciseTargetComponentTask.isAvailable(currentState)) {
+                        setExerciseTarget(exerciseTargetComponentTask, currentState)
+                        phaseState = PhaseState.P3_EXERCISE_TARGET_NODE
+                        return
+                    }
+                    if (currentAppState.isRequireRandomExploration() || Helper.isOptionsMenuLayout(currentState) ) {
+                        setRandomExploration(randomExplorationTask, currentState)
+                        phaseState = PhaseState.P3_EXERCISE_TARGET_NODE
+                        return
+                    }
+                    if (goToTargetNodeTask.isAvailable(currentState, targetWindow!!,false, true, false,false)) {
+                        setGoToTarget(goToTargetNodeTask, currentState)
+                        return
+                    }
+                    setRandomExploration(randomExplorationTask, currentState)
+                    phaseState = PhaseState.P3_GO_TO_TARGET_NODE
+                    return
+                } else {
+                    if (goToTargetNodeTask.isAvailable(currentState, targetWindow!!,false, true, false,false)) {
+                        setGoToTarget(goToTargetNodeTask, currentState)
+                        return
+                    }
+                    setRandomExploration(randomExplorationTask, currentState)
+                    phaseState = PhaseState.P3_GO_TO_TARGET_NODE
+                    return
+                }
+            }
+        }
         if (isRandomBudgetAvailable()) {
             if (randomExplorationTask.fillingData || randomExplorationTask.attemptCount == 0) {
                 // if random can be still run, keep running
                 log.info("Continue filling data")
                 return
             }
+            if (currentAppState.window == targetWindow) {
+                if (exerciseTargetComponentTask.isAvailable(currentState)) {
+                    setExerciseTarget(exerciseTargetComponentTask, currentState)
+                    phaseState = PhaseState.P3_EXERCISE_TARGET_NODE
+                    return
+                }
+            }
             if (!strategyTask!!.isTaskEnd(currentState)) {
                 log.info("Continue ${strategyTask!!.javaClass.name}")
                 return
             }
-            if (currentAppState.isRequireRandomExploration()) {
+            if (currentAppState.isRequireRandomExploration() || Helper.isOptionsMenuLayout(currentState) ) {
                 setRandomExploration(randomExplorationTask, currentState)
                 randomExplorationTask.isPureRandom = true
                 return
             }
-            if (currentAppState.window == relatedWindow!!) {
+            if (currentAppState.window == relatedWindow) {
                 setRandomExplorationBudget(currentState)
                 setRandomExplorationInRelatedWindow(randomExplorationTask, currentState)
                 return
+            }
+            if (currentAppState.window == targetWindow) {
+                if (exerciseTargetComponentTask.isAvailable(currentState)) {
+                    setExerciseTarget(exerciseTargetComponentTask, currentState)
+                    phaseState = PhaseState.P3_EXERCISE_TARGET_NODE
+                    return
+                }
+                if (currentAppState.isRequireRandomExploration() || Helper.isOptionsMenuLayout(currentState) ) {
+                    setRandomExploration(randomExplorationTask, currentState)
+                    phaseState = PhaseState.P3_EXERCISE_TARGET_NODE
+                    return
+                }
+                if (goToTargetNodeTask.isAvailable(currentState, targetWindow!!,false, true, false,false)) {
+                    setGoToTarget(goToTargetNodeTask, currentState)
+                    return
+                }
             }
             if (goToAnotherNode.isAvailable(currentState, relatedWindow!!,false, false, false,false)) {
                 setGoToRelatedWindow(goToAnotherNode, currentState)
@@ -447,7 +515,7 @@ class PhaseThreeStrategy(
                     phaseState = PhaseState.P3_EXERCISE_TARGET_NODE
                     return
                 }
-                if (currentAppState.isRequireRandomExploration()) {
+                if (currentAppState.isRequireRandomExploration() || Helper.isOptionsMenuLayout(currentState) ) {
                     setRandomExploration(randomExplorationTask, currentState)
                     phaseState = PhaseState.P3_EXERCISE_TARGET_NODE
                     return
@@ -506,7 +574,7 @@ class PhaseThreeStrategy(
             return
         }
         targetEvent = null
-        while (targetEvent==null) {
+        if (targetEvent==null) {
             selectTargetWindow(currentState, 0, 0)
             selectTargetStaticEvent(currentState)
         }
@@ -520,17 +588,13 @@ class PhaseThreeStrategy(
             log.info("Continue ${strategyTask!!.javaClass.name}")
             return
         }
-        if (currentAppState.isRequireRandomExploration()) {
+        if (currentAppState.isRequireRandomExploration() || Helper.isOptionsMenuLayout(currentState) ) {
             setRandomExploration(randomExplorationTask, currentState)
             phaseState = PhaseState.P3_EXERCISE_TARGET_NODE
             return
         }
         phaseState = PhaseState.P3_INITIAL
         selectTargetStaticEvent(currentState)
-        while (targetEvent==null) {
-            selectTargetWindow(currentState, 0, 0)
-            selectTargetStaticEvent(currentState)
-        }
         chooseTask(eContext, currentState)
         return
     }
@@ -542,7 +606,7 @@ class PhaseThreeStrategy(
             return
         }
         if (isRandomBudgetAvailable()) {
-            if (currentAppState.window == relatedWindow!!) {
+            if (currentAppState.window == relatedWindow) {
                 setRandomExplorationBudget(currentState)
                 setRandomExplorationInRelatedWindow(randomExplorationTask, currentState)
                 return
@@ -564,10 +628,6 @@ class PhaseThreeStrategy(
                 }
                 phaseState = PhaseState.P3_INITIAL
                 selectTargetStaticEvent(currentState)
-                while (targetEvent==null) {
-                    selectTargetWindow(currentState, 0, 0)
-                    selectTargetStaticEvent(currentState)
-                }
                 setRandomExploration(randomExplorationTask, currentState)
                 return
             }
@@ -583,7 +643,7 @@ class PhaseThreeStrategy(
             return
         }
         if (isRandomBudgetAvailable()) {
-            if (currentAppState.window == relatedWindow!!) {
+            if (currentAppState.window == relatedWindow) {
                 setRandomExplorationBudget(currentState)
                 setRandomExplorationInRelatedWindow(randomExplorationTask, currentState)
                 return
@@ -607,10 +667,6 @@ class PhaseThreeStrategy(
             }
             phaseState = PhaseState.P3_INITIAL
             selectTargetStaticEvent(currentState)
-            while (targetEvent==null) {
-                selectTargetWindow(currentState, 0, 0)
-                selectTargetStaticEvent(currentState)
-            }
             setRandomExploration(randomExplorationTask, currentState)
             return
         }
@@ -875,11 +931,12 @@ class PhaseThreeStrategy(
                 relatedWindow = pdForRelatedWindows.getRandomVariable()
             }
         } else {
-            val candidates = WindowManager.instance.allMeaningWindows.filter { it != targetWindow && it !is Dialog}
-            if (candidates.isNotEmpty()) {
-                relatedWindow = candidates.random()
+            val candidates = windowsCorrelation.get(targetWindow)
+            if (candidates!=null && candidates.isNotEmpty()) {
+                val pdForRelatedWindows = ProbabilityDistribution<Window>(candidates)
+                relatedWindow = pdForRelatedWindows.getRandomVariable()
             } else {
-                relatedWindow = targetWindow
+                relatedWindow = null
             }
         }
        /* if (numTried< max && getPathsToWindowToExplore(currentState, relatedWindow!!,PathFindingHelper.PathType.ANY,false).isEmpty()) {
@@ -911,9 +968,21 @@ class PhaseThreeStrategy(
         }
     }
 
-    val windowsCorrelation = HashMap<Window, HashMap<Window,Double>>()
-    fun computeWindowsCorrelation() {
 
+    fun computeWindowsCorrelation() {
+        val windows = WindowManager.instance.allMeaningWindows
+        val ir = InformationRetrieval<Window,String>(atuaMF!!.windowTermsHashMap)
+        windows.forEach {
+            val windowTerm = atuaMF!!.windowTermsHashMap.get(it)
+            if (windowTerm != null) {
+                val result = ir.searchSimilarDocuments(windowTerm, 10)
+                val correlation = HashMap<Window, Double>()
+                result.forEach {
+                    correlation.put(it.first, it.second)
+                }
+                windowsCorrelation.put(it, correlation)
+            }
+        }
     }
 
     fun computeAppStatesScore(){

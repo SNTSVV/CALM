@@ -70,8 +70,10 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
 
 
     val statementInstrumentationMap= HashMap<String, String>() //statementid -> statement
-     val statementMethodInstrumentationMap = HashMap<String, String>() //statementid -> methodid
-     val methodInstrumentationMap= HashMap<String, String>() //method id -> method
+    val statementMethodInstrumentationMap = HashMap<String, String>() //statementid -> methodid
+    val statementsByMethodId = HashMap<String, ArrayList<String>>()
+    val methodInstrumentationMap= HashMap<String, String>() //method id -> method
+    val methodIdByMethodName = HashMap<String, String>()
 
 
     val modifiedMethodsList = HashSet<String>()
@@ -176,10 +178,11 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                 val methodName = getMethodName(it)
                 log.info("New modified method: $methodName")
             }*/
+            val executedStatements = executedStatementsMap.keys().toList()
             recentExecutedMethods.forEach { m->
                 if (!fullyCoveredMethods.contains(m)) {
-                    val methodStatements = statementMethodInstrumentationMap.filter { it.value == m }.keys
-                    val executedStatements = executedStatementsMap.keys().toList().intersect(methodStatements)
+                    val methodStatements = statementsByMethodId[m]?:emptyList<String>()
+                    val executedStatements = executedStatements.intersect(methodStatements)
                     if (methodStatements.size == executedStatements.size) {
                         fullyCoveredMethods.add(m)
                     }
@@ -317,11 +320,13 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                         val uuid = parts[1]
                         assert(uuid.length == l, { "Invalid UUID $uuid $method" })
                         methodInstrumentationMap[uuid] = parts[0]
+                        methodIdByMethodName[parts[0]] = uuid
                     } else {
                         val parts = method.toString().split(" uuid=")
                         val uuid = parts[1]
                         assert(uuid.length == l, { "Invalid UUID $uuid $method" })
                         methodInstrumentationMap[uuid] = parts[0]
+                        methodIdByMethodName[parts[0]] = uuid
                     }
                 }
         log.info("methods : ${methodInstrumentationMap.size}")
@@ -350,6 +355,8 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                         val methodId = parts2.last()
                         // Add the statement if it wasn't executed before
                         statementMethodInstrumentationMap[uuid] = methodId
+                        statementsByMethodId.putIfAbsent(methodId, ArrayList())
+                        statementsByMethodId[methodId]!!.add(uuid)
                     }
                 }
         log.info("statement : ${statementInstrumentationMap.size}")
@@ -420,11 +427,11 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
     }
 
     fun getMethodId(methodName: String): String{
-        return methodInstrumentationMap.filterValues { it.equals(methodName) }.entries.firstOrNull()?.key?:""
+        return methodIdByMethodName[methodName]?:""
     }
     //Return List of statment id
     fun getMethodStatements(methodId: String): List<String>{
-        return statementMethodInstrumentationMap.filter { it.value.equals(methodId) }.map { it.key }
+        return statementsByMethodId[methodId]?.toList()?: emptyList()
     }
 
     /**

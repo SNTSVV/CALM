@@ -41,10 +41,11 @@ object UiHierarchy : UiParser() {
 			//Ignore SystemUI windows
 			//And get the top layer
 			//TODO try keep systemUI
-			windows.filterNot { it.w.pkgName == "com.android.systemui" }
+			windows
+					.filterNot { it.w.pkgName == "com.android.systemui" }
 					/*.sortedBy { it.layer }
 					.last()*/
-					//.filter { it.w.hasFocus || it.w.hasInputFocus || it.isKeyboard}
+//					.filter { it.w.hasFocus || it.w.hasInputFocus || it.isKeyboard}
 					.forEach{ w: DisplayedWindow ->
 			//windows.forEach {  w: DisplayedWindow ->
 				//Try considering Launcher elements

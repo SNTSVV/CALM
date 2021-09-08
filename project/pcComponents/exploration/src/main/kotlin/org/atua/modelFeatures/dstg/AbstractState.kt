@@ -52,6 +52,7 @@ open class AbstractState(
     var modelVersion: ModelVersion = ModelVersion.RUNNING,
     reuseAbstractStateId: UUID? = null
 ) {
+    var activated: Boolean = true
     val actionCount = HashMap<AbstractAction, Int>()
     val targetActions = HashSet<AbstractAction>()
     val abstractStateId: String
@@ -287,7 +288,7 @@ open class AbstractState(
                         (it.key.actionType == AbstractActionType.ITEM_CLICK && hasClickableSubItems(it.key.attributeValuationMap!!, currentState))
                                 || (it.key.actionType == AbstractActionType.ITEM_LONGCLICK && hasLongClickableSubItems(it.key.attributeValuationMap!!, currentState))
                         )
-            }.filter { it.value == 0 || (avmCardinalities.get(it.key.attributeValuationMap)==Cardinality.MANY && it.value < 2) }.map { it.key }
+            }.filter { it.value == 0 || (avmCardinalities.get(it.key.attributeValuationMap)==Cardinality.MANY && it.value <= 2) }.map { it.key }
             unexcerisedActions.addAll(actions)
         }
 
@@ -432,7 +433,8 @@ open class AbstractState(
         if ((this.window is Dialog
                         && !WindowManager.instance.updatedModelWindows.filter { it is OutOfApp }.map { it.classType }.contains(this.activity))
                 || this.isOpeningMenus
-                || this.window.classType.contains("ResolverActivity"))
+                || this.window.classType.contains("ResolverActivity")
+            || this.window.classType.contains("com.android.internal.app.ChooserActivity"))
             return true
         return false
     }

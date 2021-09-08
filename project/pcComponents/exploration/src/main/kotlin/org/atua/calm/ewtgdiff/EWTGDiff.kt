@@ -151,7 +151,7 @@ class EWTGDiff private constructor(){
         if (widgetDifferentSets.containsKey("ReplacementSet")) {
             for (replacement in (widgetDifferentSets.get("ReplacementSet")!! as ReplacementSet<EWTGWidget>).replacedElements) {
                 // update avm-ewtgwidget mapping
-                updateInputs(replacement)
+                updateInputs(replacement,true)
                 updateAbstractionFunction(replacement)
                 // update EWTGWidget structure
                 updateWindowHierarchy(replacement)
@@ -161,7 +161,7 @@ class EWTGDiff private constructor(){
 
         if (widgetDifferentSets.containsKey("RetainerSet")) {
             for (replacement in (widgetDifferentSets.get("RetainerSet")!! as RetainerSet<EWTGWidget>).replacedElements) {
-                updateInputs(replacement)
+                updateInputs(replacement,false)
                 // update EWTGWidget structure
                 updateWindowHierarchy(replacement)
                 updateAbstractionFunction(replacement)
@@ -235,16 +235,21 @@ class EWTGDiff private constructor(){
         }
     }
 
-    private fun updateInputs(replacement: Replacement<EWTGWidget>) {
-        replacement.old.window.inputs.filter { it.widget == replacement.old }.forEach { input ->
+    private fun updateInputs(replacement: Replacement<EWTGWidget>, isReplaced: Boolean) {
+        replacement.old.window.inputs.filter { it.widget == replacement.old }.forEach { oldInput ->
             val existingInputInUpdateVers = replacement.new.window.inputs
-                    .find { it.widget == replacement.new && it.eventType == input.eventType }
+                    .find { it.widget == replacement.new && it.eventType == oldInput.eventType }
             if (existingInputInUpdateVers == null)
-                input.widget = replacement.new
+                oldInput.widget = replacement.new
             else {
-                replacement.new.window.inputs.remove(input)
-                existingInputInUpdateVers.eventHandlers.addAll(input.eventHandlers)
-                existingInputInUpdateVers.modifiedMethods.putAll(input.modifiedMethods)
+                replacement.new.window.inputs.remove(oldInput)
+                if (!isReplaced && existingInputInUpdateVers.eventHandlers.intersect(oldInput.eventHandlers).isEmpty()) {
+                    existingInputInUpdateVers.eventHandlers.clear()
+                    existingInputInUpdateVers.modifiedMethods.clear()
+                    existingInputInUpdateVers.modifiedMethodStatement.clear()
+                }
+                existingInputInUpdateVers.eventHandlers.addAll(oldInput.eventHandlers)
+                existingInputInUpdateVers.modifiedMethods.putAll(oldInput.modifiedMethods)
 
             }
         }

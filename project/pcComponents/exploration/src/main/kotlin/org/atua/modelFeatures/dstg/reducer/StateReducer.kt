@@ -12,6 +12,7 @@
 
 package org.atua.modelFeatures.dstg.reducer
 
+import org.atua.modelFeatures.dstg.AbstractStateManager
 import org.droidmate.deviceInterface.exploration.Rectangle
 import org.atua.modelFeatures.dstg.AttributePath
 import org.atua.modelFeatures.dstg.AttributeValuationMap
@@ -20,6 +21,7 @@ import org.atua.modelFeatures.ewtg.window.Window
 import org.droidmate.explorationModel.emptyUUID
 import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
+import org.slf4j.LoggerFactory
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
@@ -44,20 +46,20 @@ class StateReducer
             val tempFullAttrPaths = HashMap<Widget,AttributePath>()
             val tempRelativeAttrPaths = HashMap<Widget,AttributePath>()
             //TODO: Save all computed attributePath to prevent from recomputing
+
+            val visibleWidgets = Helper.getVisibleWidgets(guiState)
+            val visibleWidgetsForAbstraction = Helper.getVisibleWidgetsForAbstraction(guiState)
             val capturedWidgets = if (window.classType.startsWith("com.oath.mobile.platform.phoenix.core.")) {
-                Helper.getVisibleWidgets(guiState).filter { !it.isKeyboard }
+                visibleWidgets.filter { !it.isKeyboard }
             } else {
-                Helper.getVisibleWidgetsForAbstraction(guiState)
+                visibleWidgetsForAbstraction
             }
          /*   capturedWidgets.forEach { widget ->
                 if (derivedWidgets.containsKey(widget)) {
                     widgetAVMHashMap.put(widget,derivedWidgets.get(widget)!!)
                 }
             }*/
-            val toReduceWidgets = ArrayList(Helper.getVisibleWidgets(guiState).filterNot { it.isKeyboard })
-            if (toReduceWidgets.isEmpty()) {
-                toReduceWidgets.addAll(guiState.widgets.filter { !it.isKeyboard })
-            }
+            val toReduceWidgets = ArrayList(guiState.widgets.filter { !it.isKeyboard })
             toReduceWidgets.forEach {
                 val existingAVM = derivedWidgets.get(it)
                 if (existingAVM!=null) {
@@ -102,7 +104,8 @@ class StateReducer
                 if (similarAVMs.isNotEmpty()) {
                     throw Exception()
                 }*/
-                widgetReduceMap.filter { it.value.equals(element) }.forEach { w, _ ->
+                val relatedWidgets = widgetReduceMap.filter { it.value.equals(element) }
+                relatedWidgets.forEach { w, _ ->
                     if (capturedWidgets.contains(w)) {
                         widgetAVMHashMap.put(w, avm)
                     }
@@ -112,6 +115,10 @@ class StateReducer
                 nonProcessedChildren.forEach {
                     workingList.push(it)
                 }
+            }
+            val widgetToAVMs =  guiState.widgets.filter { !it.isKeyboard }.associateWith { derivedWidgets.get(it) }
+            if (widgetToAVMs.any{it.value == null}) {
+                LoggerFactory.getLogger(this::class.java).warn("Some widgets have not been derived")
             }
             return widgetAVMHashMap
         }

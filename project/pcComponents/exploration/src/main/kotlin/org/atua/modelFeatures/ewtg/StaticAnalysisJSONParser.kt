@@ -406,41 +406,69 @@ class StaticAnalysisJSONParser() {
             }
             return result
         }
+        val widgetByWidgetString = HashMap<Window,HashMap<String, EWTGWidget>>()
+        val windowByWindowString = HashMap<String, Window>()
 
         fun readWindowWidgets(jsonObj: JSONObject,
                               wtg: EWTG) {
             jsonObj.keys().asSequence().forEach { key ->
                 val windowJson = key as String
-                val windowInfo = windowParser(windowJson)
-                val wtgNode = wtg.getOrCreateWTGNode(windowInfo)
+                val window = getParsedWindowOrCreateNewOne(windowJson, wtg)
                 val widgetListJson = jsonObj[key] as JSONObject
                 widgetListJson.keys().asSequence().forEach {
                     if (widgetListJson[it]!! is JSONObject) {
                         val jsonObjectRoot = widgetListJson[it] as JSONObject
                         val widgetInfoJson = jsonObjectRoot["widget"].toString()
-                        val widgetInfo = widgetParser(widgetInfoJson)
-                        val parent = EWTGWidget.getOrCreateStaticWidget(widgetId = widgetInfo["id"]!!,
-                                resourceId = widgetInfo["resourceId"]?:"",
-                                resourceIdName = widgetInfo["resourceIdName"]?:"",
-                                className = widgetInfo["className"]!!,
-                                wtgNode = wtgNode)
-                        val jsonChildren = jsonObjectRoot["children"] as JSONObject
-                        parseWindowWigetsChildren(jsonChildren, parent)
-
+                        val parent = getParsedEWTGWidgetOrCreateNewOne(window, widgetInfoJson)
+                        if (parent!=null) {
+                            val jsonChildren = jsonObjectRoot["children"] as JSONObject
+                            parseWindowWigetsChildren(jsonChildren, parent)
+                        }
                     } else {
                         val widgetInfoJson = widgetListJson[it].toString()
-                        val widgetInfo = widgetParser(widgetInfoJson)
-                        if (widgetInfo.containsKey("resourceId") && widgetInfo.containsKey("resourceIdName")) {
-                            EWTGWidget.getOrCreateStaticWidget(widgetId = widgetInfo["id"]!!,
-                                    resourceId = widgetInfo["resourceId"]!!,
-                                    resourceIdName = widgetInfo["resourceIdName"]!!,
-                                    className = widgetInfo["className"]!!,
-                                    wtgNode = wtgNode)
-                        }
-
+                        getParsedEWTGWidgetOrCreateNewOne(window, widgetInfoJson)
                     }
                 }
             }
+        }
+
+        public fun getParsedWindowOrCreateNewOne(
+            windowJson: String,
+            wtg: EWTG
+        ): Window {
+            val window = if (windowByWindowString.containsKey(windowJson)) {
+                windowByWindowString.get(windowJson)!!
+            } else {
+                val windowInfo = windowParser(windowJson)
+                val wtgNode = wtg.getOrCreateWTGNode(windowInfo)
+                windowByWindowString.putIfAbsent(windowJson, wtgNode)
+                widgetByWidgetString.putIfAbsent(wtgNode, HashMap())
+                wtgNode
+            }
+            return window
+        }
+
+        public fun getParsedEWTGWidgetOrCreateNewOne(
+            window: Window,
+            widgetInfoJson: String
+        ): EWTGWidget? {
+            val parent = if (widgetByWidgetString.get(window)!!.containsKey(widgetInfoJson)) {
+                widgetByWidgetString[window]!!.get(widgetInfoJson)!!
+            } else {
+                val widgetInfo = widgetParser(widgetInfoJson)
+                if (!widgetInfo.containsKey("id"))
+                    return null
+                val newWidget = EWTGWidget.getOrCreateStaticWidget(
+                    widgetId = widgetInfo["id"]!!,
+                    resourceId = widgetInfo["resourceId"] ?: "",
+                    resourceIdName = widgetInfo["resourceIdName"] ?: "",
+                    className = widgetInfo["className"]!!,
+                    window = window
+                )
+                widgetByWidgetString[window]!!.put(widgetInfoJson, newWidget)
+                newWidget
+            }
+            return parent
         }
 
         private fun parseWindowWigetsChildren(jsonChildren: JSONObject, parent: EWTGWidget ) {
@@ -448,27 +476,16 @@ class StaticAnalysisJSONParser() {
                 if (jsonChildren[it]!! is JSONObject ) {
                     val jsonObjectTree = jsonChildren[it] as JSONObject
                     val widgetInfoJson = jsonObjectTree["widget"].toString()
-                    val widgetInfo = widgetParser(widgetInfoJson)
-                    val widget = EWTGWidget.getOrCreateStaticWidget(widgetId = widgetInfo["id"]!!,
-                            resourceId = widgetInfo["resourceId"]?:"",
-                            resourceIdName = widgetInfo["resourceIdName"]?:"",
-                            className = widgetInfo["className"]!!,
-                            wtgNode = parent.window)
-                    widget.parent = parent
-                    val jsonChildren = jsonObjectTree["children"] as JSONObject
-                    parseWindowWigetsChildren(jsonChildren, widget)
-                } else {
-                    val widgetInfoJson = jsonChildren[it].toString()
-                    val widgetInfo = widgetParser(widgetInfoJson)
-                    if (widgetInfo.containsKey("resourceId") && widgetInfo.containsKey("resourceIdName")) {
-                        val widget = EWTGWidget.getOrCreateStaticWidget(widgetId = widgetInfo["id"]!!,
-                                resourceId = widgetInfo["resourceId"]!!,
-                                resourceIdName = widgetInfo["resourceIdName"]!!,
-                                className = widgetInfo["className"]!!,
-                                wtgNode = parent.window)
+                    val widget = getParsedEWTGWidgetOrCreateNewOne(parent.window,widgetInfoJson)
+                    if (widget!=null) {
                         widget.parent = parent
+                        val jsonChildren = jsonObjectTree["children"] as JSONObject
+                        parseWindowWigetsChildren(jsonChildren, widget)
                     }
 
+                } else {
+                    val widgetInfoJson = jsonChildren[it].toString()
+                    getParsedEWTGWidgetOrCreateNewOne(parent.window,widgetInfoJson)
                 }
             }
         }
@@ -479,8 +496,7 @@ class StaticAnalysisJSONParser() {
                                 , statementCoverageMF: StatementCoverageMF) {
             jsonObj.keys().asSequence().forEach { key ->
                 val windowJson = key as String
-                val windowInfo = windowParser(windowJson)
-                val wtgNode = wtg.getOrCreateWTGNode(windowInfo)
+                val window = getParsedWindowOrCreateNewOne(windowJson,wtg)
                 val widgetListJson = jsonObj[key] as JSONObject
                 widgetListJson.keys().asSequence().forEach {
                     val widgetInfoJson = it
@@ -489,25 +505,14 @@ class StaticAnalysisJSONParser() {
                     eventListJsons.forEach { eventJson ->
                         val eventJsonObject = eventJson as JSONObject
                         val jsonEventHandlers = eventJsonObject["handler"] as JSONArray
+                        val eventHandlers = jsonEventHandlers.map { statementCoverageMF.getMethodId(it as String) }.toSet()
                         val jsonEventType = eventJsonObject["action"] as String
                         if (!Input.isIgnoreEvent(jsonEventType) && jsonEventType != EventType.implicit_back_event.name) {
                             if (Input.isNoWidgetEvent(jsonEventType)) {
                                 ewtgWidget = null
                             } else {
                                 try {
-                                    val widgetInfo = widgetParser(widgetInfoJson)
-                                    if (widgetInfo.containsKey("resourceId") && widgetInfo.containsKey("resourceIdName")) {
-                                        ewtgWidget = EWTGWidget.getOrCreateStaticWidget(widgetId = widgetInfo["id"]!!,
-                                                resourceId = widgetInfo["resourceId"]!!,
-                                                resourceIdName = widgetInfo["resourceIdName"]!!,
-                                                className = widgetInfo["className"]!!,
-                                                wtgNode = wtgNode)
-                                    } else {
-                                        ewtgWidget = EWTGWidget.getOrCreateStaticWidget(widgetId = widgetInfo["id"]!!,
-                                                className = widgetInfo["className"]!!,
-                                                wtgNode = wtgNode)
-                                    }
-
+                                    ewtgWidget = getParsedEWTGWidgetOrCreateNewOne(window,widgetInfoJson)
                                 } catch (e: Exception) {
                                     ewtgWidget = null
                                 }
@@ -520,7 +525,7 @@ class StaticAnalysisJSONParser() {
                                         eventHandlers = jsonEventHandlers.map { statementCoverageMF.getMethodId(it as String) }.toSet(),
                                         eventTypeString = jsonEventType,
                                         widget = ewtgWidget,
-                                        sourceWindow = wtgNode,
+                                        sourceWindow = window,
                                         allTargetInputs = HashSet())
                                 allEventHandlers.addAll(event.eventHandlers)
 
@@ -545,7 +550,7 @@ class StaticAnalysisJSONParser() {
                                                 eventHandlers = jsonEventHandlers.map { statementCoverageMF.getMethodId(it as String) }.toSet(),
                                                 eventTypeString = "item_click",
                                                 widget = ewtgWidget,
-                                                sourceWindow = wtgNode,
+                                                sourceWindow = window,
                                                 allTargetInputs = HashSet())
                                         allEventHandlers.addAll(itemClick.eventHandlers)
                                     }
@@ -556,7 +561,7 @@ class StaticAnalysisJSONParser() {
                                                 eventHandlers = jsonEventHandlers.map { statementCoverageMF.getMethodId(it as String) }.toSet(),
                                                 eventTypeString = "item_long_click",
                                                 widget = ewtgWidget,
-                                                sourceWindow = wtgNode,
+                                                sourceWindow = window,
                                                 allTargetInputs = HashSet())
                                         allEventHandlers.addAll(itemLongClick.eventHandlers)
                                     }
@@ -579,12 +584,10 @@ class StaticAnalysisJSONParser() {
 
             jsonObj.keys().asSequence().forEach { key ->
                 val source = key as String
-                val sourceInfo = windowParser(source)
-                //val sourceId = sourceInfo["id"]!!
-                val sourceNode = wtg.getOrCreateWTGNode(sourceInfo)
+                val sourceNode = getParsedWindowOrCreateNewOne(source,wtg)
                 val methodInvocations = jsonObj[key] as JSONObject
-                methodInvocations.keys().asSequence().forEach { w ->
-                    val widgetInvocation_json = methodInvocations[w] as JSONArray
+                methodInvocations.keys().asSequence().forEach { widgetJson ->
+                    val widgetInvocation_json = methodInvocations[widgetJson] as JSONArray
                     //val widget_methodInvocations = Widget_MethodInvocations(staticWidget, ArrayList())
 
                     //widgets_modMethodInvocation[staticWidget.widgetId] = widget_methodInvocations
@@ -602,21 +605,11 @@ class StaticAnalysisJSONParser() {
                                 ewtgWidget = null
                             } else {
                                 try {
-                                    val widgetInfo = widgetParser(w)
-                                    if (widgetInfo.containsKey("resourceId") && widgetInfo.containsKey("resourceIdName")) {
-                                        ewtgWidget = EWTGWidget.getOrCreateStaticWidget(widgetId = widgetInfo["id"]!!,
-                                                resourceId = widgetInfo["resourceId"]!!,
-                                                resourceIdName = widgetInfo["resourceIdName"]!!,
-                                                className = widgetInfo["className"]!!,
-                                                wtgNode = sourceNode)
-
-                                    } else {
-                                        ewtgWidget = EWTGWidget.getOrCreateStaticWidget(widgetId = widgetInfo["id"]!!,
-                                                className = widgetInfo["className"]!!,
-                                                wtgNode = sourceNode)
-                                    }
-                                    if (!allTargetEWTGWidgets.contains(ewtgWidget)) {
-                                        allTargetEWTGWidgets.add(ewtgWidget)
+                                    ewtgWidget = getParsedEWTGWidgetOrCreateNewOne(sourceNode,widgetJson)
+                                    if (ewtgWidget != null) {
+                                        if (!allTargetEWTGWidgets.contains(ewtgWidget)) {
+                                            allTargetEWTGWidgets.add(ewtgWidget)
+                                        }
                                     }
                                 } catch (e: Exception) {
                                     ewtgWidget = null
@@ -627,21 +620,21 @@ class StaticAnalysisJSONParser() {
                                     (!Input.isNoWidgetEvent(jsonEventType) &&
                                             ewtgWidget != null)) {
                                 val jsonEventHandler = jsonEvent["eventHandlers"] as JSONArray
-                                val event = getOrCreateTargetEvent(
-                                        eventHandlers = jsonEventHandler.map { statementCoverageMF.getMethodId(it as String) }.toSet(),
+                                val eventHandlers = jsonEventHandler.map { statementCoverageMF.getMethodId(it as String) }.toSet()
+                                if (eventHandlers.isNotEmpty()) {
+                                    val event = getOrCreateTargetEvent(
+                                        eventHandlers = eventHandlers,
                                         eventTypeString = jsonEventType,
                                         widget = ewtgWidget,
                                         sourceWindow = sourceNode,
                                         allTargetInputs = allTargetInputs)
-                                val methods = jsonEvent["modMethods"] as JSONArray
-                                methods.forEach {
-                                    val methodId = statementCoverageMF.getMethodId(it as String)
-                                    val statements = statementCoverageMF.getMethodStatements(methodId)
-                                    event.modifiedMethods.put(methodId, false)
-                                    statements.forEach {
-                                        event.modifiedMethodStatement.put(it, false)
-                                    }
+                                    val methods = jsonEvent["modMethods"] as JSONArray
+                                    val methodIds = methods.map { statementCoverageMF.getMethodId(it as String)}
+                                    val methodStatements = methodIds.map { statementCoverageMF.getMethodStatements(it) }.flatten()
+                                    event.modifiedMethods.putAll(methodIds.associateWith { false })
+                                    event.modifiedMethodStatement.putAll(methodStatements.associateWith { false })
                                 }
+
                             }
 
                         }
@@ -833,12 +826,7 @@ class StaticAnalysisJSONParser() {
                         } else {
                             try {
                                 val jsonTargetWidget = jsonEventCorrelation["targetWidget"] as String
-                                val widgetInfo = widgetParser(jsonTargetWidget)
-                                ewtgWidget = EWTGWidget.getOrCreateStaticWidget(widgetId = widgetInfo["id"]!!,
-                                        resourceId = widgetInfo["resourceId"]!!,
-                                        resourceIdName = widgetInfo["resourceIdName"]!!,
-                                        className = widgetInfo["className"]!!,
-                                        wtgNode = sourceNode)
+                                ewtgWidget = getParsedEWTGWidgetOrCreateNewOne(sourceNode,jsonTargetWidget)
                             } catch (e: Exception) {
                                 ewtgWidget = null
                             }

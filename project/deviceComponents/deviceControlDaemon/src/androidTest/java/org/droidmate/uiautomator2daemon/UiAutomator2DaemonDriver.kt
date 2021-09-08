@@ -31,6 +31,9 @@ import org.droidmate.deviceInterface.communication.DeviceCommand
 import org.droidmate.deviceInterface.communication.ExecuteCommand
 import org.droidmate.deviceInterface.communication.StopDaemonCommand
 import org.droidmate.deviceInterface.exploration.DeviceResponse
+import org.droidmate.deviceInterface.exploration.LongClick
+import org.droidmate.deviceInterface.exploration.LongClickEvent
+import org.droidmate.deviceInterface.exploration.TextInsert
 import org.droidmate.uiautomator2daemon.exploration.*
 import org.droidmate.uiautomator2daemon.uiautomatorExtensions.UiAutomationEnvironment
 import kotlin.math.max
@@ -85,12 +88,18 @@ class UiAutomator2DaemonDriver(waitForIdleTimeout: Long, waitForInteractiveTimeo
 				})
 //TODO if the previous action was not successful we should return an "ActionFailed"-DeviceResponse
 
-				if (!action.isFetch()) // only fetch once even if the action was a FetchGUI action
-					debugT("FETCH avg= ${tFetch / (max(nActions, 1) )} ms", { fetchDeviceData(uiEnvironment, afterAction = true) }, inMillis = true, timer = {
+				if (!action.isFetch()) { // only fetch once even if the action was a FetchGUI action
+					val useIdleTimeoutDefault = if (action is LongClick || action is LongClickEvent || action is TextInsert) {
+						true
+					} else {
+						false
+					}
+					debugT("FETCH avg= ${tFetch / (max(nActions, 1))} ms", { fetchDeviceData(uiEnvironment, afterAction = true, useDefault = useIdleTimeoutDefault) }, inMillis = true, timer = {
 						//					if (action !is DeviceLaunchApp) {
 						tFetch += it
 //					}
 					})
+				}
 				else result as DeviceResponse
 			}, inMillis = true, timer = {
 				//				if (action !is DeviceLaunchApp) {

@@ -64,7 +64,7 @@ open class EWTGWidget constructor(val widgetId: String,//sootandroid id
                 widgetId = this.widgetId,
                 resourceIdName = this.resourceIdName,
                 className = this.className,
-                wtgNode = newNode,
+                window = newNode,
                 structure = structure
         )
         newStaticWidget.possibleTexts.addAll( this.possibleTexts)
@@ -93,13 +93,13 @@ open class EWTGWidget constructor(val widgetId: String,//sootandroid id
                                     resourceIdName: String = "",
                                     resourceId: String = "",
                                     className: String,
-                                    wtgNode: Window,
+                                    window: Window,
                                     structure: String = ""): EWTGWidget {
-            val returnWidget = allStaticWidgets.find{ it.widgetId==widgetId && it.window == wtgNode}
+            val returnWidget = allStaticWidgets.find{ it.widgetId==widgetId && it.window == window}
             if ( returnWidget == null) {
                 var staticWidget = EWTGWidget(widgetId = widgetId
                         , resourceIdName = resourceIdName
-                        , window = wtgNode
+                        , window = window
                         , className = className
                         , text = ""
                         , contentDesc = ""

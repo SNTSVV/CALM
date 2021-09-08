@@ -62,6 +62,18 @@ class WindowManager {
     fun header(): String {
         return "[1]WindowID;[2]WindowType;[3]classType;[4]createdAtRuntime;[5]portraitDimension;[6]landscapeDimension;[7]portraitKeyboardDimension;[8]landscapeKeyboardDimension;"
     }
+
+    fun concludeInputsEventHandlers() {
+        updatedModelWindows.forEach {window ->
+            window.inputs.forEach { input ->
+                if (input.verifiedEventHandlers.isNotEmpty()) {
+                    input.eventHandlers.clear()
+                    input.eventHandlers.addAll(input.verifiedEventHandlers)
+                }
+            }
+        }
+    }
+
     companion object{
         val instance: WindowManager by lazy {
             WindowManager()

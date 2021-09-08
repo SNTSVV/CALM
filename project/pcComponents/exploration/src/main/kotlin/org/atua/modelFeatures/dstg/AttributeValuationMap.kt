@@ -13,6 +13,7 @@
 package org.atua.modelFeatures.dstg
 
 import org.atua.calm.AppModelLoader
+import org.atua.modelFeatures.dstg.reducer.WidgetReducer
 import org.atua.modelFeatures.ewtg.DescendantLayoutDirection
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.window.Window
@@ -320,9 +321,16 @@ class AttributeValuationMap {
     fun getGUIWidgets (guiState: State<*>): List<Widget>{
         val selectedGuiWidgets = ArrayList<Widget>()
         Helper.getVisibleWidgetsForAbstraction(guiState).forEach {
-            if (isAbstractRepresentationOf(it,guiState,false)) {
-                selectedGuiWidgets.add(it)
+            val attributeValuationMap = allWidgetAVMHashMap[window]!![it]
+            if (attributeValuationMap != null) {
+                if (attributeValuationMap == this || attributeValuationMap.hashCode == this.hashCode
+                    || attributeValuationMap.isDerivedFrom(this))
+                    selectedGuiWidgets.add(it)
+                else if (isAbstractRepresentationOf(it,guiState,false)) {
+                    selectedGuiWidgets.add(it)
+                }
             }
+
         }
         /*if (selectedGuiWidgets.isEmpty()) {
             Helper.getVisibleWidgets(guiState).forEach {

@@ -11,6 +11,10 @@
  */
 package org.atua.modelFeatures.inputRepo.textInput
 
+import org.atua.modelFeatures.dstg.AbstractStateManager
+import org.atua.modelFeatures.dstg.reducer.AbstractionFunction2
+import org.atua.modelFeatures.ewtg.EWTGWidget
+import org.atua.modelFeatures.ewtg.WindowManager
 import org.droidmate.deviceInterface.exploration.isEnabled
 import org.droidmate.exploration.strategy.atua.task.InputCoverage
 import org.droidmate.explorationModel.interaction.State
@@ -84,12 +88,18 @@ class TextInput () {
             when (inputCoverageType) {
                 InputCoverage.FILL_EMPTY -> return ""
                 InputCoverage.FILL_NONE -> return widget.text
-                InputCoverage.FILL_ALL, InputCoverage.FILL_RANDOM -> return generateInput(widget)
+                InputCoverage.FILL_ALL, InputCoverage.FILL_RANDOM -> return generateInput(widget,state)
             }
             return ""
         }
 
-        private fun generateInput(widget: Widget): String {
+        val specialCharactersTestedInputFields = HashSet<EWTGWidget>()
+        val emptyStringTestedInputFields = HashSet<EWTGWidget>()
+
+        private fun generateInput(widget: Widget, guiState: State<*>): String {
+            val abstractState = AbstractStateManager.INSTANCE.getAbstractState(guiState)!!
+            val window = abstractState.window
+            val ewtgWidget = WindowManager.instance.guiWidgetEWTGWidgetMappingByWindow[window]?.get(widget)
             val reuseString = random.nextBoolean()
             if (reuseString && historyTextInput.isNotEmpty())
             {
@@ -97,19 +107,30 @@ class TextInput () {
                     return specificTextInput[widget.uid]!!.random()
                 return historyTextInput.random()
             }
+            val textChoices = ArrayList<Int>()
+            textChoices.add(0)
+            if (ewtgWidget!=null) {
+                if (!emptyStringTestedInputFields.contains(ewtgWidget)) {
+                    textChoices.add(1)
+                }
+                if (!specialCharactersTestedInputFields.contains(ewtgWidget))
+                    textChoices.add(2)
+            } else {
+                textChoices.add(1)
+                textChoices.add(2)
+            }
             val textValue: String
-            val choice = random.nextInt(3)
+            val choice = textChoices.random()
             when (choice) {
                 0 -> textValue = generalDictionary.random()
-                1 -> textValue = ""
-                2 -> {
-                    val source = "1234567890abcdefghijklmnopqrstuvwxyz@#$%^&*()-_=+[]"
-                    textValue = random.ints( random.nextInt(20).toLong()+3, 0, source.length)
-                        .asSequence()
-                        .map(source::get)
-                        .joinToString("")
+                1 -> {
+                    if (ewtgWidget!=null)
+                        emptyStringTestedInputFields.add(ewtgWidget)
+                    textValue = ""
                 }
                 else -> {
+                    if (ewtgWidget!=null)
+                        specialCharactersTestedInputFields.add(ewtgWidget)
                     val source = "1234567890abcdefghijklmnopqrstuvwxyz@#$%^&*()-_=+[]"
                     textValue = random.ints( random.nextInt(20).toLong()+3, 0, source.length)
                         .asSequence()

@@ -21,7 +21,8 @@ import java.nio.file.Files
 class ATUAModelOutput {
     companion object {
         fun dumpModel(config: ModelConfig, autautMF: org.atua.modelFeatures.ATUAMF) {
-            org.atua.modelFeatures.ATUAMF.log.info("Dumping WTG...")
+            WindowManager.instance.concludeInputsEventHandlers()
+            ATUAMF.log.info("Dumping WTG...")
             WindowManager.instance.dump(config,autautMF)
             dumpDSTG(config, autautMF)
             produceWindowTransition(config ,autautMF)

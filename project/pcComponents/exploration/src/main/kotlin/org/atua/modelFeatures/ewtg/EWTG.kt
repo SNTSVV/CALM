@@ -57,8 +57,7 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
         jMap.keys().asSequence().forEach { key ->
             val source = key as String
             log.debug("source: $source")
-            val windowInfo = StaticAnalysisJSONParser.windowParser(source)
-            val sourceNode = getOrCreateWTGNode(windowInfo)
+            val sourceNode = StaticAnalysisJSONParser.getParsedWindowOrCreateNewOne(source,this)
             if (sourceNode is Launcher) {
                 val event = LaunchAppEvent(sourceNode)
             }
@@ -77,8 +76,7 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
                     val target = transition["target"] as String
                     // log.debug("action: $action")
                     // log.debug("target: $target")
-                    val targetInfo = StaticAnalysisJSONParser.windowParser(target)
-                    val targetNode = getOrCreateWTGNode(targetInfo)
+                    val targetNode = StaticAnalysisJSONParser.getParsedWindowOrCreateNewOne(target,this)
                     if (targetNode is OptionsMenu || sourceNode is Launcher) {
                         ignoreWidget = true
                     }
@@ -87,20 +85,7 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
                     if (ignoreWidget == false) {
                         val targetView = transition["widget"] as String
                         // log.info("parsing widget: $targetView")
-                        val widgetInfo = StaticAnalysisJSONParser.widgetParser(targetView)
-                        if (widgetInfo.containsKey("resourceId") && widgetInfo.containsKey("resourceIdName")) {
-                            ewtgWidget = EWTGWidget.getOrCreateStaticWidget(widgetId = widgetInfo["id"]!!,
-                                    resourceId = widgetInfo["resourceId"]!!,
-                                    resourceIdName = widgetInfo["resourceIdName"]!!,
-                                    className = widgetInfo["className"]!!,
-                                    wtgNode = sourceNode)
-                        } else if (widgetInfo.containsKey("className") && widgetInfo.containsKey("id")) {
-                            ewtgWidget = EWTGWidget.getOrCreateStaticWidget(widgetId = widgetInfo["id"]!!,
-                                    className = widgetInfo["className"]!!,
-                                    wtgNode = sourceNode)
-                        } else {
-                            ewtgWidget = null
-                        }
+                        ewtgWidget = StaticAnalysisJSONParser.getParsedEWTGWidgetOrCreateNewOne(sourceNode,targetView)
                     } else {
                         ewtgWidget = null
                     }

@@ -37,7 +37,7 @@ import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
 class AbstractionFunction2 (val root: DecisionNode2) {
-    val abandonedAbstractTransitions: ArrayList<Interaction<*>> = ArrayList()
+    val abandonedAbstractTransitions: ArrayList<AbstractTransition> = ArrayList()
 
     fun isAbandonedAbstractTransition(activity: String, abstractTransition: AbstractTransition):Boolean {
         /*return abandonedAbstractTransitions.filter { it.source.activity == activity }.any {
@@ -48,7 +48,9 @@ class AbstractionFunction2 (val root: DecisionNode2) {
                     && abstractTransition.dest.equals(it.dest)
                     *//*&& abstractTransition.prevWindow == it.prevWindow*//*
         }*/
-        val result = abandonedAbstractTransitions.any { abstractTransition.interactions.contains(it) }
+        val result = abandonedAbstractTransitions.any { it.source.hashCode == abstractTransition.source.hashCode
+                && it.abstractAction == abstractTransition.abstractAction
+                && it.dest.window == abstractTransition.dest.window}
         return result
         // TODO check
     }

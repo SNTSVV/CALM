@@ -1,6 +1,7 @@
 package org.droidmate.exploration.strategy.atua
 
 import kotlinx.coroutines.runBlocking
+import org.atua.calm.modelReuse.ModelVersion
 import org.droidmate.deviceInterface.exploration.ExplorationAction
 import org.droidmate.exploration.ExplorationContext
 import org.atua.modelFeatures.dstg.AbstractAction
@@ -30,6 +31,7 @@ abstract class AbstractPhaseStrategy(
 
     var strategyTask: AbstractStrategyTask? = null
     var fullControl: Boolean = false
+    val windowsCorrelation = HashMap<Window, HashMap<Window,Double>>()
     abstract fun nextAction(eContext: ExplorationContext<*,*,*>): ExplorationAction
     abstract fun isTargetState(currentState: State<*>): Boolean
     abstract fun isTargetWindow(window: Window): Boolean
@@ -87,7 +89,8 @@ abstract class AbstractPhaseStrategy(
                 targetStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
                     it.window == targetWindow
                             && it != currentAbstractState
-                            && it.guiStates.any { atuaMF.actionCount.getUnexploredWidget(it).isNotEmpty() }
+                            && (it.guiStates.any { atuaMF.actionCount.getUnexploredWidget(it).isNotEmpty() }
+                            || it.guiStates.isEmpty() && it.modelVersion == ModelVersion.BASE)
                             && it !is VirtualAbstractState
                 }.toHashSet()
             }

@@ -25,7 +25,7 @@ import kotlin.collections.HashSet
 class AbstractTransition(
         val abstractAction: AbstractAction,
         val interactions: HashSet<Interaction<*>> = HashSet(),
-        val isImplicit: Boolean/*,
+        var isImplicit: Boolean/*,
         var prevWindow: Window?*/,
         var data: Any? =null,
         var fromWTG: Boolean = false,
@@ -49,6 +49,7 @@ class AbstractTransition(
     var requiringPermissionRequestTransition: AbstractTransition? = null
 
     var guardEnabled: Boolean = false
+    var activated: Boolean = true
     // --------------
     init {
         source.abstractTransitions.add(this)
@@ -125,8 +126,7 @@ class AbstractTransition(
         fun findExistingAbstractTransitions(abstractTransitionSet: List<AbstractTransition>,
                                                      abstractAction: AbstractAction,
                                                      source: AbstractState,
-                                                     dest: AbstractState,
-                                                    isImplicit: Boolean): AbstractTransition? {
+                                                     dest: AbstractState): AbstractTransition? {
             var existingAbstractTransition: AbstractTransition? = null
           /*  if (prevWindowAbstractState!=null)
                     existingAbstractTransition = abstractTransitionSet.find {
@@ -150,7 +150,6 @@ class AbstractTransition(
                 return existingAbstractTransition*/
             existingAbstractTransition = abstractTransitionSet.find {
                 it.abstractAction == abstractAction
-                        && it.isImplicit == isImplicit
                         && it.source == source
                         && it.dest == dest
             }

@@ -482,7 +482,7 @@ class AppModelLoader {
                 if (widget!=null) {
                     widgetMapping.put(avs,widget)
                 } else {
-                    org.atua.modelFeatures.ATUAMF.log.debug("Cannot find WidgetId $widgetId in $window")
+                    log.debug("Cannot find WidgetId $widgetId in $window")
                 }
             }
             val abstractState = AbstractState(
@@ -752,16 +752,17 @@ class AppModelLoader {
                 val methodId = autMF.statementMF!!.getMethodId(handler)
                 if (methodId.isNotBlank()) {
                     if (!event.eventHandlers.contains(methodId)) {
-                        autMF.modifiedMethodWithTopCallers.filter { it.value.contains(methodId) }.forEach { updatedMethod, callers ->
-                            if (!event.modifiedMethods.containsKey(updatedMethod)) {
-                                event.modifiedMethods.putIfAbsent(updatedMethod, false)
-                                val updatedStatements = autMF.statementMF!!.getMethodStatements(methodId)
-                                updatedStatements.forEach {
-                                    event.modifiedMethodStatement.put(it, false)
+                        autMF.modifiedMethodWithTopCallers
+                            .filter { it.value.contains(methodId) }
+                            .forEach { updatedMethod, callers ->
+                                if (!event.modifiedMethods.containsKey(updatedMethod)) {
+                                    event.modifiedMethods.putIfAbsent(updatedMethod, false)
+                                    val updatedStatements = autMF.statementMF!!.getMethodStatements(methodId)
+                                    updatedStatements.forEach {
+                                        event.modifiedMethodStatement.put(it, false)
+                                    }
                                 }
                             }
-
-                        }
                         event.eventHandlers.add(methodId)
                     }
                 }

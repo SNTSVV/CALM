@@ -221,7 +221,7 @@ class Helper {
 
                 }
             }*/
-            val drawerLayout = visibleWidgets.find { it.className.contains("DrawerLayout") }
+            /*val drawerLayout = visibleWidgets.find { it.className.contains("DrawerLayout") }
             if (drawerLayout!=null) {
                 val childWidgets = visibleWidgets.filter { it.parentHash == drawerLayout.idHash }
                 if (childWidgets.size > 1) {
@@ -229,7 +229,7 @@ class Helper {
                     val maxDrawerOrder = widgetDrawOrders.maxBy { it.second}!!.second
                     excludeWidgets.addAll(widgetDrawOrders.filter { it.second<maxDrawerOrder }.map { it.first }.map { getAllChild(visibleWidgets,it) }.flatten())
                 }
-            }
+            }*/
             var result = visibleWidgets.filter{!excludeWidgets.contains(it)}.filter {
                 isInteractiveWidgetButNotKeyboard(it)
             }
@@ -464,7 +464,7 @@ class Helper {
                             widgetId = widgetId.toString(),
                             resourceIdName = getUnqualifiedResourceId(guiWidget.resourceId,appPackage),
                             className = guiWidget.className,
-                            wtgNode = window,
+                            window = window,
                             resourceId = "",
                             structure = guiWidget.deriveStructure()
                     )

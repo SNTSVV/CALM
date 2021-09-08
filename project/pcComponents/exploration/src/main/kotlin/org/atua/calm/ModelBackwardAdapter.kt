@@ -143,6 +143,9 @@ class ModelBackwardAdapter {
                     } else {
                         abstractTransition.source.abstractTransitions.remove(it)
                         incorrectTransitions.add(it)
+                        backwardEquivalentAbstractTransitionMapping.get(it)?.forEach {
+                            it.source.abstractTransitions.remove(it)
+                        }
                     }
                 }
             }
@@ -205,7 +208,7 @@ class ModelBackwardAdapter {
     private fun copyAbstractTransitions(destination: AbstractState,
                                         source: AbstractState,dstg: DSTG,
                                         sourceDestAVMMatching: Map<AttributeValuationMap,List<AttributeValuationMap>>) {
-        source.abstractTransitions.filter { it.isExplicit() && it.modelVersion == ModelVersion.BASE  }. forEach { sourceTransition->
+        source.abstractTransitions.filter { it.modelVersion == ModelVersion.BASE  }. forEach { sourceTransition->
             if (!sourceTransition.abstractAction.isWidgetAction()) {
                 val destAbstractAction: AbstractAction = sourceTransition.abstractAction
                 copyAbstractTransitionFromBase(sourceTransition, destination, destAbstractAction, dstg)
@@ -261,15 +264,27 @@ class ModelBackwardAdapter {
             baseTransition.dest
         else
             backwardEquivalentAbstractStateMapping.get(baseTransition.dest)?.firstOrNull() ?: baseTransition.dest
+        val existingUpdatedAbstractTransition = updatedAbstractState.abstractTransitions.find {
+            it.modelVersion == ModelVersion.RUNNING
+                    && it.abstractAction == updatedAbstractAction
+                    && (it.guardEnabled == false
+                    || it.dependentAbstractStates.isEmpty()
+                    || dependendAbstractStates.isEmpty()
+                    || it.dependentAbstractStates.intersect(dependendAbstractStates).isNotEmpty())
+                    && it.fromWTG == false
+        }
+        if (existingUpdatedAbstractTransition!=null) {
+            return
+        }
         val existingAbstractTransition = updatedAbstractState.abstractTransitions.find {
             it.modelVersion == ModelVersion.BASE
                     && it.abstractAction == updatedAbstractAction
                     && it.dest == dest
                     /*&& it.prevWindow == sourceTransition.prevWindow*/
-                    && it.isImplicit == false
+
             /* && it.dependentAbstractState == dependentAbstractState*/
         }
-        // TODO check
+
         if (existingAbstractTransition == null) {
             // create new Abstract Transition
             val newAbstractTransition = AbstractTransition(
@@ -277,7 +292,7 @@ class ModelBackwardAdapter {
                     dest = baseTransition.dest,
                     /*prevWindow = sourceTransition.prevWindow,*/
                     abstractAction = updatedAbstractAction,
-                    isImplicit = baseTransition.isImplicit,
+                    isImplicit = true,
                     modelVersion = ModelVersion.BASE,
                     data = baseTransition.data
             )
@@ -288,14 +303,13 @@ class ModelBackwardAdapter {
             baseTransition.handlers.forEach { handler, _ ->
                 newAbstractTransition.handlers.putIfAbsent(handler, false)
             }
-            // backwardEquivalentAbstractTransitionMapping.put(newAbstractTransition, baseTransition)
+            backwardEquivalentAbstractTransitionMapping.put(newAbstractTransition, HashSet())
+            backwardEquivalentAbstractTransitionMapping[newAbstractTransition]!!.add(baseTransition)
         } else {
             // copy additional information
-            existingAbstractTransition.userInputs.addAll(baseTransition.userInputs)
-            baseTransition.handlers.forEach { handler, _ ->
-                existingAbstractTransition.handlers.putIfAbsent(handler, false)
-            }
             existingAbstractTransition.dependentAbstractStates.addAll(dependendAbstractStates)
+            backwardEquivalentAbstractTransitionMapping.putIfAbsent(existingAbstractTransition, HashSet())
+            backwardEquivalentAbstractTransitionMapping[existingAbstractTransition]!!.add(baseTransition)
         }
     }
 
@@ -306,6 +320,8 @@ class ModelBackwardAdapter {
                                    unmatchedAVMs1: ArrayList<AttributeValuationMap>,
                                    unmatchedAVMs2: ArrayList<AttributeValuationMap>,
                                    strict: Boolean): Boolean {
+        if (observedAbstractState.window != expectedAbstractState.window)
+            return false
         if (observedAbstractState.isOpeningKeyboard != expectedAbstractState.isOpeningKeyboard)
             return false
         if (observedAbstractState.isOpeningMenus != expectedAbstractState.isOpeningMenus)
@@ -327,12 +343,18 @@ class ModelBackwardAdapter {
         if (unmatchedAVMs1.size == 0 && unmatchedAVMs2.size == 0) {
             return true
         }
+        unmatchedAVMs1.removeIf { it.getResourceId().isBlank() }
+        unmatchedAVMs2.removeIf { it.getResourceId().isBlank() }
+        if (unmatchedAVMs1.size == 0 && unmatchedAVMs2.size == 0) {
+            return true
+        }
         val unmatchedWidgets1 =  unmatchedAVMs1.map { observedAbstractState.EWTGWidgetMapping.get(it)}.filter { it!=null }.distinct()
         val unmatchedWidgets2 = unmatchedAVMs2.map { expectedAbstractState.EWTGWidgetMapping.get(it) }.filter{it !=null}.distinct()
         if (!strict) {
             if (unmatchedWidgets1.intersect(unmatchedWidgets2).isEmpty())
                 return true
         }
+
         /*val baseAbstractStateToAttributeValuationMaps = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
             it.window == observedAbstractState.window
                     && it.modelVersion == ModelVersion.BASE

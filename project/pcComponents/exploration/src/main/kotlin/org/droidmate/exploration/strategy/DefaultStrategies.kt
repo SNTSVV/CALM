@@ -209,7 +209,7 @@ object DefaultStrategies: Logging {
 						}
 					}
 				}
-				s.isHomeScreen -> {
+				s.isHomeScreen || !s.widgets.any { it.packageName==eContext.model.config.appName } -> {
 					eContext.launchApp()
 				}
 				lastActionType.isPressBack() -> {

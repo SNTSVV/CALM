@@ -11,6 +11,7 @@
  */
 package org.atua.modelFeatures.helper
 
+import org.atua.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractTransition
 import org.atua.modelFeatures.dstg.AbstractState
@@ -129,7 +130,7 @@ class PathFindingHelper {
                         shortest = shortest,
                         pathCountLimitation = pathCountLimitation,
                         includeResetAction = false,
-                        includeImplicitInteraction = false,
+                        includeImplicitInteraction = true,
                         includeLaunchAction = true,
                         followTrace = false,
                         pathType = pathType,
@@ -179,7 +180,6 @@ class PathFindingHelper {
                         pathType = pathType,
                         targetTraces = targetTraces,
                         currentAbstractStateStack = currentAbstractStateStack)
-
             }
         }
 
@@ -211,6 +211,8 @@ class PathFindingHelper {
                                            targetTraces: List<Int>,
                                            currentAbstractStateStack: List<AbstractState>
         ) {
+            if ((pathType == PathType.PARTIAL_TRACE || pathType == PathType.FULLTRACE) && finalTarget.guiStates.isEmpty())
+                return
             val graph = autautMF.dstg
             val nextTransitions = ArrayList<Int>()
             if (prevEdgeIds.isEmpty()) {
@@ -364,7 +366,8 @@ class PathFindingHelper {
                     && AbstractStateManager.INSTANCE.ABSTRACT_STATES.contains(it.label.dest)
                     && it.source.data.abstractTransitions.contains(it.label)
             }
-           val forwardTransitions = edgesFromSource.filter {
+
+            val forwardTransitions = edgesFromSource.filter {
                 it.destination != null
                         //&& it.source != it.destination
                         && it.destination!!.data.window !is FakeWindow
@@ -380,8 +383,13 @@ class PathFindingHelper {
             }
 
             val filteredTransitions = ArrayList<Edge<AbstractState, AbstractTransition>>()
+            if (pathType == PathType.FULLTRACE) {
+                filteredTransitions.addAll(forwardTransitions.filter { it.label.activated == true })
+            } else {
+                filteredTransitions.addAll(forwardTransitions)
+            }
 
-            // remove LaunchApp or ResetApp if it is necessary
+/*            // remove LaunchApp or ResetApp if it is necessary
             forwardTransitions.groupBy { it.destination }.forEach { t, u ->
                 val nonLaunchOrResetTransitions = u.filter {!it.label.abstractAction.isLaunchOrReset() }
                 if (nonLaunchOrResetTransitions.isNotEmpty()) {
@@ -394,7 +402,7 @@ class PathFindingHelper {
                         filteredTransitions.addAll(u)
                     }
                 }
-            }
+            }*/
 
 
             val possibleTransitions = ArrayList<Edge<AbstractState, AbstractTransition>>()
@@ -430,19 +438,14 @@ class PathFindingHelper {
             possibleTransitions.groupBy({ it.label.abstractAction }, { it })
                     .forEach { abstractAction, u ->
                         if ((abstractAction.isLaunchOrReset() || abstractAction.actionType == AbstractActionType.SEND_INTENT) && depth == 0) {
-                            selectedTransition.addAll(u.filter { it.label.isImplicit })
+                            selectedTransition.addAll(u)
                         }
                         else {
-                            val explicitTransitions = u.filter { !it.label.isImplicit }
-                            val implicitTransitions = u.filter { it.label.isImplicit }
+                            val explicitTransitions = u.filter { !it.label.interactions.isEmpty() ||
+                                    it.label.isExplicit()  || (it.label.isImplicit && it.label.modelVersion == ModelVersion.BASE) }
+                            val implicitTransitions = u.filter { it.label.interactions.isEmpty()  }
                             if (explicitTransitions.isEmpty()) {
-                                //        if (reliableTransition.isEmpty()) {
-                                if (implicitTransitions.any {
-                                            it.label.abstractAction.actionType == AbstractActionType.ROTATE_UI
-                                                    || it.label.abstractAction.actionType == AbstractActionType.PRESS_BACK }) {
-                                    selectedTransition.addAll(implicitTransitions)
-                                }
-                                else if (includeImplicitInteraction == true) {
+                                 if (includeImplicitInteraction == true) {
                                     if (prevAbstractTransition==null)
                                         selectedTransition.addAll(implicitTransitions)
                                     else if (prevAbstractTransition.first.isImplicit && !prevAbstractTransition.first.abstractAction.isLaunchOrReset()) {
@@ -494,10 +497,19 @@ class PathFindingHelper {
                 if (!traversedNodes.contains(it.label.dest) || pathType == PathType.PARTIAL_TRACE || pathType == PathType.FULLTRACE) {
                     val fullGraph = createTransitionPath(atuaMF, pathType, nextState, transition, prevEdgeId, root, traversedEdges, pathTracking)
                     if (fullGraph.path.size <= 15 || pathType == PathType.PARTIAL_TRACE || pathType == PathType.FULLTRACE) {
-                        if (!isDisablePath(fullGraph, followTrace)) {
-                            if (isArrived(transition, finalTarget, stopWhenHavingUnexercisedAction, includeWTG,atuamf = atuaMF)) {
-                                allPaths.add(fullGraph)
+                        if (!isDisablePath(fullGraph, pathType)) {
+                            if (pathType != PathType.PARTIAL_TRACE || fullGraph.path.size > 1) {
+                                if (isArrived(
+                                        transition,
+                                        finalTarget,
+                                        stopWhenHavingUnexercisedAction,
+                                        includeWTG,
+                                        atuamf = atuaMF
+                                    )
+                                ) {
+                                    allPaths.add(fullGraph)
 //                                registerTransitionPath(root, nextState, fullGraph)
+                                }
                             }
                             val nextAbstateStack = if (transition.abstractAction.isLaunchOrReset()) {
                                 Stack<Window>().also { it.add(Launcher.getOrCreateNode())}
@@ -697,16 +709,12 @@ class PathFindingHelper {
             return true
         }
 
-        private fun isArrived(transition: AbstractTransition, finalTarget: AbstractState, stopWhenHavingUnexercisedAction: Boolean, useVirtualAbstractState: Boolean,atuamf: org.atua.modelFeatures.ATUAMF): Boolean {
-            if (transition.isImplicit && finalTarget !is VirtualAbstractState) {
-                if (!(transition.abstractAction.actionType == AbstractActionType.PRESS_BACK
-                        || transition.abstractAction.actionType == AbstractActionType.ROTATE_UI
-                        || transition.abstractAction.isLaunchOrReset())) {
-                    return false
-                }
-            }
+        private fun isArrived(transition: AbstractTransition
+                              , finalTarget: AbstractState
+                              , stopWhenHavingUnexercisedAction: Boolean
+                              , useVirtualAbstractState: Boolean,atuamf: org.atua.modelFeatures.ATUAMF): Boolean {
             val nextState = transition.dest
-            if (nextState == finalTarget){
+            if (nextState.hashCode == finalTarget.hashCode){
                return true
             }
             if (stopWhenHavingUnexercisedAction &&
@@ -714,12 +722,7 @@ class PathFindingHelper {
                     nextState.getUnExercisedActions(null,atuamf).isNotEmpty())
                 return true
             if (useVirtualAbstractState && nextState.window == finalTarget.window) {
-                if(finalTarget is VirtualAbstractState && nextState == finalTarget) {
-                    return true
-                } else if (finalTarget !is VirtualAbstractState){
-                    return true
-                }
-                return false
+                return true
             }
             return false
         }
@@ -815,10 +818,20 @@ class PathFindingHelper {
                 allAvailableTransitionPaths.put(Pair(source, destination), ArrayList())
             allAvailableTransitionPaths[Pair(source, destination)]!!.add(fullPath)
         }
-        val unsuccessfulInteractions = HashMap<AbstractTransition, Int>()
 
-        fun addDisablePathFromState(transitionPath: TransitionPath, corruptedTransition: AbstractTransition?){
-           /* val abstractInteraction = corruptedTransition.label
+        val unsuccessfulInteractions = HashMap<AbstractTransition, Int>()
+        val requireTraceAbstractInteractions = ArrayList<AbstractTransition>()
+        fun addDisablePathFromState(transitionPath: TransitionPath, corruptedTransition: AbstractTransition?, lastTransition: AbstractTransition){
+            requireTraceAbstractInteractions.add(lastTransition)
+            if (lastTransition.modelVersion == ModelVersion.RUNNING
+                && (lastTransition.isImplicit || lastTransition.interactions.isEmpty())) {
+                 lastTransition.source.abstractTransitions.remove(lastTransition)
+            }
+            /*if (corruptedTransition!=null)
+                requireTraceAbstractInteractions.add(corruptedTransition)
+            else
+                requireTraceAbstractInteractions.add(transitionPath.path.getValue(transitionPath.path.keys.max()!!))*/
+            /* val abstractInteraction = corruptedTransition.label
             if (abstractInteraction.abstractAction.isItemAction())
             {
                 if (!unsuccessfulInteractions.containsKey(abstractInteraction)) {
@@ -901,10 +914,22 @@ class PathFindingHelper {
                 return false
         }
 
-        fun isDisablePath(path: TransitionPath, checkTrace:Boolean): Boolean {
-            if (checkTrace) {
-                if (!isFollowingTrace(path)) {
-                    return true
+        fun isDisablePath(path: TransitionPath, pathType: PathType): Boolean {
+            if (pathType == PathType.FULLTRACE) {
+                return false
+            }
+            if (pathType != PathType.PARTIAL_TRACE) {
+                path.path.values.forEach {
+                    if (requireTraceAbstractInteractions.any { t ->
+                        t.source.hashCode == it.source.hashCode
+                                && t.dest.hashCode == it.dest.hashCode
+                                && t.abstractAction == it.abstractAction
+                                && (
+                                t.userInputs.intersect(it.userInputs).isNotEmpty()
+                                        || t.userInputs.isEmpty()
+                                        || it.userInputs.isEmpty())
+                        })
+                        return true
                 }
             }
             disablePaths.forEach {

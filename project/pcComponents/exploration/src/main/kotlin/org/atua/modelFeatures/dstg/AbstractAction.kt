@@ -69,7 +69,8 @@ data class AbstractAction (
     fun getScore(): Double {
         var actionScore = when(actionType) {
             AbstractActionType.PRESS_BACK -> 0.5
-            AbstractActionType.LONGCLICK,AbstractActionType.ITEM_LONGCLICK,AbstractActionType.SWIPE -> 2.0
+            AbstractActionType.SWIPE -> 0.5
+            AbstractActionType.LONGCLICK,AbstractActionType.ITEM_LONGCLICK -> 2.0
             AbstractActionType.CLICK,AbstractActionType.ITEM_CLICK -> 4.0
             else -> 1.0
         }

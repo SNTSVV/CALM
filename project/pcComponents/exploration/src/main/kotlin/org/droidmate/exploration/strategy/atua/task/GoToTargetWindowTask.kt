@@ -17,12 +17,13 @@ class GoToTargetWindowTask (
 
     override fun initPossiblePaths(currentState: State<*>, continueMode: Boolean) {
         possiblePaths.clear()
-        var nextPathType = if (currentPath == null)
+        var nextPathType = PathFindingHelper.PathType.NORMAL
+     /*   var nextPathType = if (currentPath == null)
             PathFindingHelper.PathType.NORMAL
-        /*else if (continueMode)
-            PathFindingHelper.PathType.PARTIAL_TRACE*/
+        *//*else if (continueMode)
+            PathFindingHelper.PathType.PARTIAL_TRACE*//*
         else
-            computeNextPathType(currentPath!!.pathType,includeResetAction)
+            computeNextPathType(currentPath!!.pathType,includeResetAction)*/
         while (possiblePaths.isEmpty()) {
             possiblePaths.addAll(atuaStrategy.phaseStrategy.getPathsToTargetWindows(currentState,pathType = nextPathType))
             nextPathType = computeNextPathType(nextPathType,includeResetAction)

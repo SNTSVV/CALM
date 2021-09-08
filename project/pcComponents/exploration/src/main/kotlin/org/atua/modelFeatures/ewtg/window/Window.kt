@@ -81,6 +81,7 @@ abstract class Window(var classType: String,
                 && (this !is Dialog ||
                 (((this as Dialog).dialogType == DialogType.APPLICATION_DIALOG
                                 || (this as Dialog).dialogType == DialogType.DIALOG_FRAGMENT)))
+                && !(this is Dialog && this.ownerActivitys.all { it is OutOfApp })
     }
     fun dumpEvents(windowsFolder: Path, atuaMF: org.atua.modelFeatures.ATUAMF) {
         File(windowsFolder.resolve("Events_$windowId.csv").toUri()).bufferedWriter().use { all ->
@@ -88,7 +89,7 @@ abstract class Window(var classType: String,
             inputs.forEach {
                 all.newLine()
                 all.write("${it.eventType};${it.widget?.widgetId};${it.sourceWindow.windowId};${it.createdAtRuntime};" +
-                        "\"${it.verifiedEventHandlers.map { atuaMF.statementMF!!.getMethodName(it) }.joinToString(";")}\";" +
+                        "\"${it.eventHandlers.map { atuaMF.statementMF!!.getMethodName(it) }.joinToString(";")}\";" +
                         "\"${it.modifiedMethods.map { atuaMF.statementMF!!.getMethodName(it.key)}.joinToString(";")}\"")
             }
         }
