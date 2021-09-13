@@ -241,13 +241,21 @@ open class AbstractState(
         return attributeValuationSet
     }
 
-    fun getAvailableActions(): List<AbstractAction> {
+    fun getAvailableActions(currentState: State<*>?=null): List<AbstractAction> {
         val allActions = ArrayList<AbstractAction>()
         allActions.addAll(actionCount.keys)
         allActions.addAll(attributeValuationMaps.map { it.actionCount.keys }.flatten())
         //
+        if (currentState!=null) {
+            allActions.removeIf { abstractAction ->
+                abstractAction.isWidgetAction()
+                        && abstractAction.actionType == AbstractActionType.SWIPE
+                        && !abstractAction.validateSwipeAction(abstractAction,currentState)
+            }
+        }
         return allActions
     }
+
 
     fun getUnExercisedActions(currentState: State<*>?,atuaMF: org.atua.modelFeatures.ATUAMF): List<AbstractAction> {
         val unexcerisedActions = HashSet<AbstractAction>()
@@ -291,9 +299,14 @@ open class AbstractState(
             }.filter { it.value == 0 || (avmCardinalities.get(it.key.attributeValuationMap)==Cardinality.MANY && it.value <= 2) }.map { it.key }
             unexcerisedActions.addAll(actions)
         }
-
+        if (currentState!=null) {
+            unexcerisedActions.removeIf { abstractAction ->
+                abstractAction.isWidgetAction()
+                        && abstractAction.actionType == AbstractActionType.SWIPE
+                        && !abstractAction.validateSwipeAction(abstractAction, currentState)
+            }
+        }
         val itemActions = attributeValuationMaps.map { w -> w.actionCount.filter { it.key.isItemAction() } }.map { it.keys }.flatten()
-
         return unexcerisedActions.toList()
     }
 
@@ -431,7 +444,7 @@ open class AbstractState(
 
     fun isRequireRandomExploration():Boolean {
         if ((this.window is Dialog
-                        && !WindowManager.instance.updatedModelWindows.filter { it is OutOfApp }.map { it.classType }.contains(this.activity))
+                       /* && !WindowManager.instance.updatedModelWindows.filter { it is OutOfApp }.map { it.classType }.contains(this.activity)*/)
                 || this.isOpeningMenus
                 || this.window.classType.contains("ResolverActivity")
             || this.window.classType.contains("com.android.internal.app.ChooserActivity"))

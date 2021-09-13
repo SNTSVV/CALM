@@ -265,7 +265,11 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 		is PinchOut -> TODO("this requires a call on UiObject, which we currently do not match to our ui-extraction")
 		is Scroll -> // TODO we may trigger the UiObject2 method instead
 			UiHierarchy.findAndPerform(env, idMatch(idHash)) { nodeInfo ->				// do this for API Level above 19 (exclusive)
-			nodeInfo.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)}.also {
+				when(direction) {
+					Direction.LEFT,Direction.UP -> nodeInfo.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
+					Direction.RIGHT,Direction.DOWN -> nodeInfo.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+				}
+			}.also {
 			if(it) { delay(idleTimeout) } // wait for display update
 			Log.d(logTag, "perform successful=$it")
 		}

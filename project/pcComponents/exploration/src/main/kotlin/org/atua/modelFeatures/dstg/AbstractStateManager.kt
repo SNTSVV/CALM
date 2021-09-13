@@ -503,6 +503,10 @@ class AbstractStateManager() {
     }
 
     private fun createAbstractActionsFromVirtualAbstractState(virtualAbstractState: AbstractState, abstractState: AbstractState, guiState: State<*>?) {
+        val similarAbstractStates = getSimilarAbstractStates(abstractState)
+        similarAbstractStates.forEach { similarAbstractState ->
+
+        }
         virtualAbstractState.getAvailableActions().forEach { virtualAbstractAction ->
             val isTarget = virtualAbstractState.targetActions.contains(virtualAbstractAction)
             var existingAction = abstractState.getAvailableActions().find {
@@ -1251,6 +1255,17 @@ class AbstractStateManager() {
             return similarAbstractStates
         } else
             return similarAbstractStates.filter { it.attributeValuationMaps.contains(abstractTransition.abstractAction.attributeValuationMap) }
+    }
+    private fun getSimilarAbstractStates(abstractState: AbstractState): List<AbstractState> {
+        val similarAbstractStates = ABSTRACT_STATES.filter {
+            it !is VirtualAbstractState
+                    && it.window == abstractState.window
+                    && it != abstractState
+                    && it.isOpeningKeyboard == abstractState.isOpeningKeyboard
+                    && it.rotation == abstractState.rotation
+                    && it.isOpeningMenus == abstractState.isOpeningMenus
+        }
+        return similarAbstractStates
     }
 
     fun rebuildModel(window: Window, affectedWidget: EWTGWidget) {
@@ -2026,6 +2041,7 @@ class AbstractStateManager() {
                 && abstractAction.actionType != AbstractActionType.WAIT
                 && abstractAction.actionType != AbstractActionType.CLOSE_KEYBOARD
                 && abstractAction.actionType != AbstractActionType.ROTATE_UI
+                && abstractAction.actionType != AbstractActionType.SWIPE
     }
 
     private fun computeImplicitBackWindow(currentAbstractState: AbstractState, prevAbstractState: AbstractState, prevWindow: Window?): Window? {
@@ -2143,14 +2159,13 @@ class AbstractStateManager() {
                 it.abstractAction == abstractTransition.abstractAction
                         && it.modelVersion == ModelVersion.RUNNING
                         /*&& it.prevWindow == abstractTransition.prevWindow*/
-                        && it.data == abstractTransition.data
                         && (
                         it.dependentAbstractStates.intersect(abstractTransition.dependentAbstractStates).isNotEmpty()
                                 || it.guardEnabled == false
                                 || it.dependentAbstractStates.isEmpty()
                         )
-                        && (it.userInputs.intersect(abstractTransition.userInputs).isNotEmpty()
-                        || it.userInputs.isEmpty() || abstractTransition.userInputs.isEmpty())
+                        /*&& (it.userInputs.intersect(abstractTransition.userInputs).isNotEmpty()
+                        || it.userInputs.isEmpty() || abstractTransition.userInputs.isEmpty())*/
                         && it.isImplicit
             }
             exisitingImplicitTransitions.forEach { abTransition ->
@@ -2167,7 +2182,6 @@ class AbstractStateManager() {
                 it.abstractAction == abstractTransition.abstractAction
                         && it.dest == destAbstractState
                         /*&& it.prevWindow == abstractTransition.prevWindow*/
-                        && it.data == abstractTransition.data
                         && it.interactions.isNotEmpty()
             }
             if (exisitingAbstractTransition == null) {
@@ -2212,7 +2226,7 @@ class AbstractStateManager() {
         val existingVirtualTransitions = virtualAbstractState.abstractTransitions.filter {
             it.abstractAction == abstractAction
                     /*&& it.prevWindow == abstractTransition.prevWindow*/
-                    && it.data == abstractTransition.data
+                    /*&& it.data == abstractTransition.data*/
         }
         if (existingVirtualTransitions.isNotEmpty()) {
             val dests = ArrayList(existingVirtualTransitions.map { it.dest })
@@ -2241,9 +2255,9 @@ class AbstractStateManager() {
         val exisitingTransitions = virtualAbstractState.abstractTransitions.filter {
             it.abstractAction == abstractAction
                     /*&& it.prevWindow == abstractTransition.prevWindow*/
-                    && it.data == abstractTransition.data
+                    /*&& it.data == abstractTransition.data
                     && (it.userInputs.intersect(abstractTransition.userInputs).isNotEmpty()
-                    || it.userInputs.isEmpty() || abstractTransition.userInputs.isEmpty())
+                    || it.userInputs.isEmpty() || abstractTransition.userInputs.isEmpty())*/
                     && (
                         it.dependentAbstractStates.intersect(abstractTransition.dependentAbstractStates).isNotEmpty()
                                 || it.guardEnabled == false
@@ -2289,7 +2303,7 @@ class AbstractStateManager() {
             it.abstractAction == abstractAction
                     && it.dest == abstractTransition.dest
                     /*&& it.prevWindow == abstractTransition.prevWindow*/
-                    && it.data == abstractTransition.data
+                    /*&& it.data == abstractTransition.data*/
         }
         if (existingVirtualTransition2 == null) {
             val newVirtualTransition = AbstractTransition(

@@ -869,13 +869,13 @@ class AppModelLoader {
             val resourceIdName = data[1]
             val className = data[2]
             val parentId = data[3]
-            val activity = data[4]
-            val createdAtRuntime = data[5].toBoolean()
-            val structure = if (data[6] == "null") {
+            val structure = if (data[4] == "null") {
                 ""
             } else {
-                data[6]
+                data[4]
             }
+            val activity = data[5]
+            val createdAtRuntime = data[6].toBoolean()
             val widget = EWTGWidget(
                     widgetId = widgetId,
                     createdAtRuntime = createdAtRuntime,
@@ -884,7 +884,7 @@ class AppModelLoader {
                     window = window,
                     contentDesc = "",
                     text = "",
-                    structure = ""
+                    structure = structure
             )
             widget.modelVersion = ModelVersion.BASE
             if (parentId!="null") {

@@ -64,7 +64,7 @@ abstract class Window(var classType: String,
             all.write(structureHeader())
             widgets.forEach {
                 all.newLine()
-                all.write("${it.widgetId};${it.resourceIdName};${it.className};${it.parent?.widgetId};${it.window.classType};${it.createdAtRuntime};${getAttributeValuationSetOrNull(it)};${obsoleteWidgets.contains(it)}")
+                all.write("${it.widgetId};${it.resourceIdName};${it.className};${it.parent?.widgetId};${it.structure};${it.window.classType};${it.createdAtRuntime};${getAttributeValuationSetOrNull(it)};${obsoleteWidgets.contains(it)}")
             }
         }
     }
@@ -95,7 +95,7 @@ abstract class Window(var classType: String,
         }
     }
     fun structureHeader(): String {
-        return "[1]widgetId;[2]resourceIdName;[3]className;[4]parent;[5]activity;[6]createdAtRuntime;[7]attributeValuationSetId;[8]isObsolete"
+        return "[1]widgetId;[2]resourceIdName;[3]className;[4]parent;[5]xpath;[6]activity;[7]createdAtRuntime;[8]attributeValuationSetId;[9]isObsolete"
     }
     fun eventHeader(): String {
         return "[1]eventType;[2]widgetId;[3]sourceWindowId;[4]createdAtRuntime;[5]eventHandlers;[6]modifiedMethods"

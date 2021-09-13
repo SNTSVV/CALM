@@ -12,6 +12,7 @@
 
 package org.atua.modelFeatures.ewtg
 
+import org.atua.calm.StringComparison
 import org.droidmate.deviceInterface.exploration.ExplorationAction
 import org.droidmate.deviceInterface.exploration.Rectangle
 import org.droidmate.deviceInterface.exploration.Swipe
@@ -354,8 +355,10 @@ class Helper {
             }
             return Rectangle.empty()
         }
+
         private fun isVisibleWidget(it: Widget) =
-                it.enabled &&  isWellVisualized(it) && (it.isVisible || it.metaInfo.contains("visibleToUser = true"))
+                /*it.enabled &&  isWellVisualized(it) && (it.isVisible || it.metaInfo.contains("visibleToUser = true"))*/
+            it.enabled &&  isWellVisualized(it) && (it.hasUncoveredArea || it.visibleAreas.isNotEmpty() || it.metaInfo.contains("visibleToUser = true") )
 
         fun getVisibleWidgetsForAbstraction(state: State<*>): List<Widget> {
             val result = ArrayList(getActionableWidgetsWithoutKeyboard(state).filterNot { isTrivialWebViewContent(it,state) })
@@ -390,7 +393,9 @@ class Helper {
                             if (it.structure.isBlank())
                                 true
                             else
-                                it.structure == guiWidget.deriveStructure()
+                                (it.structure == guiWidget.deriveStructure() ||
+                                        (it.seen == false
+                                                && StringComparison.compareStringsLevenshtein(it.structure ,guiWidget.deriveStructure())>0.6f))
                         } else
                             false
                     }
@@ -400,28 +405,35 @@ class Helper {
                 } else
                     matchedEWTGWidgets.addAll(candidates)
             }
+            val seenWidgets = window.widgets.filter { it.structure.isNotBlank() }
             if (matchedEWTGWidgets.isEmpty()
                     && guiWidget.resourceId.isBlank()
                     && guiWidget.contentDesc.isNotBlank()) {
-                val candidates = window.widgets.filter {it.structure.isNotBlank() }.filter { w ->
-                    w.resourceIdName.isBlank() &&
-                    w.structure == guiWidget.deriveStructure() &&
+                val candidates = seenWidgets.filter { w ->
+                    w.resourceIdName.isBlank() && w.className == guiWidget.className
+                            (w.structure == guiWidget.deriveStructure() ||
+                                    (w.seen == false
+                                            && StringComparison.compareStringsLevenshtein(w.structure ,guiWidget.deriveStructure())>0.6f)) &&
                     w.possibleContentDescriptions.contains(guiWidget.contentDesc)
                 }
                 matchedEWTGWidgets.addAll(candidates)
             }
             if (matchedEWTGWidgets.isEmpty() && guiWidget.resourceId.isBlank()&& !guiWidget.isInputField && guiWidget.text.isNotBlank()) {
-                val candidates = window.widgets.filter {it.structure.isNotBlank()}.filter { w ->
-                    w.resourceIdName.isBlank()
-                            && w.structure == guiWidget.deriveStructure()
+                val candidates = seenWidgets.filter { w ->
+                    w.resourceIdName.isBlank() && w.className == guiWidget.className
+                            && (w.structure == guiWidget.deriveStructure() ||
+                            (w.seen == false
+                                    && StringComparison.compareStringsLevenshtein(w.structure ,guiWidget.deriveStructure())>0.6f))
                             && w.possibleTexts.contains(guiWidget.text)
                 }
                 matchedEWTGWidgets.addAll(candidates)
             }
             if (matchedEWTGWidgets.isEmpty() && guiWidget.resourceId.isBlank()) {
-                val candidates = window.widgets.filter { it.structure.isNotBlank() }.filter { w ->
-                    w.resourceIdName.isBlank()
-                            && guiWidget.deriveStructure() == w.structure
+                val candidates = seenWidgets.filter { w ->
+                    w.resourceIdName.isBlank() && w.className == guiWidget.className
+                            && (w.structure == guiWidget.deriveStructure() ||
+                            (w.seen == false
+                                    && StringComparison.compareStringsLevenshtein(w.structure ,guiWidget.deriveStructure())>0.6f))
                 }
                 matchedEWTGWidgets.addAll(candidates)
             }
@@ -444,8 +456,8 @@ class Helper {
                 if (matchingScores.isEmpty()){
                     matchedEWTGWidgets.clear()
                 } else {
-                    val maxScore = matchingScores.minBy { it.value }!!.value
-                    matchedEWTGWidgets.removeIf { matchingScores[it] != maxScore }
+                    val minScore = matchingScores.minBy { it.value }!!.value
+                    matchedEWTGWidgets.removeIf { matchingScores[it] != minScore }
                 }
 
             }
@@ -469,6 +481,7 @@ class Helper {
                             structure = guiWidget.deriveStructure()
                     )
                     newWidget.createdAtRuntime = true
+                    newWidget.seen = true
                     updateWindowHierarchy(guiWidget, guiState, guiWidgetId_ewtgWidgets, newWidget, window)
                     if (guiWidget.text.isNotBlank())
                         newWidget.possibleTexts.add(guiWidget.text)
@@ -479,7 +492,8 @@ class Helper {
                     guiWidgetId_ewtgWidgets[guiWidget.id]=newWidget
                 } else {
                     val matchedWidget = matchedEWTGWidgets.first()
-                    if (matchedWidget.structure.isBlank()) {
+                    if (matchedWidget.seen == false) {
+                        matchedWidget.seen = true
                         matchedWidget.structure = guiWidget.deriveStructure()
                         updateWindowHierarchy(guiWidget, guiState, guiWidgetId_ewtgWidgets, matchedWidget, window)
                     }
@@ -588,8 +602,12 @@ class Helper {
                 val indexInAncestors1 = ancestors1.indexOf(item1)
                 val indexInAncestors2 = ancestors2.indexOf(item1)
                 if (indexInAncestors2!=-1) {
-                    val score = indexInAncestors2 - indexInAncestors1
-                    return score.toDouble()
+                    val distance = if (indexInAncestors1 < indexInAncestors2)
+                        indexInAncestors1
+                    else
+                        indexInAncestors2
+                    val score = Math.abs( indexInAncestors2 - indexInAncestors1 + distance)
+                    return (score+1).toDouble()
                 }
             }
             return Double.POSITIVE_INFINITY
@@ -966,21 +984,56 @@ class Helper {
              availableActions.removeIf {!chosenWidget.clickable &&
                              (it.name =="Click" || it.name == "ClickEvent") }
              availableActions.removeIf { it is Swipe }
+
               if (Helper.isScrollableWidget(chosenWidget)) {
                 when (Helper.getViewsChildrenLayout(chosenWidget, currentState)) {
                     DescendantLayoutDirection.HORIZONTAL -> {
-                        availableActions.add(chosenWidget.swipeLeft())
-                        availableActions.add(chosenWidget.swipeRight())
+                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_FORWARD") }) {
+                            availableActions.add(chosenWidget.swipeLeft())
+                        }
+                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_BACKWARD") }) {
+                            availableActions.add(chosenWidget.swipeRight())
+                        }
+                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_RIGHT") }) {
+                            availableActions.add(chosenWidget.swipeLeft())
+                        }
+                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_LEFT") }) {
+                            availableActions.add(chosenWidget.swipeRight())
+                        }
                     }
                     DescendantLayoutDirection.VERTICAL -> {
-                        availableActions.add(chosenWidget.swipeUp())
-                        availableActions.add(chosenWidget.swipeDown())
+                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_FORWARD") }) {
+                            availableActions.add(chosenWidget.swipeUp())
+                        }
+                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_BACKWARD") }) {
+                            availableActions.add(chosenWidget.swipeDown())
+                        }
+                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_DOWN") }) {
+                            availableActions.add(chosenWidget.swipeUp())
+                        }
+                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_UP") }) {
+                            availableActions.add(chosenWidget.swipeDown())
+                        }
                     }
                     else -> {
-                        availableActions.add(chosenWidget.swipeUp())
-                        availableActions.add(chosenWidget.swipeDown())
-                        availableActions.add(chosenWidget.swipeLeft())
-                        availableActions.add(chosenWidget.swipeRight())
+                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_FORWARD") }) {
+                            availableActions.add(chosenWidget.swipeLeft())
+                        }
+                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_BACKWARD") }) {
+                            availableActions.add(chosenWidget.swipeRight())
+                        }
+                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_RIGHT") }) {
+                            availableActions.add(chosenWidget.swipeLeft())
+                        }
+                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_LEFT") }) {
+                            availableActions.add(chosenWidget.swipeRight())
+                        }
+                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_DOWN") }) {
+                            availableActions.add(chosenWidget.swipeUp())
+                        }
+                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_UP") }) {
+                            availableActions.add(chosenWidget.swipeDown())
+                        }
                     }
                 }
             }

@@ -298,11 +298,12 @@ class PathFindingHelper {
            }*/
             if (nextTransitions.isEmpty())
                 return
-            if (allPaths.size > pathCountLimitation && !shortest) {
+            if (shortest && allPaths.isNotEmpty())
+                return
+            if (allPaths.size >= pathCountLimitation && !shortest) {
                 return
             }
-
-            if (allPaths.isEmpty() || (allPaths.size <= pathCountLimitation && !shortest) )
+            if (allPaths.isEmpty() || (allPaths.size < pathCountLimitation && !shortest) )
                 findPathToTargetComponentByBFS(
                         autautMF = autautMF,
                         currentState = currentState,

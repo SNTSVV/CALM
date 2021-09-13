@@ -25,6 +25,7 @@ import org.atua.modelFeatures.dstg.AttributePath
 import org.atua.modelFeatures.dstg.AttributeValuationMap
 import org.atua.modelFeatures.ewtg.EWTGWidget
 import org.atua.modelFeatures.ewtg.Helper
+import org.atua.modelFeatures.ewtg.WindowManager
 import org.atua.modelFeatures.ewtg.window.Window
 import org.droidmate.explorationModel.interaction.Interaction
 import org.droidmate.explorationModel.interaction.State
@@ -99,7 +100,7 @@ class AbstractionFunction2 (val root: DecisionNode2) {
     /**
      * Increase the level of Reducer. Return [true] if it can be increased, otherwise [false]
      */
-    fun increaseReduceLevel(guiWidget: Widget, guiState: State<*>, ewtgWidget: EWTGWidget, classType: String, rotation: org.atua.modelFeatures.Rotation, atuaMF: org.atua.modelFeatures.ATUAMF, maxlevel: Int=6): Boolean
+    fun increaseReduceLevel(guiWidget: Widget, guiState: State<*>, ewtgWidget: EWTGWidget, classType: String, rotation: org.atua.modelFeatures.Rotation, atuaMF: org.atua.modelFeatures.ATUAMF, maxlevel: Int=6, reduceOtherWidgets: Boolean=true): Boolean
     {
 //        val isInteractiveLeaf = guiWidget.isInteractiveLeaf(guiState)
         var currentDecisionNode: DecisionNode2?=null
@@ -125,11 +126,26 @@ class AbstractionFunction2 (val root: DecisionNode2) {
         }
         while (currentDecisionNode!!.nextNode!=null
                 && currentDecisionNode.ewtgWidgets.contains(ewtgWidget) && level <= maxlevel)
-        if (currentDecisionNode!=null && !currentDecisionNode!!.ewtgWidgets.contains(ewtgWidget)) {
+        if (currentDecisionNode!=null
+            && !currentDecisionNode!!.ewtgWidgets.contains(ewtgWidget)
+        ) {
             currentDecisionNode.ewtgWidgets.add(ewtgWidget)
            /* val newAttributePath = reduce(guiWidget,guiState,classType, hashMapOf(), hashMapOf())
             updateAllAttributePathsHavingParent(attributePath,newAttributePath,classType)*/
             return true
+        } else if (reduceOtherWidgets) {
+            val textRelateClassName = arrayListOf<String>("android.widget.EditText", "android.widget.TextView")
+            val allTextRelatedWidgets = ewtgWidget.window.widgets.filter {
+                textRelateClassName.contains(it.className)
+            }
+            var result = false
+            val ewtgWidgetsByGuiWidget = guiState.widgets.associateWith { WindowManager.instance.guiWidgetEWTGWidgetMappingByWindow[ewtgWidget.window]!![it] }.filter { it.key!=null }
+            val toReduces = ewtgWidgetsByGuiWidget.filter { allTextRelatedWidgets.contains(it.value) }
+            toReduces.forEach { k, v ->
+                if (increaseReduceLevel(k,guiState,v!!,classType,rotation,atuaMF, 2,false))
+                    result = true
+            }
+            return result
         }
         return false
 /*       else {

@@ -16,6 +16,7 @@ import org.atua.modelFeatures.ewtg.window.OutOfApp
 import org.atua.modelFeatures.ewtg.window.Window
 import org.droidmate.exploration.strategy.atua.task.AbstractStrategyTask
 import org.droidmate.explorationModel.interaction.State
+import org.slf4j.LoggerFactory
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
@@ -200,7 +201,7 @@ abstract class AbstractPhaseStrategy(
                 transitionPaths.removeIf { it.path.size > minSequenceLength }
             }
         }
-
+        LoggerFactory.getLogger(this::class.simpleName).debug("Paths count: ${transitionPaths.size}")
     }
 
 }

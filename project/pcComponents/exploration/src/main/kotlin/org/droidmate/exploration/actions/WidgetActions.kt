@@ -122,10 +122,26 @@ fun Widget.availableActions(delay: Long, useCoordinateClicks:Boolean): List<Expl
 		actionList.add(this.tick(delay))
 
 	if (this.scrollable) {
-		actionList.add(this.swipeUp())
-		actionList.add(this.swipeDown())
-		actionList.add(this.swipeRight())
-		actionList.add(this.swipeLeft())
+		if (this.metaInfo.any { it.contains("ACTION_SCROLL_FORWARD") }) {
+			if (this.metaInfo.any { it.contains("ACTION_SCROLL_RIGHT") })
+				actionList.add(this.swipeLeft())
+			else if (this.metaInfo.any { it.contains("ACTION_SCROLL_DOWN") })
+				actionList.add(this.swipeUp())
+			else {
+				actionList.add(this.swipeLeft())
+				actionList.add(this.swipeUp())
+			}
+		}
+		if (this.metaInfo.any { it.contains("ACTION_SCROLL_BACKWARD") }) {
+			if (this.metaInfo.any { it.contains("ACTION_SCROLL_LEFT") })
+				actionList.add(this.swipeRight())
+			else if (this.metaInfo.any { it.contains("ACTION_SCROLL_UP") })
+				actionList.add(this.swipeDown())
+			else {
+				actionList.add(this.swipeDown())
+				actionList.add(this.swipeRight())
+			}
+		}
 	}
 
 	widgetTargets.clear() // ensure the target is only once in the list and not multiple times

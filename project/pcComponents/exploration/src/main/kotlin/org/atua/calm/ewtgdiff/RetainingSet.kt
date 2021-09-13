@@ -12,6 +12,6 @@
 
 package org.atua.calm.ewtgdiff
 
-class RetainerSet<T>: DifferentSet<T>() {
+class RetainingSet<T>: DifferentSet<T>() {
     val replacedElements: ArrayList<Replacement<T>> = ArrayList()
 }

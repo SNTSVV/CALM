@@ -354,7 +354,21 @@ class PhaseThreeStrategy(
             return
         }
         phaseState = PhaseState.P3_GO_TO_RELATED_NODE
-        if (goToAnotherNode.isAvailable(currentState, relatedWindow!!,false, true, true,false)) {
+        if (goToAnotherNode.isAvailable(currentState = currentState,
+                destWindow = relatedWindow!!,
+                isWindowAsTarget = false,
+                isExploration =  false,
+                includePressback = true,
+                includeResetApp =  false)) {
+            setGoToRelatedWindow(goToAnotherNode, currentState)
+            return
+        }
+        if (goToAnotherNode.isAvailable(currentState = currentState,
+                destWindow = relatedWindow!!,
+                isWindowAsTarget = false,
+                isExploration =  false,
+                includePressback = true,
+                includeResetApp =  true)) {
             setGoToRelatedWindow(goToAnotherNode, currentState)
             return
         }
@@ -430,7 +444,12 @@ class PhaseThreeStrategy(
                         phaseState = PhaseState.P3_EXERCISE_TARGET_NODE
                         return
                     }
-                    if (goToTargetNodeTask.isAvailable(currentState, targetWindow!!,false, true, false,false)) {
+                    if (goToTargetNodeTask.isAvailable(currentState,
+                            destWindow = targetWindow!!,
+                            isWindowAsTarget = false,
+                            includePressback =  true,
+                            includeResetApp =  false,
+                            isExploration =  false)) {
                         setGoToTarget(goToTargetNodeTask, currentState)
                         return
                     }
@@ -438,7 +457,12 @@ class PhaseThreeStrategy(
                     phaseState = PhaseState.P3_GO_TO_TARGET_NODE
                     return
                 } else {
-                    if (goToTargetNodeTask.isAvailable(currentState, targetWindow!!,false, true, false,false)) {
+                    if (goToTargetNodeTask.isAvailable(currentState,
+                            destWindow = targetWindow!!,
+                            isWindowAsTarget = false,
+                            includePressback =  true,
+                            includeResetApp =  false,
+                            isExploration =  false))  {
                         setGoToTarget(goToTargetNodeTask, currentState)
                         return
                     }
@@ -486,12 +510,31 @@ class PhaseThreeStrategy(
                     phaseState = PhaseState.P3_EXERCISE_TARGET_NODE
                     return
                 }
-                if (goToTargetNodeTask.isAvailable(currentState, targetWindow!!,false, true, false,false)) {
+                if (goToTargetNodeTask.isAvailable(currentState,
+                        destWindow = targetWindow!!,
+                        isWindowAsTarget = false,
+                        includePressback =  true,
+                        includeResetApp =  false,
+                        isExploration =  false))  {
                     setGoToTarget(goToTargetNodeTask, currentState)
                     return
                 }
             }
-            if (goToAnotherNode.isAvailable(currentState, relatedWindow!!,false, false, false,false)) {
+            if (goToAnotherNode.isAvailable(currentState = currentState,
+                    destWindow = relatedWindow!!,
+                    isWindowAsTarget = false,
+                    isExploration =  false,
+                    includePressback = true,
+                    includeResetApp =  false))  {
+                setGoToRelatedWindow(goToAnotherNode, currentState)
+                return
+            }
+            if (goToAnotherNode.isAvailable(currentState = currentState,
+                    destWindow = relatedWindow!!,
+                    isWindowAsTarget = false,
+                    isExploration =  false,
+                    includePressback = true,
+                    includeResetApp =  true))  {
                 setGoToRelatedWindow(goToAnotherNode, currentState)
                 return
             }
@@ -520,7 +563,12 @@ class PhaseThreeStrategy(
                     phaseState = PhaseState.P3_EXERCISE_TARGET_NODE
                     return
                 }
-                if (goToTargetNodeTask.isAvailable(currentState, targetWindow!!,false, true, false,false)) {
+                if (goToTargetNodeTask.isAvailable(currentState,
+                        destWindow = targetWindow!!,
+                        isWindowAsTarget = false,
+                        includePressback =  true,
+                        includeResetApp =  false,
+                        isExploration =  false))  {
                     setGoToTarget(goToTargetNodeTask, currentState)
                     return
                 }
@@ -528,7 +576,12 @@ class PhaseThreeStrategy(
                 phaseState = PhaseState.P3_GO_TO_TARGET_NODE
                 return
             } else {
-                if (goToTargetNodeTask.isAvailable(currentState, targetWindow!!,false, true, false,false)) {
+                if (goToTargetNodeTask.isAvailable(currentState,
+                        destWindow = targetWindow!!,
+                        isWindowAsTarget = false,
+                        includePressback =  true,
+                        includeResetApp =  false,
+                        isExploration =  false))  {
                     setGoToTarget(goToTargetNodeTask, currentState)
                     return
                 }
@@ -559,7 +612,12 @@ class PhaseThreeStrategy(
         if (strategyTask is RandomExplorationTask
                 && (strategyTask as RandomExplorationTask).stopWhenHavingTestPath
                 && !currentAppState.isRequireRandomExploration()) {
-            if (goToTargetNodeTask.isAvailable(currentState, targetWindow!!, false,true, false,false)) {
+            if (goToTargetNodeTask.isAvailable(currentState,
+                    destWindow = targetWindow!!,
+                    isWindowAsTarget = false,
+                    includePressback =  true,
+                    includeResetApp =  false,
+                    isExploration =  false))  {
                 setGoToTarget(goToTargetNodeTask, currentState)
                 return
             }
@@ -622,7 +680,12 @@ class PhaseThreeStrategy(
                     setExerciseTarget(exerciseTargetComponentTask, currentState)
                     return
                 }
-                if (goToTargetNodeTask.isAvailable(currentState, targetWindow!!, false,true, false,false)) {
+                if (goToTargetNodeTask.isAvailable(currentState,
+                        destWindow = targetWindow!!,
+                        isWindowAsTarget = false,
+                        includePressback =  true,
+                        includeResetApp =  false,
+                        isExploration =  false))  {
                     setGoToTarget(goToTargetNodeTask, currentState)
                     return
                 }
@@ -661,7 +724,12 @@ class PhaseThreeStrategy(
                     return
                 }
             }
-            if (goToTargetNodeTask.isAvailable(currentState, targetWindow!!,false, true, false,false)) {
+            if (goToTargetNodeTask.isAvailable(currentState,
+                    destWindow = targetWindow!!,
+                    isWindowAsTarget = false,
+                    includePressback =  true,
+                    includeResetApp =  false,
+                    isExploration =  false)) {
                 setGoToTarget(goToTargetNodeTask, currentState)
                 return
             }

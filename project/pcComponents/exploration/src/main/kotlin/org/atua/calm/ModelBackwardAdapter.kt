@@ -143,8 +143,11 @@ class ModelBackwardAdapter {
                     } else {
                         abstractTransition.source.abstractTransitions.remove(it)
                         incorrectTransitions.add(it)
-                        backwardEquivalentAbstractTransitionMapping.get(it)?.forEach {
+                        /*backwardEquivalentAbstractTransitionMapping.get(it)?.forEach {
                             it.source.abstractTransitions.remove(it)
+                        }*/
+                        backwardEquivalentAbstractTransitionMapping.get(it)?.forEach {
+                            incorrectTransitions.add(it)
                         }
                     }
                 }
@@ -208,7 +211,12 @@ class ModelBackwardAdapter {
     private fun copyAbstractTransitions(destination: AbstractState,
                                         source: AbstractState,dstg: DSTG,
                                         sourceDestAVMMatching: Map<AttributeValuationMap,List<AttributeValuationMap>>) {
-        source.abstractTransitions.filter { it.modelVersion == ModelVersion.BASE  }. forEach { sourceTransition->
+        source.abstractTransitions.filter {
+            it.modelVersion == ModelVersion.BASE
+                    && !incorrectTransitions.contains(it)
+                    && it.abstractAction.isWidgetAction()
+                    && it.abstractAction.actionType != AbstractActionType.SWIPE
+        }. forEach { sourceTransition->
             if (!sourceTransition.abstractAction.isWidgetAction()) {
                 val destAbstractAction: AbstractAction = sourceTransition.abstractAction
                 copyAbstractTransitionFromBase(sourceTransition, destination, destAbstractAction, dstg)

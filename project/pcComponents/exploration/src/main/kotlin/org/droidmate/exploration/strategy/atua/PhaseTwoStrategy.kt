@@ -476,11 +476,21 @@ class PhaseTwoStrategy(
         if (currentAppState.isRequireRandomExploration() || Helper.isOptionsMenuLayout(currentState) ) {
             setRandomExploration(randomExplorationTask, currentState, currentAppState, true, lockWindow = false)
         }
-        if (goToTargetNodeTask.isAvailable(currentState,targetWindow!!,false,true,false,false)) {
+        if (goToTargetNodeTask.isAvailable(currentState,
+                destWindow = targetWindow!!,
+                isWindowAsTarget = false,
+                includePressback =  true,
+                includeResetApp =  false,
+                isExploration =  false)) {
             setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
-        if (goToTargetNodeTask.isAvailable(currentState)) {
+        if (goToTargetNodeTask.isAvailable(currentState,
+                destWindow = targetWindow!!,
+                isWindowAsTarget = false,
+                includePressback =  true,
+                includeResetApp =  true,
+                isExploration =  false)) {
             setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
@@ -518,7 +528,12 @@ class PhaseTwoStrategy(
             return
         }
         alreadyRandomInputInTarget = true
-        if (goToTargetNodeTask.isAvailable(currentState)) {
+        if (goToTargetNodeTask.isAvailable(currentState,
+                destWindow = targetWindow!!,
+                isWindowAsTarget = false,
+                includePressback =  true,
+                includeResetApp =  false,
+                isExploration =  false)) {
             setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
@@ -548,7 +563,12 @@ class PhaseTwoStrategy(
             setRandomExploration(randomExplorationTask, currentState, currentAppState, true, lockWindow = false)
             return
         }
-        if (goToTargetNodeTask.isAvailable(currentState)) {
+        if (goToTargetNodeTask.isAvailable(currentState,
+                destWindow = targetWindow!!,
+                isWindowAsTarget = false,
+                includePressback =  true,
+                includeResetApp =  true,
+                isExploration =  false))  {
             setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
@@ -632,7 +652,12 @@ class PhaseTwoStrategy(
             log.info("Continue go to the window")
             return
         }
-        if (goToTargetNodeTask.isAvailable(currentState)) {
+        if (goToTargetNodeTask.isAvailable(currentState,
+                destWindow = targetWindow!!,
+                isWindowAsTarget = false,
+                includePressback =  true,
+                includeResetApp =  true,
+                isExploration =  false))  {
             setGoToTarget(goToTargetNodeTask, currentState)
             return
         }

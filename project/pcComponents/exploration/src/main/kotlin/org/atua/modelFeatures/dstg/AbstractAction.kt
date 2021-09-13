@@ -13,6 +13,10 @@
 package org.atua.modelFeatures.dstg
 
 import org.atua.modelFeatures.ewtg.Helper
+import org.droidmate.exploration.actions.swipeDown
+import org.droidmate.exploration.actions.swipeLeft
+import org.droidmate.exploration.actions.swipeRight
+import org.droidmate.exploration.actions.swipeUp
 import org.droidmate.explorationModel.interaction.Interaction
 import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
@@ -77,6 +81,36 @@ data class AbstractAction (
         if (attributeValuationMap == null)
             return actionScore
         return actionScore
+    }
+
+    fun validateSwipeAction(abstractAction: AbstractAction, guiState: State<*>): Boolean {
+        if (!abstractAction.isWidgetAction() || abstractAction.actionType != AbstractActionType.SWIPE)
+            return true
+        val widgets = abstractAction.attributeValuationMap!!.getGUIWidgets(guiState)
+        widgets.forEach {w->
+            var valid = false
+            if (w.metaInfo.any { it.contains("ACTION_SCROLL_FORWARD") }) {
+                valid = (abstractAction.extra == "SwipeUp" || abstractAction.extra == "SwipeLeft")
+            }
+            if (w.metaInfo.any { it.contains("ACTION_SCROLL_BACKWARD") }) {
+                valid = (valid || abstractAction.extra == "SwipeDown" || abstractAction.extra == "SwipeRight")
+            }
+            if (w.metaInfo.any { it.contains("ACTION_SCROLL_RIGHT") }) {
+                valid = (valid || abstractAction.extra == "SwipeLeft")
+            }
+            if (w.metaInfo.any { it.contains("ACTION_SCROLL_LEFT") }) {
+                valid = (valid || abstractAction.extra == "SwipeRight")
+            }
+            if (w.metaInfo.any { it.contains("ACTION_SCROLL_DOWN") }) {
+                valid = (valid || abstractAction.extra == "SwipeUp")
+            }
+            if (w.metaInfo.any { it.contains("ACTION_SCROLL_UP") }) {
+                valid = (valid || abstractAction.extra == "SwipeDown")
+            }
+            if (valid)
+                return valid
+        }
+        return false
     }
 
     companion object {

@@ -10,7 +10,9 @@ import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
 import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.modelFeatures.ewtg.Helper
+import org.atua.modelFeatures.ewtg.WindowManager
 import org.atua.modelFeatures.ewtg.window.Activity
+import org.atua.modelFeatures.ewtg.window.Dialog
 import org.atua.modelFeatures.ewtg.window.Window
 import org.atua.modelFeatures.ewtg.window.OutOfApp
 import org.atua.modelFeatures.helper.ProbabilityDistribution
@@ -368,7 +370,9 @@ class RandomExplorationTask constructor(
         }
         fillingData = false
         attemptCount++
-        if (currentAbstractState.window is OutOfApp) {
+        if (currentAbstractState.window is OutOfApp ||
+            (currentAbstractState.window is Dialog
+                    && !WindowManager.instance.updatedModelWindows.filter { it is OutOfApp }.map { it.classType }.contains(currentAbstractState.activity))) {
             actionOnOutOfAppCount += 1
         }
         var randomAction: AbstractAction? = null
@@ -657,12 +661,12 @@ class RandomExplorationTask constructor(
                 var actionScore = abstractAction.getScore()
                 val widgetGroup = abstractAction.attributeValuationMap!!
                 val actionCount = abstractAction.attributeValuationMap!!.actionCount.get(abstractAction)?:0
-                var witnessInThePast = currentAbstractState.abstractTransitions.any {
+                /*var witnessInThePast = currentAbstractState.abstractTransitions.any {
                     it.abstractAction == abstractAction && (
                             it.interactions.isNotEmpty()
                                     || it.modelVersion == ModelVersion.BASE) }
                 if (witnessInThePast)
-                    actionScore = actionScore/10
+                    actionScore = actionScore/10*/
                 if (windowWidgetFrequency.containsKey(widgetGroup)) {
                     actionByScore.put(abstractAction, actionScore /  windowWidgetFrequency[widgetGroup]!!)
                 } else {

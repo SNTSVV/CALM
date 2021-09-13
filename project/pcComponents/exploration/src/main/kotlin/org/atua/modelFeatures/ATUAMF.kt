@@ -303,6 +303,7 @@ class ATUAMF(
                 }
             }
         }
+        var targetInputsCnt = notFullyExercisedTargetInputs.size
         val inputsGroupByHandlers = notFullyExercisedTargetInputs.groupBy { it.eventHandlers }
         /*inputsGroupByHandlers.forEach {
             val handlers = it.key.map { statementMF!!.getMethodStatements(it) }
@@ -311,6 +312,7 @@ class ATUAMF(
         notFullyExercisedTargetInputs.removeIf {
             it.modifiedMethods.isEmpty()
         }
+        targetInputsCnt = notFullyExercisedTargetInputs.size
         modifiedMethodsByWindow.entries.removeIf { it.key is Launcher || it.key is OutOfApp }
         modifiedMethodsByWindow.entries.removeIf { entry ->
             entry.key.inputs.all { it.modifiedMethods.isEmpty() }
@@ -333,7 +335,6 @@ class ATUAMF(
                     backupModifiedMethodsByWindow.put(it, modifiedMethodsByWindow[it]!!)
                     modifiedMethodsByWindow.remove(it)
                 }
-
             }
             notFullyExercisedTargetInputs.removeIf {
                 val toDelete = unseenWindows.contains(it.sourceWindow)
@@ -341,14 +342,20 @@ class ATUAMF(
                     backupNotFullyExercisedTargetInputs.add(it)
                 toDelete
             }
+             targetInputsCnt = notFullyExercisedTargetInputs.size
             val seenWidgets = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filterNot { it is VirtualAbstractState }
                 .map { it.EWTGWidgetMapping.values }.flatten().distinct()
+            val newWidgets = (EWTGDiff.instance.widgetDifferentSets["AdditionSet"]!! as AdditionSet<EWTGWidget>).addedElements
+            val newWiddgetsByWindow = newWidgets.groupBy { it.window }
             notFullyExercisedTargetInputs.removeIf {
-                val toDelete = (it.widget != null && !seenWidgets.contains(it.widget!!))
+                val toDelete = (it.widget != null
+                        && !seenWidgets.contains(it.widget!!)
+                        && !newWidgets.contains(it.widget!!))
                 if (toDelete)
                     backupNotFullyExercisedTargetInputs.add(it)
                 toDelete
             }
+            targetInputsCnt = notFullyExercisedTargetInputs.size
         }
         log.info("Before processed target inputs: $beforeProcessedTargetCount")
         log.info("After processed target inputs: ${notFullyExercisedTargetInputs.size}")

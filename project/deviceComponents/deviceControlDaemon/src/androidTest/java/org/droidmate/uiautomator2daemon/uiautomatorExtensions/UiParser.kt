@@ -70,11 +70,14 @@ abstract class UiParser {
 		val props = LinkedList<String>()
 		val boundsInParent = Rect()
 		this.getBoundsInParent(boundsInParent)
-		if(nodeRect.height()<0 || nodeRect.width()<0) { // no idea why this happens but try to correct the width/height by using the second bounds property
+		/*if(nodeRect.height()<0 || nodeRect.width()<0) { // no idea why this happens but try to correct the width/height by using the second bounds property
 			nodeRect.right = nodeRect.left+boundsInParent.width()
 			nodeRect.bottom = nodeRect.top+boundsInParent.height()
+		}*/
+		if(nodeRect.height()<0 || nodeRect.width()<0) { // no idea why this happens but try to correct the width/height by using the second bounds property
+			nodeRect.right = nodeRect.left
+			nodeRect.bottom = nodeRect.top
 		}
-
 		props.add("defBounds (l,t,r,b)= $nodeRect")
 		props.add("boundsInParent= $boundsInParent")
 		props.add("actionList = ${this.actionList}")

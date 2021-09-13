@@ -71,6 +71,7 @@ class PhaseOneStrategy(
     var tryCount = 0
     var forceEnd = false
     var episodeCountDown = 0
+
     init {
         phaseState = PhaseState.P1_INITIAL
         atuaMF = atuaTestingStrategy.eContext.getOrCreateWatcher()
@@ -277,7 +278,7 @@ class PhaseOneStrategy(
         toRemove.forEach {
             outofbudgetWindows.remove(it)
         }
-        windowRandomExplorationBudget.filter { !outofbudgetWindows.contains(it.key) }.forEach { t , u ->
+        windowRandomExplorationBudget.filter { !outofbudgetWindows.contains(it.key) }.forEach { t, u ->
             if (windowRandomExplorationBudgetUsed[t]!! > windowRandomExplorationBudget[t]!!) {
                 outofbudgetWindows.add(t)
                 if (t is Activity) {
@@ -414,7 +415,7 @@ class PhaseOneStrategy(
                 }
             }
         }
-        if (targetWindow != null && !explicitTargetWindows.contains(targetWindow!!)) {
+        /*if (targetWindow != null && !explicitTargetWindows.contains(targetWindow!!)) {
             val oldTargetWindow = targetWindow!!
             if (explicitTargetWindows.isNotEmpty() && explicitTargetWindows.any { isATargetWindow(it) }) {
                 selectTargetNode(currentState, 0).also {
@@ -423,7 +424,7 @@ class PhaseOneStrategy(
                     }
                 }
             }
-        }
+        }*/
         if (targetWindow == null) {
             //try select a target window
             selectTargetNode(currentState, 0).also {
@@ -640,7 +641,13 @@ class PhaseOneStrategy(
         if (currentAppState.window == targetWindow) {
             if (exerciseTargetIfAvailable(exerciseTargetComponentTask, currentState)) return
             // In case target events not found
-            if (goToTargetNodeTask.isAvailable(currentState, true)) {
+            if (goToTargetNodeTask.isAvailable(
+                    currentState = currentState,
+                    destWindow = targetWindow!!,
+                    isWindowAsTarget = false,
+                    isExploration = false
+                )
+            ) {
                 if (goToTargetNodeTask.possiblePaths.any { isTargetAbstractState(it.getFinalDestination()) }) {
                     setGoToTarget(goToTargetNodeTask, currentState)
                     return
@@ -663,7 +670,13 @@ class PhaseOneStrategy(
         //unreachableWindows.add(targetWindow!!)
 
         //if (goToWindowToExploreOrRandomExploration(currentAppState, goToAnotherNode, currentState, randomExplorationTask)) return
-        if (goToTargetNodeTask.isAvailable(currentState = currentState, isWindowAsTarget = true)) {
+        if (goToTargetNodeTask.isAvailable(
+                currentState = currentState,
+                isWindowAsTarget = false,
+                destWindow = targetWindow!!,
+                isExploration = false
+            )
+        ) {
             setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
@@ -694,12 +707,18 @@ class PhaseOneStrategy(
             if (exerciseTargetIfAvailable(exerciseTargetComponentTask, currentState)) return
             // In case target events not found
             if (randomExplorationInSpecialWindows(currentAppState, randomExplorationTask, currentState)) return
-            if (goToTargetNodeTask.isAvailable(currentState)) {
+            /*if (goToTargetNodeTask.isAvailable(
+                    currentState = currentState,
+                    destWindow = targetWindow!!,
+                    isWindowAsTarget = false,
+                    isExploration = false
+                )
+            ) {
                 if (goToTargetNodeTask.possiblePaths.any { isTargetAbstractState(it.getFinalDestination()) }) {
                     setGoToTarget(goToTargetNodeTask, currentState)
                     return
                 }
-            }
+            }*/
             // Try random exploration
             if (randomlyExploreTargetIfHasBudgetAndUnexploredWidgets(currentState, randomExplorationTask)) return
             if (hasBudgetLeft(currentAppState.window) || currentAppState.getUnExercisedActions(currentState, atuaMF)
@@ -720,7 +739,7 @@ class PhaseOneStrategy(
                 includePressback = true,
                 includeResetApp = false,
                 isExploration = false,
-                isWindowAsTarget = true
+                isWindowAsTarget = false
             )
         ) {
             setGoToTarget(goToTargetNodeTask, currentState)
@@ -734,7 +753,14 @@ class PhaseOneStrategy(
             setRandomExploration(randomExplorationTask, currentState, true, false)
             return
         }
-        if (goToTargetNodeTask.isAvailable(currentState, true)) {
+        if (goToTargetNodeTask.isAvailable(
+                currentState = currentState,
+                isWindowAsTarget = false,
+                destWindow = targetWindow!!,
+                isExploration = false,
+                includeResetApp = true
+            )
+        ) {
             setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
@@ -781,7 +807,14 @@ class PhaseOneStrategy(
             )
         ) return
         if (goToTargetNodeTask.includeResetAction == false) {
-            if (goToTargetNodeTask.isAvailable(currentState)) {
+            if (goToTargetNodeTask.isAvailable(
+                    currentState = currentState,
+                    destWindow = targetWindow!!,
+                    isWindowAsTarget = false,
+                    isExploration = false,
+                    includeResetApp = true
+                )
+            )  {
                 setGoToTarget(goToTargetNodeTask, currentState)
                 return
             }
@@ -809,7 +842,7 @@ class PhaseOneStrategy(
             setRandomExploration(randomExplorationTask, currentState, true, false)
             return true
         }
-        if ( Helper.isOptionsMenuLayout(currentState)) {
+        if (Helper.isOptionsMenuLayout(currentState)) {
             setRandomExploration(randomExplorationTask, currentState, true, false)
             return true
         }
@@ -834,7 +867,7 @@ class PhaseOneStrategy(
                     includePressback = true,
                     includeResetApp = false,
                     isExploration = false,
-                    isWindowAsTarget = true
+                    isWindowAsTarget = false
                 )
             ) {
                 if (goToTargetNodeTask.possiblePaths.any { isTargetAbstractState(it.getFinalDestination()) }) {
@@ -842,7 +875,15 @@ class PhaseOneStrategy(
                     return
                 }
             }
-            if (goToTargetNodeTask.isAvailable(currentState, true)) {
+            if (goToTargetNodeTask.isAvailable(
+                    currentState = currentState,
+                    destWindow = targetWindow!!,
+                    includePressback = true,
+                    includeResetApp = true,
+                    isExploration = false,
+                    isWindowAsTarget = false
+                )
+            ) {
                 if (goToTargetNodeTask.possiblePaths.any { isTargetAbstractState(it.getFinalDestination()) }) {
                     setGoToTarget(goToTargetNodeTask, currentState)
                     return
@@ -861,7 +902,13 @@ class PhaseOneStrategy(
             return
         }
         if (continueOrEndCurrentTask(currentState)) return
-        if (goToTargetNodeTask.isAvailable(currentState, true)) {
+        if (goToTargetNodeTask.isAvailable(
+                currentState = currentState,
+                isWindowAsTarget = false,
+                destWindow = targetWindow!!,
+                isExploration = false
+            )
+        ) {
             setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
@@ -889,7 +936,13 @@ class PhaseOneStrategy(
             if (continueRandomExplorationIfIsFillingData(randomExplorationTask)) return
             if (exerciseTargetIfAvailable(exerciseTargetComponentTask, currentState)) return
             if (continueOrEndCurrentTask(currentState)) return
-            if (goToTargetNodeTask.isAvailable(currentState, true)) {
+            if (goToTargetNodeTask.isAvailable(
+                    currentState = currentState,
+                    isWindowAsTarget = false,
+                    destWindow = targetWindow!!,
+                    isExploration = true
+                )
+            ) {
                 if (goToTargetNodeTask.possiblePaths.any { isTargetAbstractState(it.getFinalDestination()) }) {
                     setGoToTarget(goToTargetNodeTask, currentState)
                     return
@@ -911,13 +964,21 @@ class PhaseOneStrategy(
                 includePressback = true,
                 includeResetApp = false,
                 isExploration = false,
-                isWindowAsTarget = true
+                isWindowAsTarget = false
             )
         ) {
             setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
-        if (goToTargetNodeTask.isAvailable(currentState, true)) {
+        if (goToTargetNodeTask.isAvailable(
+                currentState = currentState,
+                destWindow = targetWindow!!,
+                includePressback = true,
+                includeResetApp = true,
+                isExploration = false,
+                isWindowAsTarget = false
+            )
+        ) {
             setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
@@ -1020,10 +1081,6 @@ class PhaseOneStrategy(
                 setGoToTarget(goToTargetNodeTask, currentState)
                 return
             }
-            if (goToTargetNodeTask.isAvailable(currentState, true)) {
-                setGoToTarget(goToTargetNodeTask, currentState)
-                return
-            }
         }
         if (randomExplorationInSpecialWindows(currentAppState, randomExplorationTask, currentState)) return
 
@@ -1054,7 +1111,15 @@ class PhaseOneStrategy(
             setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
-        if (goToTargetNodeTask.isAvailable(currentState, true)) {
+        if (goToTargetNodeTask.isAvailable(
+                currentState = currentState,
+                destWindow = targetWindow!!,
+                includePressback = true,
+                includeResetApp = true,
+                isExploration = false,
+                isWindowAsTarget = false
+            )
+        ){
             setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
@@ -1259,7 +1324,7 @@ class PhaseOneStrategy(
             return transitionPaths
         val targetStates = getTargetAbstractStates(currentNode = currentAbstractState)
         val stateScores: HashMap<AbstractState, Double> = HashMap<AbstractState, Double>()
-        targetStates.filterNot { it == currentState }.forEach {
+        targetStates.filterNot { it == currentAbstractState }.forEach {
             if (
                 (it !is VirtualAbstractState && !it.isOpeningKeyboard) ||
                 (it is VirtualAbstractState
@@ -1280,9 +1345,11 @@ class PhaseOneStrategy(
 
     override fun getCurrentTargetEvents(currentState: State<*>): Set<AbstractAction> {
         val targetEvents = HashMap<Input, List<AbstractAction>>()
-        if (atuaMF.getAbstractState(currentState)!!.window != targetWindow)
+        val abstractState = atuaMF.getAbstractState(currentState)!!
+        if (abstractState.window != targetWindow)
             return emptySet<AbstractAction>()
         val currentWindowTargetEvents = untriggeredTargetInputs.filter { it.sourceWindow == targetWindow }
+
         currentWindowTargetEvents.forEach {
             val abstractInteractions = atuaMF.validateEvent(it, currentState)
             if (abstractInteractions.isNotEmpty()) {

@@ -12,6 +12,7 @@
 
 package org.atua.calm.ewtgdiff
 
+import org.atua.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
 import org.atua.modelFeatures.dstg.AbstractTransition
@@ -55,7 +56,7 @@ class EWTGDiff private constructor(){
             replacementWidgets.addAll ((widgetDifferentSets["ReplacementSet"]!! as ReplacementSet<EWTGWidget>).replacedElements.map { it.new })
         }
         if (widgetDifferentSets.containsKey("RetainerSet")) {
-            replacementWidgets.addAll ((widgetDifferentSets["RetainerSet"]!! as RetainerSet<EWTGWidget>).replacedElements.map { it.new })
+            replacementWidgets.addAll ((widgetDifferentSets["RetainerSet"]!! as RetainingSet<EWTGWidget>).replacedElements.map { it.new })
         }
         return replacementWidgets
     }
@@ -110,12 +111,12 @@ class EWTGDiff private constructor(){
 
         }
         if (windowDifferentSets.containsKey("RetainerSet")) {
-            for (replacement in (windowDifferentSets.get("RetainerSet")!! as RetainerSet<Window>).replacedElements) {
+            for (replacement in (windowDifferentSets.get("RetainerSet")!! as RetainingSet<Window>).replacedElements) {
                 replaceWindow(replacement, atuamf)
                 WindowManager.instance.baseModelWindows.remove(replacement.old)
             }
 
-            val replacements = (windowDifferentSets.get("RetainerSet")!! as RetainerSet<Window>).replacedElements.map { Pair(it.old,it.new) }.toMap()
+            val replacements = (windowDifferentSets.get("RetainerSet")!! as RetainingSet<Window>).replacedElements.map { Pair(it.old,it.new) }.toMap()
             AbstractStateManager.INSTANCE.ABSTRACT_STATES.forEach {
                 it.abstractTransitions.forEach {
                     /*if (replacements.contains(it.prevWindow)) {
@@ -160,7 +161,7 @@ class EWTGDiff private constructor(){
         }
 
         if (widgetDifferentSets.containsKey("RetainerSet")) {
-            for (replacement in (widgetDifferentSets.get("RetainerSet")!! as RetainerSet<EWTGWidget>).replacedElements) {
+            for (replacement in (widgetDifferentSets.get("RetainerSet")!! as RetainingSet<EWTGWidget>).replacedElements) {
                 updateInputs(replacement,false)
                 // update EWTGWidget structure
                 updateWindowHierarchy(replacement)
@@ -169,7 +170,7 @@ class EWTGDiff private constructor(){
             }
         }
         if (transitionDifferentSets.containsKey("RetainerSet")) {
-            for (replacement in (transitionDifferentSets.get("RetainerSet")!! as RetainerSet<Edge<Window, WindowTransition>>).replacedElements) {
+            for (replacement in (transitionDifferentSets.get("RetainerSet")!! as RetainingSet<Edge<Window, WindowTransition>>).replacedElements) {
                 replacement.new.label.input.eventHandlers.addAll(replacement.old.label.input.eventHandlers)
             }
         }
@@ -225,14 +226,17 @@ class EWTGDiff private constructor(){
     }
 
     private fun updateWindowHierarchy(replacement: Replacement<EWTGWidget>) {
+        replacement.new.structure = replacement.old.structure
         replacement.old.children.forEach {
             it.parent = replacement.new
         }
+
         val parent = replacement.old.parent
         if (parent != null) {
             parent.children.remove(replacement.old)
             replacement.new.parent = parent
         }
+        replacement.old.window.widgets.remove(replacement.old)
     }
 
     private fun updateInputs(replacement: Replacement<EWTGWidget>, isReplaced: Boolean) {
@@ -249,7 +253,6 @@ class EWTGDiff private constructor(){
                     existingInputInUpdateVers.modifiedMethodStatement.clear()
                 }
                 existingInputInUpdateVers.eventHandlers.addAll(oldInput.eventHandlers)
-                existingInputInUpdateVers.modifiedMethods.putAll(oldInput.modifiedMethods)
 
             }
         }
@@ -352,14 +355,14 @@ class EWTGDiff private constructor(){
 
             }
             if (key == "transitionRetainers") {
-                val transitionRetainSet = RetainerSet<Edge<Window,WindowTransition>>()
+                val transitionRetainSet = RetainingSet<Edge<Window,WindowTransition>>()
                 transitionDifferentSets.put("RetainerSet",transitionRetainSet)
                 loadTransitionRetainSet(jsonObject.get(key) as JSONArray, transitionRetainSet,atuamf)
             }
         }
     }
 
-    private fun loadTransitionRetainSet(jsonArray: JSONArray, transitionRetainSet: RetainerSet<Edge<Window, WindowTransition>>, atuamf: org.atua.modelFeatures.ATUAMF) {
+    private fun loadTransitionRetainSet(jsonArray: JSONArray, transitionRetainSet: RetainingSet<Edge<Window, WindowTransition>>, atuamf: org.atua.modelFeatures.ATUAMF) {
         for (item in jsonArray) {
             val replacementJson = item as JSONObject
             val oldTransitionFullId = replacementJson.get("oldElement").toString()
@@ -503,14 +506,14 @@ class EWTGDiff private constructor(){
                 loadWidgetReplacementSet(jsonObject.get(key) as JSONArray, widgetReplacementSet)
             }
             if (key == "widgetRetainers") {
-                val widgetRetainerSet = RetainerSet<EWTGWidget>()
-                widgetDifferentSets.put("RetainerSet",widgetRetainerSet)
-                loadWidgetRetainerSet(jsonObject.get(key) as JSONArray, widgetRetainerSet)
+                val widgetRetainingSet = RetainingSet<EWTGWidget>()
+                widgetDifferentSets.put("RetainerSet",widgetRetainingSet)
+                loadWidgetRetainerSet(jsonObject.get(key) as JSONArray, widgetRetainingSet)
             }
         }
     }
 
-    private fun loadWidgetRetainerSet(jsonArray: JSONArray, widgetRetainerSet: RetainerSet<EWTGWidget>) {
+    private fun loadWidgetRetainerSet(jsonArray: JSONArray, widgetRetainingSet: RetainingSet<EWTGWidget>) {
         for (item in jsonArray) {
             val replacementJson = item as JSONObject
             val oldWidgetFullId = replacementJson.get("oldElement").toString()
@@ -550,7 +553,7 @@ class EWTGDiff private constructor(){
             if (newWidget == null) {
                 continue
             }
-            widgetRetainerSet.replacedElements.add(Replacement<EWTGWidget>(oldWidget,newWidget))
+            widgetRetainingSet.replacedElements.add(Replacement<EWTGWidget>(oldWidget,newWidget))
         }
     }
 
@@ -668,14 +671,14 @@ class EWTGDiff private constructor(){
                 loadWindowReplacementSet(jsonObject.get(key) as JSONArray, windowReplacementSet)
             }
             if (key == "windowRetainers") {
-                val windowRetainerSet = RetainerSet<Window>()
+                val windowRetainerSet = RetainingSet<Window>()
                 windowDifferentSets.put("RetainerSet",windowRetainerSet)
                 loadWindowRetainerSet(jsonObject.get(key) as JSONArray, windowRetainerSet)
             }
         }
     }
 
-    private fun loadWindowRetainerSet(jsonArray: JSONArray, windowRetainerSet: RetainerSet<Window>) {
+    private fun loadWindowRetainerSet(jsonArray: JSONArray, windowRetainerSet: RetainingSet<Window>) {
         jsonArray.forEach {item ->
             val replacementJson = item as JSONObject
             val windowOldId = replacementJson.get("oldElement").toString().replace("WIN","")
