@@ -134,7 +134,7 @@ class AbstractionFunction2 (val root: DecisionNode2) {
             updateAllAttributePathsHavingParent(attributePath,newAttributePath,classType)*/
             return true
         } else if (reduceOtherWidgets) {
-            val textRelateClassName = arrayListOf<String>("android.widget.EditText", "android.widget.TextView")
+            val textRelateClassName = arrayListOf<String>("android.widget.EditText")
             val allTextRelatedWidgets = ewtgWidget.window.widgets.filter {
                 textRelateClassName.contains(it.className)
             }

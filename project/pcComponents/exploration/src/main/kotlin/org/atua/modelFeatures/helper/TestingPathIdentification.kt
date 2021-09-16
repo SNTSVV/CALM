@@ -442,20 +442,39 @@ class PathFindingHelper {
                             selectedTransition.addAll(u)
                         }
                         else {
-                            val explicitTransitions = u.filter { !it.label.interactions.isEmpty() ||
-                                    it.label.isExplicit()  || (it.label.isImplicit && it.label.modelVersion == ModelVersion.BASE) }
-                            val implicitTransitions = u.filter { it.label.interactions.isEmpty()  }
-                            if (explicitTransitions.isEmpty()) {
+                            val explicitTransitions = u.filter { !it.label.interactions.isEmpty() }
+                            val implicitTransitions = u.filter { it.label.interactions.isEmpty() && it.source != it.destination }
+                            if (explicitTransitions.isEmpty() || prevAbstractTransition?.first?.isImplicit?:false) {
                                  if (includeImplicitInteraction == true) {
                                     if (prevAbstractTransition==null)
                                         selectedTransition.addAll(implicitTransitions)
-                                    else if (prevAbstractTransition.first.isImplicit && !prevAbstractTransition.first.abstractAction.isLaunchOrReset()) {
-                                        implicitTransitions.filter {
-                                            (it.label.dependentAbstractStates.isEmpty() || !it.label.guardEnabled ||
-                                                    it.label.dependentAbstractStates.intersect(ancestorAbstractStates).isNotEmpty())
-                                        }.let {
-                                            selectedTransition.addAll(it)
-                                        }
+                                    else if (prevAbstractTransition.first.isImplicit
+                                        && !prevAbstractTransition.first.abstractAction.isLaunchOrReset()) {
+                                        val reliableTransitions = implicitTransitions
+                                            .filterNot {depth>0
+                                                    && it.label.dependentAbstractStates.contains( it.label.dest) }
+                                           /* .filter {
+
+                                                (!it.label.abstractAction.isWidgetAction()
+                                                        || prevAbstractTransition.first.guaranteedRetainedAVMs.contains(
+                                                    it.label.abstractAction.attributeValuationMap
+                                                )
+                                                        || prevAbstractTransition.first.guaranteedNewAVMs.contains(it.label.abstractAction.attributeValuationMap)
+                                                        || (prevAbstractTransition.first.guaranteedRetainedAVMs.isEmpty() && prevAbstractTransition.first.guaranteedNewAVMs.isEmpty())
+                                                        )
+                                                        && (it.label.dependentAbstractStates.isEmpty()
+                                                        || !it.label.guardEnabled
+                                                        || it.label.dependentAbstractStates.intersect(
+                                                    ancestorAbstractStates
+                                                ).isNotEmpty())
+                                            }*/
+                                                if (reliableTransitions.isNotEmpty()) {
+                                                    selectedTransition.addAll(reliableTransitions)
+                                                } else {
+                                                    selectedTransition.addAll(implicitTransitions
+                                                        .filterNot {depth>0 && it.label.dependentAbstractStates.contains( it.label.dest) })
+                                                }
+
                                     }
                                 }
                                 else if (includeWTG)
@@ -468,18 +487,23 @@ class PathFindingHelper {
                                                 (it.label.dependentAbstractStates.isEmpty() || !it.label.guardEnabled ||
                                                 it.label.dependentAbstractStates.intersect(ancestorAbstractStates).isNotEmpty())
                                     }.let{
-                                        selectedTransition.addAll(it)
+                                        if (it.isNotEmpty())
+                                            selectedTransition.addAll(it)
+                                        else
+                                            selectedTransition.addAll(explicitTransitions)
                                     }
-                                }
-                                else {
+                                } else {
                                     if (prevAbstractTransition == null)
                                         selectedTransition.addAll(explicitTransitions)
-                                    else{
+                                    else if (prevAbstractTransition.first.isExplicit()){
                                         explicitTransitions.filter {
-                                            (it.label.dependentAbstractStates.isEmpty() || !it.label.guardEnabled ||
+                                            it.source != it.destination &&  (it.label.dependentAbstractStates.isEmpty() || !it.label.guardEnabled ||
                                                     it.label.dependentAbstractStates.intersect(ancestorAbstractStates).isNotEmpty())
                                         }.let{
-                                            selectedTransition.addAll(it)
+                                            if (it.isNotEmpty())
+                                                selectedTransition.addAll(it)
+                                            else
+                                                selectedTransition.addAll(explicitTransitions)
                                         }
                                     }
                                 }

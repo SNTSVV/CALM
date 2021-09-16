@@ -43,8 +43,8 @@ object UiHierarchy : UiParser() {
 			//TODO try keep systemUI
 			windows
 					.filterNot { it.w.pkgName == "com.android.systemui" }
-					/*.sortedBy { it.layer }
-					.last()*/
+					.sortedByDescending { it.layer }
+					/*.last()*/
 //					.filter { it.w.hasFocus || it.w.hasInputFocus || it.isKeyboard}
 					.forEach{ w: DisplayedWindow ->
 			//windows.forEach {  w: DisplayedWindow ->
@@ -118,7 +118,7 @@ object UiHierarchy : UiParser() {
 	 * The search condition should be unique to avoid unwanted side-effects on other nodes which fulfill the same condition.
 	 */
 	@JvmOverloads
-	suspend fun findAndPerform(roots: List<AccessibilityNodeInfo>, cond: SelectorCondition, retry: Boolean=true, action: suspend(AccessibilityNodeInfo)->Boolean): Boolean{
+	suspend fun 	findAndPerform(roots: List<AccessibilityNodeInfo>, cond: SelectorCondition, retry: Boolean=true, action: suspend(AccessibilityNodeInfo)->Boolean): Boolean{
 		var found = false
 		var successfull = false
 

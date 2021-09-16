@@ -34,7 +34,8 @@ class AbstractTransition(
         val modelVersion: ModelVersion = ModelVersion.RUNNING
 ) {
 
-    val guaranteedAVMs = ArrayList<AttributeValuationMap>() // guaranteedAVMsInDest
+    val guaranteedRetainedAVMs = ArrayList<AttributeValuationMap>() // guaranteedAVMsInDest
+    val guaranteedNewAVMs = ArrayList<AttributeValuationMap>()
     val modifiedMethods = HashMap<String,Boolean>() //method id,
     val modifiedMethodStatement = HashMap<String, Boolean>() //statement id,
     val handlers = HashMap<String,Boolean>() // handler method id
@@ -43,7 +44,7 @@ class AbstractTransition(
     val methodCoverage = HashSet<String>()
     val changeEffects = HashSet<ChangeEffect>()
     // ----------Guard
-    val userInputs = ArrayList<HashMap<UUID,String>>()
+    val userInputs = HashSet<HashMap<UUID,String>>()
     val inputGUIStates = HashSet<ConcreteId>()
     var dependentAbstractStates = HashSet<AbstractState>()
     var requiringPermissionRequestTransition: AbstractTransition? = null
@@ -53,9 +54,55 @@ class AbstractTransition(
     // --------------
     init {
         source.abstractTransitions.add(this)
-        guaranteedAVMs.addAll(dest.attributeValuationMaps)
     }
 
+    /**
+     * This function should be called only dependentAbstractState is added.
+     */
+    fun computeGuaranteedAVMs() {
+      return
+        if (!isImplicit) {
+            if ((source.window == dest.window
+                && source.isOpeningMenus == dest.isOpeningMenus)
+                || (source.window != dest.window
+                        && !dependentAbstractStates.any { it.window == dest.window })) {
+                val retainingAVMs = dest.attributeValuationMaps.intersect(source.attributeValuationMaps)
+                val sourceAbstractStateEWTGWidgets = source.EWTGWidgetMapping.values
+                val newAVMs =
+                    dest.EWTGWidgetMapping.filter { !sourceAbstractStateEWTGWidgets.contains(it.value) }.map { it.key }
+                guaranteedRetainedAVMs.addAll(retainingAVMs)
+                guaranteedNewAVMs.addAll(newAVMs)
+            }
+            else {
+                val retainingAVms = ArrayList<AttributeValuationMap>()
+                val newAVMs = ArrayList<AttributeValuationMap>()
+                dependentAbstractStates.filter { it !is VirtualAbstractState
+                        && it.window == dest.window
+                        && it.isOpeningMenus == dest.isOpeningMenus}. forEach { sourceAbstractState ->
+                    val retainingElements = dest.attributeValuationMaps.intersect(sourceAbstractState.attributeValuationMaps)
+                    if (retainingAVms.isEmpty()) {
+                        retainingAVms.addAll(retainingElements)
+                    } else {
+                        val retains = retainingAVms.intersect(retainingElements)
+                        retainingAVms.clear()
+                        retainingAVms.addAll(retains)
+                    }
+                    val sourceAbstractStateEWTGWidgets = sourceAbstractState.EWTGWidgetMapping.values
+                    val newElements = dest.EWTGWidgetMapping.filter { !sourceAbstractStateEWTGWidgets.contains(it.value) }.map { it.key }
+                    if (newAVMs.isEmpty()) {
+                        newAVMs.addAll(newElements)
+                    } else {
+                        val news = newAVMs.intersect(newElements)
+                        newAVMs.clear()
+                        newAVMs.addAll(news)
+                    }
+                }
+                guaranteedRetainedAVMs.addAll(retainingAVms)
+                guaranteedNewAVMs.addAll(newAVMs)
+            }
+
+        }
+    }
     fun isExplicit() = !isImplicit
 
     fun updateUpdateStatementCoverage(statement: String, atuaMF: org.atua.modelFeatures.ATUAMF) {
@@ -89,6 +136,7 @@ class AbstractTransition(
         this.modifiedMethodStatement.putAll(other.modifiedMethodStatement)
         this.methodCoverage.addAll(other.methodCoverage)
         this.statementCoverage.addAll(other.statementCoverage)
+        this.computeGuaranteedAVMs()
     }
 
     fun updateGuardEnableStatus() {

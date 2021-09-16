@@ -575,9 +575,13 @@ class RandomExplorationTask constructor(
             unexploredWidgets
         }
         if (candidates.isEmpty()) {
-            val chosenWidget = unexploredWidgets.random()
-            log.info("Widget: $chosenWidget")
-            return doRandomActionOnWidget(chosenWidget, currentState)
+            if (unexploredWidgets.isNotEmpty()) {
+                val chosenWidget = unexploredWidgets.random()
+                log.info("Widget: $chosenWidget")
+                return doRandomActionOnWidget(chosenWidget, currentState)
+            } else {
+                return ExplorationAction.pressBack()
+            }
         } else {
             val lessExercisedWidgets = runBlocking {
                 ArrayList(

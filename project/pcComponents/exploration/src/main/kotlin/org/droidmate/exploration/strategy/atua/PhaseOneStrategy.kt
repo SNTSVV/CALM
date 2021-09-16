@@ -112,6 +112,7 @@ class PhaseOneStrategy(
         //For debug, end phase one after 100 actions
         /*if (autAutTestingStrategy.eContext.explorationTrace.getActions().size > 100)
             return true*/
+
         if (atuaMF.lastUpdatedStatementCoverage == 1.0) {
             return false
         }
@@ -126,10 +127,15 @@ class PhaseOneStrategy(
             recentTargetEvent = null
         }
         updateBudgetForWindow(currentState)
+        if (!AbstractStateManager.INSTANCE.ABSTRACT_STATES.any {
+                it.guiStates.isNotEmpty()
+                        && it.attributeValuationMaps.isNotEmpty()
+            })
+            return true
         if (episodeCountDown == 0) {
             updateReachedWindows(currentState)
             updateTargetWindows()
-            updateOutOfBudgetWindows()
+            // updateOutOfBudgetWindows()
             updateUnreachableWindows(currentState)
             episodeCountDown = 5
         }
@@ -397,25 +403,28 @@ class PhaseOneStrategy(
         }
 
         if (targetWindow != currentAppState.window) {
-            if (strategyTask !is GoToTargetWindowTask) {
-                if (isATargetWindow(currentAppState)) {
+            if (isATargetWindow(currentAppState)) {
+                if (!explicitTargetWindows.contains(targetWindow)
+                            && !explicitTargetWindows.contains(currentAppState.window)) {
                     resetStrategyTask(currentState)
-                    val oldTargetWindow = targetWindow
                     targetWindow = currentAppState.window
-
-                    /*if (getCurrentTargetEvents(currentState).isNotEmpty()) {
-                    //if current window is a target window and has target inputs
-                    //update targetWindow
-                    strategyTask = null
-                    phaseState = PhaseState.P1_INITIAL
-                } else {
-                    //restore the current target window
-                    targetWindow = oldTargetWindow
-                }*/
+                } else if (!explicitTargetWindows.contains(targetWindow)
+                        && explicitTargetWindows.contains(currentAppState.window)) {
+                    resetStrategyTask(currentState)
+                    targetWindow = currentAppState.window
+                } else if (explicitTargetWindows.contains(targetWindow)
+                    && explicitTargetWindows.contains(currentAppState.window)) {
+                    if (strategyTask !is GoToTargetWindowTask) {
+                        resetStrategyTask(currentState)
+                        targetWindow = currentAppState.window
+                    } else if (getCurrentTargetEvents(currentState).isNotEmpty()) {
+                        resetStrategyTask(currentState)
+                        targetWindow = currentAppState.window
+                    }
                 }
             }
         }
-        /*if (targetWindow != null && !explicitTargetWindows.contains(targetWindow!!)) {
+        if (targetWindow != null && !explicitTargetWindows.contains(targetWindow!!)) {
             val oldTargetWindow = targetWindow!!
             if (explicitTargetWindows.isNotEmpty() && explicitTargetWindows.any { isATargetWindow(it) }) {
                 selectTargetNode(currentState, 0).also {
@@ -424,7 +433,7 @@ class PhaseOneStrategy(
                     }
                 }
             }
-        }*/
+        }
         if (targetWindow == null) {
             //try select a target window
             selectTargetNode(currentState, 0).also {
@@ -471,7 +480,7 @@ class PhaseOneStrategy(
             log.debug(phaseState.name)
             chosenAction = strategyTask!!.chooseAction(currentState)
             if (chosenAction == null)
-                return ExplorationAction.pressBack()
+                chosenAction = ExplorationAction.pressBack()
             consumeTestBudget(chosenAction, currentAppState)
         } else {
             log.debug("No task seleted. It might be a bug.")
@@ -1325,16 +1334,16 @@ class PhaseOneStrategy(
         val targetStates = getTargetAbstractStates(currentNode = currentAbstractState)
         val stateScores: HashMap<AbstractState, Double> = HashMap<AbstractState, Double>()
         targetStates.filterNot { it == currentAbstractState }.forEach {
-            if (
+            /*if (
                 (it !is VirtualAbstractState && !it.isOpeningKeyboard) ||
                 (it is VirtualAbstractState
                         &&
                         (pathType == PathFindingHelper.PathType.ANY
                                 || pathType == PathFindingHelper.PathType.WTG))
             ) {
-                val score = it.computeScore(atuaMF)
-                stateScores.put(it, score)
-            }
+            }*/
+            val score = it.computeScore(atuaMF)
+            stateScores.put(it, score)
         }
         getPathToStatesBasedOnPathType(pathType, transitionPaths, stateScores, currentAbstractState, currentState)
         if (transitionPaths.isEmpty()) {
@@ -1514,10 +1523,15 @@ class PhaseOneStrategy(
             return ArrayList()
         val candidates = ArrayList<AbstractState>()
         val excludedNodes = arrayListOf<AbstractState>(currentNode)
-        if (!AbstractStateManager.INSTANCE.ABSTRACT_STATES.any {
-                it !is VirtualAbstractState && it.window == targetWindow
+        val targetAbstractStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES
+            .filter {
+                it !is VirtualAbstractState &&
+                        it.window == targetWindow
+                        && !excludedNodes.contains(it)
                         && it.attributeValuationMaps.isNotEmpty()
-            }) {
+
+            }
+        if (targetAbstractStates.isEmpty()) {
             val virtualAbstractState = AbstractStateManager.INSTANCE.ABSTRACT_STATES.find {
                 it is VirtualAbstractState && it.window == targetWindow
             }
@@ -1528,14 +1542,7 @@ class PhaseOneStrategy(
             }
         } else {
             //Get all AbstractState contain target events
-            AbstractStateManager.INSTANCE.ABSTRACT_STATES
-                .filter {
-                    it !is VirtualAbstractState &&
-                            it.window == targetWindow
-                            && !excludedNodes.contains(it)
-                            && it.attributeValuationMaps.isNotEmpty()
-
-                }
+            targetAbstractStates
                 .forEach {
                     val hasUntriggeredTargetEvent: Boolean
                     hasUntriggeredTargetEvent = isTargetAbstractState(it)
@@ -1545,13 +1552,7 @@ class PhaseOneStrategy(
                         excludedNodes.add(it)
                 }
             if (candidates.isEmpty()) {
-                AbstractStateManager.INSTANCE.ABSTRACT_STATES
-                    .filter {
-                        it.window == targetWindow
-                                && it !is VirtualAbstractState
-                                && it.attributeValuationMaps.isNotEmpty()
-                    }
-                    .forEach {
+                targetAbstractStates.forEach {
                         candidates.add(it)
                     }
             }

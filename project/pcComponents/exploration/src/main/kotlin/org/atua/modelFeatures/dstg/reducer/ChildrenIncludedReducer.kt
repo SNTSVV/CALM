@@ -39,7 +39,7 @@ open class ChildrenIncludedReducer(
         var childText: String = ""
         if (shouldIncludeChildrenInfo(guiState,guiWidget) ) {
             guiWidget.childHashes.forEach { childHash ->
-                val childWidget = guiState.widgets.find { it.idHash == childHash && it.isVisible }
+                val childWidget = guiState.widgets.find { it.idHash == childHash }
                 if (childWidget != null) {
                     val childInfo = childReduce(childWidget, guiState, isOptionsMenu, guiTreeRectangle, rotation, autAutMF, tempChildWidgetAttributePaths)
                     childStructure += childInfo.first
@@ -117,7 +117,7 @@ open class ChildrenIncludedReducer(
     fun siblingReduce(widget: Widget, guiState: State<*>, isOptionsMenu:Boolean, guiTreeRectangle: Rectangle, rotation: org.atua.modelFeatures.Rotation, autAutMF: org.atua.modelFeatures.ATUAMF, tempChildWidgetAttributePaths: HashMap<Widget,AttributePath>): String {
         var siblingInfo = ""
         widget.childHashes.forEach { childHash ->
-            val childWidget = guiState.widgets.find { it.idHash == childHash && it.isVisible }
+            val childWidget = guiState.widgets.find { it.idHash == childHash}
             if (childWidget != null) {
                 val info = childReduce(childWidget,guiState,isOptionsMenu,guiTreeRectangle, rotation, autAutMF, tempChildWidgetAttributePaths)
                 siblingInfo += info.second

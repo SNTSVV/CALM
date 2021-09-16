@@ -308,6 +308,17 @@ class Helper {
             }
             result.addAll(visibleAreasByWidget.keys)*/
             result.addAll(originalVisibleWidgets)
+            if (state.widgets.any{it.isKeyboard}) {
+                val keyboardWidgets = state.widgets.filter { it.isKeyboard }
+                result.addAll(keyboardWidgets)
+                /*val transparentLayouts = keyboardWidgets.filter { w1 ->
+                    val chilWidgets = keyboardWidgets.filter { w2 -> w1.childHashes.contains(w2.idHash) }
+                    chilWidgets.any { w3 ->
+                        chilWidgets.filter { w4 -> w4 != w3 }.all { w5->w3.boundaries.fullyContains(w5.boundaries) }
+                    }
+                }
+                val result = transparentLayouts*/
+            }
             visibileWidgetsByState.put(state,result)
             return result
         }
@@ -358,7 +369,9 @@ class Helper {
 
         private fun isVisibleWidget(it: Widget) =
                 /*it.enabled &&  isWellVisualized(it) && (it.isVisible || it.metaInfo.contains("visibleToUser = true"))*/
-            it.enabled &&  isWellVisualized(it) && (it.hasUncoveredArea || it.visibleAreas.isNotEmpty() || it.metaInfo.contains("visibleToUser = true") )
+            it.enabled &&  isWellVisualized(it)
+                    && (it.hasUncoveredArea || it.visibleAreas.isNotEmpty() )
+                    && (it.visibleAreas.all { a -> it.boundaries.fullyContains(a) })
 
         fun getVisibleWidgetsForAbstraction(state: State<*>): List<Widget> {
             val result = ArrayList(getActionableWidgetsWithoutKeyboard(state).filterNot { isTrivialWebViewContent(it,state) })
@@ -642,9 +655,7 @@ class Helper {
                         || widget.className == "android.webkit.WebView"/*|| (!widget.hasClickableDescendant && widget.selected.isEnabled())*/)
 
         fun isWellVisualized(widget: Widget): Boolean {
-            if (!widget.isVisible && widget.visibleAreas.isEmpty())
-                return false
-            if (widget.visibleBounds.width > 20 && widget.visibleBounds.height > 20)
+            if (widget.visibleBounds.width > 5 && widget.visibleBounds.height > 5)
                 return true
             else
                 return false

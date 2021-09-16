@@ -140,45 +140,14 @@ open class GoToAnotherWindow constructor(
 //                    }
                 }*/
 
-                log.debug("Reidentify paths to the destination.")
-                val transitionPaths = ArrayList<TransitionPath>()
-                if (pathTraverser!!.getCurrentTransition()!!.isImplicit) {
-                    PathFindingHelper.findPathToTargetComponent(
-                        currentState = currentState,
-                        root = currentAppState,
-                        finalTarget = currentPath!!.getFinalDestination(),
-                        allPaths = transitionPaths,
-                        shortest = true,
-                        pathCountLimitation = 1,
-                        autautMF = atuaMF,
-                        pathType = currentPath!!.pathType
-                    )
-                }
-                if (transitionPaths.isNotEmpty()) {
-                    possiblePaths.clear()
-                    possiblePaths.addAll(transitionPaths)
-                    initialize(currentState)
-                    return false
-                } else {
-                    val retryBudget = if (includeResetAction) {
-                        (5 * atuaStrategy.scaleFactor).toInt()
-                    } else
-                        (5 * atuaStrategy.scaleFactor).toInt()
-                    if (retryTimes < retryBudget && currentPath!!.pathType != PathFindingHelper.PathType.FULLTRACE) {
-                        retryTimes += 1
-                        initPossiblePaths(currentState, true)
-                        if (possiblePaths.isNotEmpty()) {
-                            initialize(currentState)
-                            log.debug(" Paths is not empty")
-                            return false
-                        }
-                    }
-                }
-                return true
+                return reroutePath(currentState, currentAppState)
             } else {
                 expectedNextAbState = pathTraverser!!.getCurrentTransition()!!.dest
                 if (pathTraverser!!.finalStateAchieved()) {
                     return true
+                }
+                if (expectedNextAbState is VirtualAbstractState) {
+                    return reroutePath(currentState, currentAppState)
                 }
 //                // Try find another available shorter path
 //               if (currentPath!!.pathType==PathFindingHelper.PathType.TRACE
@@ -198,6 +167,53 @@ open class GoToAnotherWindow constructor(
         }
     }
 
+    private fun reroutePath(
+        currentState: State<*>,
+        currentAppState: AbstractState
+    ): Boolean {
+        log.debug("Reidentify paths to the destination.")
+        val transitionPaths = ArrayList<TransitionPath>()
+        if (currentPath!!.getFinalDestination() !is VirtualAbstractState) {
+            val finalTarget =
+                if (AbstractStateManager.INSTANCE.ABSTRACT_STATES.contains(currentPath!!.getFinalDestination()))
+                    currentPath!!.getFinalDestination()
+                else
+                    AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.hashCode == currentPath!!.getFinalDestination().hashCode }
+            if (finalTarget != null)
+                PathFindingHelper.findPathToTargetComponent(
+                    currentState = currentState,
+                    root = currentAppState,
+                    finalTarget = finalTarget,
+                    allPaths = transitionPaths,
+                    shortest = true,
+                    pathCountLimitation = 1,
+                    autautMF = atuaMF,
+                    pathType = currentPath!!.pathType
+                )
+        }
+        if (transitionPaths.isNotEmpty() && transitionPaths.any { it.path.size < currentPath!!.path.size }) {
+            possiblePaths.clear()
+            possiblePaths.addAll(transitionPaths)
+            initialize(currentState)
+            return false
+        } else {
+            val retryBudget = if (includeResetAction) {
+                (5 * atuaStrategy.scaleFactor).toInt()
+            } else
+                (5 * atuaStrategy.scaleFactor).toInt()
+            if (retryTimes < retryBudget && currentPath!!.pathType != PathFindingHelper.PathType.FULLTRACE) {
+                retryTimes += 1
+                initPossiblePaths(currentState, true)
+                if (possiblePaths.isNotEmpty()) {
+                    initialize(currentState)
+                    log.debug(" Paths is not empty")
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
     fun isReachExpectedState(currentState: State<*>): Boolean {
         var reached = false
         val currentAbState = atuaMF.getAbstractState(currentState)!!
@@ -212,7 +228,7 @@ open class GoToAnotherWindow constructor(
         }
         if (expectedAbstractState == currentAbState || expectedAbstractState.hashCode == currentAbState.hashCode)
             return true
-        if (expectedAbstractState.modelVersion != ModelVersion.BASE
+        /*if (expectedAbstractState.modelVersion != ModelVersion.BASE
             && !AbstractStateManager.INSTANCE.ABSTRACT_STATES.contains(expectedAbstractState)
         ) {
             val equivalentAbstractState = AbstractStateManager.INSTANCE.ABSTRACT_STATES.find {
@@ -225,7 +241,7 @@ open class GoToAnotherWindow constructor(
             } else {
                 return false
             }
-        }
+        }*/
         if (pathTraverser!!.finalStateAchieved()) {
             if (expectedAbstractState is VirtualAbstractState
                 && expectedAbstractState.window == currentAbState.window
@@ -276,7 +292,7 @@ open class GoToAnotherWindow constructor(
                     }
                 }
             }*/
-            if (!AbstractStateManager.INSTANCE.ABSTRACT_STATES.contains(expectedAbstractState1)) {
+            /*if (!AbstractStateManager.INSTANCE.ABSTRACT_STATES.contains(expectedAbstractState1)) {
                 val equivalentAbstractState = AbstractStateManager.INSTANCE.ABSTRACT_STATES.find {
                     it.hashCode == expectedAbstractState1!!.hashCode
                 }
@@ -284,7 +300,7 @@ open class GoToAnotherWindow constructor(
                     reached = true
                     break
                 }
-            }
+            }*/
 
             if (expectedAbstractState1 !is VirtualAbstractState) {
                 if (expectedAbstractState1.isOpeningMenus != currentAbState.isOpeningMenus) {
@@ -738,6 +754,7 @@ open class GoToAnotherWindow constructor(
                 } else {
                     currentEdge!!.abstractAction.extra
                 }
+                atuaStrategy.phaseStrategy.registerTriggeredEvents(currentEdge!!.abstractAction,currentState)
                 log.info("Widget: $chosenWidget")
                 return chooseActionWithName(
                     actionName,

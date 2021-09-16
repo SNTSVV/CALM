@@ -247,11 +247,11 @@ class EWTGDiff private constructor(){
                 oldInput.widget = replacement.new
             else {
                 replacement.new.window.inputs.remove(oldInput)
-                if (!isReplaced && existingInputInUpdateVers.eventHandlers.intersect(oldInput.eventHandlers).isEmpty()) {
+                /*if (*//*!isReplaced &&*//* existingInputInUpdateVers.eventHandlers.intersect(oldInput.eventHandlers).isEmpty()) {
                     existingInputInUpdateVers.eventHandlers.clear()
                     existingInputInUpdateVers.modifiedMethods.clear()
                     existingInputInUpdateVers.modifiedMethodStatement.clear()
-                }
+                }*/
                 existingInputInUpdateVers.eventHandlers.addAll(oldInput.eventHandlers)
 
             }

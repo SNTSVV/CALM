@@ -3,28 +3,7 @@
   <component name="CsvFileAttributes">
     <option name="attributeMap">
       <map>
-        <entry key="/apks/model/org.wikipedia/DSTG/AbstractStates/AbstractState_08603f3a-3ef3-3cd9-9ecb-6fc4d1cddc72.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value=";" />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/apks/model/org.wikipedia/DSTG/AbstractStates/AbstractState_112bec4c-62ff-33a3-bfcb-57d73c40eeda.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value=";" />
-            </Attribute>
-          </value>
-        </entry>
         <entry key="/apks/model/org.wikipedia/DSTG/AbstractStates/AbstractState_160c5ec6-6562-304e-a175-6f0473d28475.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value=";" />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/apks/model/org.wikipedia/DSTG/AbstractStates/AbstractState_a64c23ed-40c7-3ed4-9e8d-a52f08145fe0.csv">
           <value>
             <Attribute>
               <option name="separator" value=";" />
@@ -56,13 +35,6 @@
           <value>
             <Attribute>
               <option name="separator" value=";" />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/apks/model/org.wikipedia/states/f63c39b7-8603-fad2-cb9e-b676e3fc0b4c_f932e053-1c96-3afe-ce95-5d127a8e4b78.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value=":" />
             </Attribute>
           </value>
         </entry>

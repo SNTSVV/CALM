@@ -268,6 +268,29 @@ open class AbstractState(
                     widget_WidgetGroupMap.put(w, wg)
             }
         }
+/*        val toTestAction = HashSet<AbstractAction>()
+        toTestAction.addAll(actionCount.filter {
+            it.key.actionType != AbstractActionType.FAKE_ACTION
+                    && it.key.actionType != AbstractActionType.LAUNCH_APP
+                    && it.key.actionType != AbstractActionType.RESET_APP
+                    && it.key.actionType != AbstractActionType.ENABLE_DATA
+                    && it.key.actionType != AbstractActionType.DISABLE_DATA
+                    && it.key.actionType != AbstractActionType.WAIT
+                    && !it.key.isWidgetAction()
+                    && it.key.actionType != AbstractActionType.CLICK
+                    && it.key.actionType != AbstractActionType.LONGCLICK
+                    && it.key.actionType != AbstractActionType.SEND_INTENT
+                    && it.key.actionType != AbstractActionType.PRESS_MENU
+        }.map { it.key })
+        attributeValuationMaps.forEach {
+            toTestAction.addAll(it.actionCount.keys)
+        }
+        val actionsWithTransitions = abstractTransitions.map { it.abstractAction }
+        unexcerisedActions.addAll(
+            toTestAction.filter { action ->
+                !actionsWithTransitions.contains(action) }
+        )
+        return unexcerisedActions.toList()*/
         unexcerisedActions.addAll(actionCount.filter {
             ( it.value == 0 )
                     && it.key.actionType != AbstractActionType.FAKE_ACTION
@@ -291,11 +314,8 @@ open class AbstractState(
         }
         widgetActionCounts.forEach {
             val actions = it.filterNot {
-                it.key.attributeValuationMap!!.getClassName().contains("WebView")
-                        && (
-                        (it.key.actionType == AbstractActionType.ITEM_CLICK && hasClickableSubItems(it.key.attributeValuationMap!!, currentState))
-                                || (it.key.actionType == AbstractActionType.ITEM_LONGCLICK && hasLongClickableSubItems(it.key.attributeValuationMap!!, currentState))
-                        )
+                        (it.key.actionType == AbstractActionType.ITEM_CLICK && !hasClickableSubItems(it.key.attributeValuationMap!!, currentState))
+                                || (it.key.actionType == AbstractActionType.ITEM_LONGCLICK && !hasLongClickableSubItems(it.key.attributeValuationMap!!, currentState))
             }.filter { it.value == 0 || (avmCardinalities.get(it.key.attributeValuationMap)==Cardinality.MANY && it.value <= 2) }.map { it.key }
             unexcerisedActions.addAll(actions)
         }

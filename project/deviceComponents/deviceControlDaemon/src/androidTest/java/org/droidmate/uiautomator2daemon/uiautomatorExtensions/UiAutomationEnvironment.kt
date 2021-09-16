@@ -170,7 +170,7 @@ data class UiAutomationEnvironment(val idleTimeout: Long = 100, val interactiveT
 				if (root.isKeyboard()) {
 					uncoveredC.firstOrNull()?.let { r ->
 						outRect.intersect(r)
-						if (outRect == r) {  // wrong keyboard boundaries reported
+						if ((outRect.height()+outRect.width())> (r.height()+r.width())*0.8) {  // wrong keyboard boundaries reported
 							Log.d(logtag, "try to handle soft keyboard in front with $outRect")
 							UiHierarchy.findAndPerform(listOf(root),
 								selectKeyboardRoot(r.top + 1, r.width(), r.height()),

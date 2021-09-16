@@ -280,6 +280,8 @@ class AppModelLoader {
             if (dependentAbstractStates.isEmpty()) {
                     dependentAbstractStates.add(AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.window is Launcher }!!)
             }
+            val handlers = splitCSVLineToField(data[8])
+            val handlerIds = handlers.map { autAutMF.statementMF!!.getMethodId(it) }.filter { it!=null }
             val abstractTransition = sourceState.abstractTransitions.find {
                 it.abstractAction == abstractAction
                         && it.isImplicit == false
@@ -298,6 +300,10 @@ class AppModelLoader {
                 )
                 newAbstractTransition.guardEnabled = guardEnabled
                 newAbstractTransition.dependentAbstractStates.addAll(dependentAbstractStates)
+                newAbstractTransition.computeGuaranteedAVMs()
+                handlerIds.forEach {
+                    newAbstractTransition.handlers.put(it,false)
+                }
                 autAutMF.dstg.add(sourceState,destState,newAbstractTransition)
                 createWindowTransitionFromAbstractInteraction(newAbstractTransition,autAutMF)
                 /*AbstractStateManager.INSTANCE.addImplicitAbstractInteraction(

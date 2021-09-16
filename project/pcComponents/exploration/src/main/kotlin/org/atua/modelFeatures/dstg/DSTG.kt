@@ -63,7 +63,10 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
         val explicitEdges = this.edges(sourceAbstractState).filter { it.label.isExplicit()
                 && it.destination!=null
                 && sourceAbstractState.abstractTransitions.contains(it.label)
-                && (it.label.interactions.isNotEmpty() || it.label.modelVersion == ModelVersion.BASE) }
+                && (it.label.interactions.isNotEmpty() ||
+                (it.label.modelVersion == ModelVersion.BASE
+                        && sourceAbstractState.guiStates.isEmpty()
+                        && sourceAbstractState.modelVersion == ModelVersion.BASE)) }
         val nextSources = ArrayList<AbstractState>()
         explicitEdges.map { it.label }.distinct().forEach { edge ->
             if (!nextSources.contains(edge.dest) && !dumpedSourceStates.contains(edge.dest)) {

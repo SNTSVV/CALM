@@ -44,7 +44,7 @@ fun Rect.visibleAxis(uncovered: MutableCollection<Rect>, isSingleElement: Boolea
 			changed = true
 			if(!isSingleElement || r!= it){  // try detect elements which are for some reason rendered 'behind' an transparent layout element
 				del.add(it)
-			}else{
+			}else {
 				markedAsOccupied = false
 			}
 			// this probably is done by the apps to determine their definedAsVisible app areas
@@ -55,11 +55,13 @@ fun Rect.visibleAxis(uncovered: MutableCollection<Rect>, isSingleElement: Boolea
 				add(Rect(it.left,r.bottom+1,it.right,it.bottom))  // below from intersection
 			}
 			r
-		}else null }.also { res ->
+		}else null
+
+	}.also { res ->
 		if(changed) {
 			uncovered.addAll(newR)
 			uncovered.removeAll { it.isEmpty || del.contains(it) }
-			debugOut("for $this intersections=$res modified uncovered=$uncovered",false)
+			debugOut("for $this intersections=$res modified uncovered=$uncovered",true)
 		}
 	}
 }
@@ -230,8 +232,8 @@ object SiblingNodeComparator: Comparator<Pair<Int,AccessibilityNodeInfo>> {
 				o1.first < o2.first	// check if the drawing order is different from the order defined via its hierarchy index => TODO check if this condition is too restrictive
 
 		return when{
-			c1IsTransparent && swapped -> -2
-			c1IsTransparent -> 2
+			c1IsTransparent && swapped -> -10
+			c1IsTransparent -> 10
 			else -> o2.drawOrder().compareTo(o1.drawOrder())  // inverted order since we want nodes with higher drawing Order to be processed first
 		}
 	}

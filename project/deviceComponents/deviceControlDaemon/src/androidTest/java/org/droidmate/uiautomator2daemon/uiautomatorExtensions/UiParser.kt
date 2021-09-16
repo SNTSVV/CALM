@@ -48,7 +48,8 @@ abstract class UiParser {
 		SiblingNodeComparator.initParentBounds(node)
 		//FIXME sometimes getChild returns a null node, this may be a synchronization issue in this case the fetch should return success=false or retry to fetch
 		val children: List<UiElementProperties?> = (nChildren-1 downTo 0).map { i -> Pair(i,node.getChild(i)) }
-				//REMARK we use drawing order but sometimes there is a transparent layout in front of the elements, probably used by the apps to determine their app area (e.g. amazon), this has to be considered in the [visibleAxis] call for the window area
+				//REMARK we use drawing order but sometimes there is a transparent layout in front of the elements,
+				// probably used by the apps to determine their app area (e.g. amazon), this has to be considered in the [visibleAxis] call for the window area
 			.sortedWith(SiblingNodeComparator)
 				.map { (i,childNode) ->		// bottom-up strategy, process children first (in drawingOrder) if they exist
 					if(childNode == null) debugOut("ERROR child nodes should never be null")
@@ -87,11 +88,24 @@ abstract class UiParser {
 		props.add("liveRegion = ${this.liveRegion}")
 		props.add("windowId = ${this.windowId}")
 		props.add("visibleToUser = ${this.isVisibleToUser}")
-
 		var uncoveredArea = true
+		// let's figure if a view could be transparent
+		/*val rootNodeRect = Rect()
+		w.rootNode!!.getBoundsInScreen(rootNodeRect)
+		val pRoot = (rootNodeRect.width()+rootNodeRect.height())*2
+		val pView = (nodeRect.width()+nodeRect.height())*2
+		var isTransparent = if (pView > (0.95 * pRoot))
+			true
+		else
+			false*/
+		var isTransparent = if (!isFocusable && !isClickable && !isLongClickable &&!isCheckable && !isScrollable )
+			true
+		else
+			false
+		props.add("isTransparent = ${isTransparent}")
 		// due to bottomUp strategy we will only get coordinates which are not overlapped by other UiElements
-		val visibleAreas = if(!isEnabled || !isVisibleToUser) emptyList()
-				else nodeRect.visibleAxis(w.area, isSingleElement = true).map { it.toRectangle() }.let { area ->
+		val visibleAreas = if(!isEnabled || !isVisibleToUser || isTransparent) emptyList()
+				else nodeRect.visibleAxis(w.area).map { it.toRectangle() }.let { area ->
 					if (area.isEmpty()) {
 						val childrenC = children.flatMap { boundsList -> boundsList.visibleAreas } // allow the parent boundaries to contain all definedAsVisible child coordinates
 						uncoveredArea = false
@@ -109,7 +123,7 @@ abstract class UiParser {
 		props.add("markedAsOccupied = $markedAsOccupied")
 		val visibleBounds: Rectangle = when {
 			visibleAreas.isEmpty() -> if (isEnabled && isVisibleToUser)
-				nodeRect.toRectangle()
+				Rectangle(0,0,0,0)  // no uncovered area means this node cannot be visible
 			else
 				Rectangle(0,0,0,0)  // no uncovered area means this node cannot be visible
 			children.isEmpty() -> {

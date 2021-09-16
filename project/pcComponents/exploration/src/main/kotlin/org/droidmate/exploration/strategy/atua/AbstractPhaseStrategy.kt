@@ -81,20 +81,20 @@ abstract class AbstractPhaseStrategy(
         var targetStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
             it.window == targetWindow
                     && it != currentAbstractState
-                    && (it is VirtualAbstractState || it.attributeValuationMaps.isNotEmpty())
+                    && (it is VirtualAbstractState ||
+                    (it.attributeValuationMaps.isNotEmpty() && it.guiStates.isNotEmpty()))
         }.toHashSet()
         if (explore) {
             targetStates.removeIf {
                 it is VirtualAbstractState || it.getUnExercisedActions(null,atuaMF).isEmpty() }
-            if (targetStates.isEmpty()) {
+          /*  if (targetStates.isEmpty()) {
                 targetStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
                     it.window == targetWindow
                             && it != currentAbstractState
-                            && (it.guiStates.any { atuaMF.actionCount.getUnexploredWidget(it).isNotEmpty() }
-                            || it.guiStates.isEmpty() && it.modelVersion == ModelVersion.BASE)
+                            && (it.guiStates.any { atuaMF.actionCount.getUnexploredWidget(it).isNotEmpty() })
                             && it !is VirtualAbstractState
                 }.toHashSet()
-            }
+            }*/
         }
 
         val stateByActionCount = HashMap<AbstractState,Double>()
