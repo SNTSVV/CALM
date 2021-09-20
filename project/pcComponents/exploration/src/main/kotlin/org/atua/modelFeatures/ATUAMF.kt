@@ -1686,12 +1686,21 @@ class ATUAMF(
         similarInputs.forEach {
             notFullyExercisedTargetInputs.remove(it)
         }*/
+        if (input.verifiedEventHandlers.isEmpty()
+            && abstractTransition.methodCoverage.isEmpty()) {
+            input.eventHandlers.clear()
+            input.modifiedMethods.entries.removeIf { it.value==false }
+            input.modifiedMethodStatement.entries.removeIf {
+                val methodId = statementMF!!.statementMethodInstrumentationMap.get(it.key)
+                !input.modifiedMethods.containsKey(methodId)
+            }
+        }
         if (input.verifiedEventHandlers.isNotEmpty() && input.eventHandlers.isEmpty()) {
             input.eventHandlers.addAll(input.verifiedEventHandlers)
         }
         // remove the event handlers detected by static analysis if they seems to be incorrectly detected
         // Case 1: there is no handler triggered at runtime
-        if (input.verifiedEventHandlers.isEmpty() && input.eventHandlers.isNotEmpty()) {
+        if (input.verifiedEventHandlers.isEmpty() && input.eventHandlers.isNotEmpty() ) {
             input.eventHandlers.clear()
             input.modifiedMethods.entries.removeIf { it.value==false }
             input.modifiedMethodStatement.entries.removeIf {
@@ -1710,6 +1719,7 @@ class ATUAMF(
                     !input.modifiedMethods.containsKey(methodId)
                 }
         }
+        input.coveredMethods.addAll(abstractTransition.methodCoverage)
         abstractTransition.modifiedMethods.forEach {
             val methodId = it.key
             if (input.modifiedMethods.containsKey(methodId)) {

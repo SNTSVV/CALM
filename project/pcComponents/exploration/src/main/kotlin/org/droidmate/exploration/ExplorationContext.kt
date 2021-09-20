@@ -126,7 +126,7 @@ class ExplorationContext<M,S,W> @JvmOverloads constructor(val cfg: Configuration
 
 	//TODO: add camera package
 	fun<S: State<*>> belongsToApp(state: S): Boolean {
-		return state.widgets.any { it.packageName == apk.packageName
+		return state.visibleTargets.any { it.packageName == apk.packageName
 				/*|| it.packageName == "com.google.android.gms"*/
 				|| it.packageName == "com.android.camera2" || it.packageName == "com.android.camera" || it.isKeyboard
 				}  // allow google's internal log-in screen
@@ -207,8 +207,8 @@ class ExplorationContext<M,S,W> @JvmOverloads constructor(val cfg: Configuration
 	fun explorationCanMoveOn() = isEmpty() || // we are starting the app -> no terminate yet
 			getCurrentState().isRequestRuntimePermissionDialogBox || isOpenWithDialog() || isActivityChooser(getCurrentState()) || // FIXME what if we currently have isHomeScreen?
 				(!getCurrentState().isHomeScreen
-						/*&& belongsToApp(getCurrentState())*/
-						&& getCurrentState().actionableWidgets.any { it.clickable }
+						&& belongsToApp(getCurrentState())
+						&& getCurrentState().visibleTargets.any { it.clickable }
 						&& !isSystemSettingActivies(getCurrentState())
 						)
 

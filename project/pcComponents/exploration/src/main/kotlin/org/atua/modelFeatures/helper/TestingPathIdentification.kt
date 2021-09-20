@@ -452,7 +452,8 @@ class PathFindingHelper {
                                         && !prevAbstractTransition.first.abstractAction.isLaunchOrReset()) {
                                         val reliableTransitions = implicitTransitions
                                             .filterNot {depth>0
-                                                    && it.label.dependentAbstractStates.contains( it.label.dest) }
+                                                    && it.label.dependentAbstractStates.contains( it.label.dest)
+                                                    && it.label.abstractAction.actionType != AbstractActionType.PRESS_BACK}
                                            /* .filter {
 
                                                 (!it.label.abstractAction.isWidgetAction()
@@ -472,7 +473,9 @@ class PathFindingHelper {
                                                     selectedTransition.addAll(reliableTransitions)
                                                 } else {
                                                     selectedTransition.addAll(implicitTransitions
-                                                        .filterNot {depth>0 && it.label.dependentAbstractStates.contains( it.label.dest) })
+                                                        .filterNot {depth>0
+                                                                && it.label.dependentAbstractStates.contains( it.label.dest)
+                                                                && it.label.abstractAction.actionType != AbstractActionType.PRESS_BACK})
                                                 }
 
                                     }
@@ -755,7 +758,7 @@ class PathFindingHelper {
         private fun includingResetOrNot(it: Edge<AbstractState, AbstractTransition>, includeReset: Boolean, depth: Int, onlyStartWithReset: Boolean): Boolean {
             if (includeReset && depth == 0) {
                 if (onlyStartWithReset)
-                    return it.label.abstractAction.actionType == AbstractActionType.RESET_APP
+                    return it.label.abstractAction.actionType == AbstractActionType.RESET_APP && it.label.isImplicit
                 else
                     return true
             }
@@ -764,7 +767,7 @@ class PathFindingHelper {
 
         private fun includingLaunchOrNot(it: Edge<AbstractState, AbstractTransition>, includeLaunch: Boolean, depth: Int): Boolean {
             if (includeLaunch && depth == 0) {
-                return true
+                return it.label.isImplicit
             }
             else
                 return it.label.abstractAction.actionType!=AbstractActionType.LAUNCH_APP

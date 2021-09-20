@@ -253,7 +253,7 @@ class EWTGDiff private constructor(){
                     existingInputInUpdateVers.modifiedMethodStatement.clear()
                 }*/
                 existingInputInUpdateVers.eventHandlers.addAll(oldInput.eventHandlers)
-
+                existingInputInUpdateVers.modifiedMethods.putAll(oldInput.modifiedMethods)
             }
         }
     }
@@ -547,7 +547,8 @@ class EWTGDiff private constructor(){
                     newWindow = haveSimilarWidgetWindow
             }
             if (newWindow==null) {
-                throw Exception("Cannot get the window with id $newWidgetId")
+                log.warn("Cannot get the window with id $newWidgetId")
+                continue
             }
             val newWidget =  newWindow.widgets.find { it.widgetId == newWidgetId }
             if (newWidget == null) {

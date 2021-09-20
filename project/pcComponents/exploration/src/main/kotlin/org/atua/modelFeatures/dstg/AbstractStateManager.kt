@@ -1983,6 +1983,7 @@ class AbstractStateManager() {
             if (!newEdge1.label.userInputs.contains(condition))
                 newEdge1.label.userInputs.add(condition)
         newAbstractionTransition1.guardEnabled = oldAbstractEdge.label.guardEnabled
+        newAbstractionTransition1.activated = oldAbstractEdge.label.activated
         return Pair(newAbstractionTransition1, newEdge1)
     }
 
@@ -2023,6 +2024,7 @@ class AbstractStateManager() {
             if (!newEdge1.label.userInputs.contains(condition))
                 newEdge1.label.userInputs.add(condition)
         newAbstractionTransition!!.guardEnabled = oldAbstractEdge.label.guardEnabled
+        newAbstractionTransition.activated = oldAbstractEdge.label.activated
         return Pair(newAbstractionTransition, newEdge1)
     }
 
@@ -2256,7 +2258,7 @@ class AbstractStateManager() {
             val lv1Attributes = extractGeneralAVMs(it)
             diff += lv1Attributes.filter { !lv1Attributes1.contains(it) }.size
             diff += lv1Attributes1.filter { !lv1Attributes.contains(it) }.size
-            if (diff * 1.0 / (lv1Attributes1.size+lv1Attributes.size) <= 0.3) {
+            if (diff * 1.0 / (lv1Attributes1.size+lv1Attributes.size) <= 0.8) {
                 notSoDifferentAbstractStates.add(it)
             }
         }

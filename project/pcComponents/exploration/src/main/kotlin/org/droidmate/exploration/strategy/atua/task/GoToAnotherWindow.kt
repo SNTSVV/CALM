@@ -749,7 +749,13 @@ open class GoToAnotherWindow constructor(
                 val candidates = runBlocking { getCandidates(widgets) }
                 val chosenWidget = candidates[random.nextInt(candidates.size)]
                 val actionName = currentEdge!!.abstractAction.actionType
-                val actionData = if (currentEdge!!.data != null && currentEdge!!.data != "") {
+                val actionData = if (currentEdge!!.data != null
+                    && currentEdge!!.data != ""
+                    && (currentEdge.abstractAction.actionType == AbstractActionType.TEXT_INSERT
+                            || currentEdge.abstractAction.actionType == AbstractActionType.RANDOM_CLICK
+                            || currentEdge.abstractAction.actionType == AbstractActionType.RANDOM_KEYBOARD
+                            || currentEdge.abstractAction.actionType == AbstractActionType.ACTION_QUEUE
+                            || currentEdge.abstractAction.actionType == AbstractActionType.UNKNOWN)) {
                     currentEdge!!.data
                 } else {
                     currentEdge!!.abstractAction.extra

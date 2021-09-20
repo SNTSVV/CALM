@@ -122,6 +122,9 @@ class PhaseTwoStrategy(
     override fun hasNextAction(currentState: State<*>): Boolean {
         if (atuaMF.lastUpdatedStatementCoverage == 1.0)
             return false
+        targetWindowsCount.entries.removeIf { !atuaMF.modifiedMethodsByWindow.containsKey(it.key) }
+
+        phase2TargetEvents.entries.removeIf { !atuaMF.notFullyExercisedTargetInputs.contains(it.key) }
         atuaMF.modifiedMethodsByWindow.keys.filter { it !is Launcher
                 && !targetWindowsCount.containsKey(it)}.forEach {window ->
             val abstractStates = AbstractStateManager.INSTANCE.getPotentialAbstractStates().filter { it.window == window }
@@ -158,12 +161,10 @@ class PhaseTwoStrategy(
                 && needReset(currentState)) {
             return eContext.resetApp()
         }*/
-        targetWindowsCount.entries.removeIf {
-            !atuaMF.modifiedMethodsByWindow.containsKey(it.key)
-        }
-        if (!targetWindowsCount.containsKey(targetWindow)) {
+        if (targetWindow!=null && !targetWindowsCount.containsKey(targetWindow!!)) {
             targetWindow = null
         }
+
         var chosenAction: ExplorationAction?
 
 
@@ -253,6 +254,7 @@ class PhaseTwoStrategy(
         val targetAbstractStatesProbability = abstractStateProbabilityByWindow[targetWindow]?.filter {
             AbstractStateManager.INSTANCE.ABSTRACT_STATES.contains(it.first)
                     && it.first != currentAbState
+                    && it.first.guiStates.isNotEmpty()
         }
         //targetAbstractStatesProbability.removeIf { it.first == currentAbState }
         if (targetAbstractStatesProbability != null) {
@@ -265,6 +267,7 @@ class PhaseTwoStrategy(
                 it !is VirtualAbstractState && it.window == targetWindow!!
                         && it != currentAbState
                         && it.attributeValuationMaps.isNotEmpty()
+                        && it.guiStates.isNotEmpty()
             }
             windowAbstractStates.forEach {
                 targetAbstractStatesPbMap.put(it, 1.0)
@@ -434,9 +437,15 @@ class PhaseTwoStrategy(
         budgetType = 2
         if (randomBudgetLeft > 0)
             return
-        val inputWidgetCount = Helper.getUserInputFields(currentState).size
-        val baseActionCount = log2((Helper.getActionableWidgetsWithoutKeyboard(currentState).size - inputWidgetCount) * 2.toDouble())
-        randomBudgetLeft = (baseActionCount * scaleFactor).toInt()
+        randomBudgetLeft = (25 * scaleFactor).toInt()
+        return
+        /*val inputWidgetCount = Helper.getUserInputFields(currentState).size
+        val rawInputCount = (Helper.getActionableWidgetsWithoutKeyboard(currentState).size - inputWidgetCount)
+        val baseActionCount = if (rawInputCount < 0)
+            5.0
+        else
+            log2(rawInputCount*2.toDouble())
+        randomBudgetLeft = (baseActionCount * scaleFactor).toInt()*/
     }
 
     private fun setExerciseBudget(currentState: State<*>) {
@@ -697,14 +706,14 @@ class PhaseTwoStrategy(
             log.info("Continue doing random exploration")
             return
         }
-        /*if (goToTargetNodeTask.isAvailable(currentState, targetWindow!!, true,true, false, false)) {
+        if (goToTargetNodeTask.isAvailable(currentState, targetWindow!!, true,true, false, false)) {
             setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
         if (goToTargetNodeTask.isAvailable(currentState)) {
             setGoToTarget(goToTargetNodeTask, currentState)
             return
-        }*/
+        }
         if (!strategyTask!!.isTaskEnd(currentState)) {
             //Keep current task
             log.info("Continue doing random exploration")
@@ -913,6 +922,7 @@ class PhaseTwoStrategy(
         //calculate appState score
         appStateList.forEach {
             var appStateScore: Double = 0.0
+            val frequency = atuaMF.abstractStateVisitCount.get(it)?:1
             if (appStateModifiedMethodMap.containsKey(it)) {
                 appStateModifiedMethodMap[it]!!.forEach {
                     if (!modifiedMethodWeights.containsKey(it))
@@ -920,7 +930,7 @@ class PhaseTwoStrategy(
                     val methodWeight = modifiedMethodWeights[it]!!
                     if (modifiedMethodMissingStatements.containsKey(it)) {
                         val missingStatementNumber = modifiedMethodMissingStatements[it]!!.size
-                        appStateScore += (methodWeight * missingStatementNumber)
+                        appStateScore += (methodWeight * missingStatementNumber/frequency)
                     }
                 }
                 //appStateScore += 1

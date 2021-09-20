@@ -33,9 +33,10 @@ open class Input{
     }
     val createdAtRuntime: Boolean
     val verifiedEventHandlers = HashSet<String>() //if an event handler appears in this set, we will not remove it from event's handlers
+    val coveredMethods = HashSet<String> ()
     val modifiedMethods = HashMap<String,Boolean>() //method id,
     val modifiedMethodStatement = HashMap<String, Boolean>() //statement id,
-    val coverage = HashMap<String,Int>()
+    val coverage = HashMap<String,Int>() // timestampe->StatementCoverage
 
     var data: Any? = null
     var exerciseCount: Int = 0

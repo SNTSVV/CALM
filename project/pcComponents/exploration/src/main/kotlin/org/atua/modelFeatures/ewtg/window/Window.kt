@@ -90,7 +90,8 @@ abstract class Window(var classType: String,
                 all.newLine()
                 all.write("${it.eventType};${it.widget?.widgetId};${it.sourceWindow.windowId};${it.createdAtRuntime};" +
                         "\"${it.eventHandlers.map { atuaMF.statementMF!!.getMethodName(it) }.joinToString(";")}\";" +
-                        "\"${it.modifiedMethods.map { atuaMF.statementMF!!.getMethodName(it.key)}.joinToString(";")}\"")
+                        "\"${it.modifiedMethods.map { atuaMF.statementMF!!.getMethodName(it.key) }.joinToString(";")}\";" +
+                        "\"${it.coveredMethods.map { atuaMF.statementMF!!.getMethodName(it)}.joinToString(";")}\"")
             }
         }
     }
@@ -98,7 +99,7 @@ abstract class Window(var classType: String,
         return "[1]widgetId;[2]resourceIdName;[3]className;[4]parent;[5]xpath;[6]activity;[7]createdAtRuntime;[8]attributeValuationSetId;[9]isObsolete"
     }
     fun eventHeader(): String {
-        return "[1]eventType;[2]widgetId;[3]sourceWindowId;[4]createdAtRuntime;[5]eventHandlers;[6]modifiedMethods"
+        return "[1]eventType;[2]widgetId;[3]sourceWindowId;[4]createdAtRuntime;[5]eventHandlers;[6]modifiedMethods;[7]coveredMethods"
     }
 
     abstract fun getWindowType(): String

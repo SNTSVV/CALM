@@ -98,7 +98,7 @@ abstract class UiParser {
 			true
 		else
 			false*/
-		var isTransparent = if (!isFocusable && !isClickable && !isLongClickable &&!isCheckable && !isScrollable )
+		var isTransparent = if (layoutViewClasses.contains(className) && !isFocusable && !isClickable && !isLongClickable &&!isCheckable && !isScrollable )
 			true
 		else
 			false
@@ -179,6 +179,11 @@ abstract class UiParser {
 		)
 	}
 
+	val layoutViewClasses = arrayListOf<String>("android.view.ViewGroup",
+			"android.widget.AbsoluteLayout",
+	"android.widget.FrameLayout",
+	"android.widget.GridLayout",
+	"android.widget.LinearLayout")
 	private fun computeImgId(img: Bitmap?, b: Rectangle): Int {
 		if (img == null || b.isEmpty()) return 0
 		val subImg = Bitmap.createBitmap(b.width, b.height, Bitmap.Config.ARGB_8888)

@@ -59,8 +59,6 @@ class ExerciseTargetComponentTask private constructor(
             }
             return false
         }*/
-        if (currentAbstractState.isOpeningKeyboard)
-            return false
         if (isDoingRandomExplorationTask && !randomExplorationTask.isTaskEnd(currentState)) {
             return false
         }

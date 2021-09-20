@@ -241,13 +241,14 @@ class PhaseThreeStrategy(
             targetScores.put(it.first,it.second)
         }
         if (targetScores.isEmpty()) {
-            abstractStateProbability[targetWindow]!!.forEach {
+            abstractStatceProbability[targetWindow]!!.forEach {
                 targetScores.put(it.first,it.second)
             }
         }*/
         AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
             it.window == targetWindow
                     && it.attributeValuationMaps.isNotEmpty()
+                    && it.guiStates.isNotEmpty()
         }.filterNot { it is VirtualAbstractState }.filter{
             it.inputMappings.filter { it.value.contains(targetEvent) }.isNotEmpty()
         }.forEach {
@@ -1118,6 +1119,7 @@ class PhaseThreeStrategy(
         //calculate appState score
         appStateList .forEach {
             var appStateScore:Double = 0.0
+            val frequency = atuaMF.abstractStateVisitCount.get(it)?:1
             if (appStateModifiedMethodMap.containsKey(it))
             {
                 appStateModifiedMethodMap[it]!!.forEach {
@@ -1127,7 +1129,7 @@ class PhaseThreeStrategy(
                     if (modifiedMethodMissingStatements.containsKey(it))
                     {
                         val missingStatementNumber = modifiedMethodMissingStatements[it]!!.size
-                        appStateScore += (methodWeight * missingStatementNumber)
+                        appStateScore += (methodWeight * missingStatementNumber/frequency)
                     }
                 }
                 //appStateScore += 1

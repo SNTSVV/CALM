@@ -136,6 +136,7 @@ class AbstractTransition(
         this.modifiedMethodStatement.putAll(other.modifiedMethodStatement)
         this.methodCoverage.addAll(other.methodCoverage)
         this.statementCoverage.addAll(other.statementCoverage)
+        this.activated = other.activated
         this.computeGuaranteedAVMs()
     }
 

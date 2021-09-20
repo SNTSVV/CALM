@@ -814,10 +814,10 @@ abstract class AbstractStrategyTask (val atuaStrategy: ATUATestingStrategy,
             return false
         if (currentAbstractState.window is Dialog) {
             if (WindowManager.instance.updatedModelWindows.filter { it is OutOfApp }.map { it.classType }.contains(currentAbstractState.activity) ){
-                return false
+                return true
             }
         }
-        return true
+        return false
     }
 
     companion object {

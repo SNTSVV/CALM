@@ -565,6 +565,8 @@ class RandomExplorationTask constructor(
         unexploredWidgets: List<Widget>,
         currentState: State<*>
     ): ExplorationAction {
+        if (unexploredWidgets.isEmpty())
+            return ExplorationAction.pressBack()
         val notUserlikeInputs = unexploredWidgets.filter {
             it.clickable || it.longClickable || it.scrollable
         }.filterNot { Helper.isUserLikeInput(it) }
@@ -575,13 +577,9 @@ class RandomExplorationTask constructor(
             unexploredWidgets
         }
         if (candidates.isEmpty()) {
-            if (unexploredWidgets.isNotEmpty()) {
-                val chosenWidget = unexploredWidgets.random()
-                log.info("Widget: $chosenWidget")
-                return doRandomActionOnWidget(chosenWidget, currentState)
-            } else {
-                return ExplorationAction.pressBack()
-            }
+            val chosenWidget = unexploredWidgets.random()
+            log.info("Widget: $chosenWidget")
+            return doRandomActionOnWidget(chosenWidget, currentState)
         } else {
             val lessExercisedWidgets = runBlocking {
                 ArrayList(

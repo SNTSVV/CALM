@@ -563,7 +563,7 @@ class ModelBackwardAdapter {
         val scoreDetails = HashMap<AttributeType,Float>()
         avm2.localAttributes.forEach {
             val score = when (it.key) {
-                AttributeType.resourceId,AttributeType.className -> if ( it.value == "" && avm1.localAttributes[it.key]!! == "" )
+                AttributeType.resourceId -> if ( it.value == "" && avm1.localAttributes[it.key]!! == "" )
                         -1.0f
                     else
                         StringComparison.compareStringsLevenshtein(Helper.getUnqualifiedResourceId1(it.value) , Helper.getUnqualifiedResourceId1(avm1.localAttributes[it.key]!!))
@@ -581,12 +581,12 @@ class ModelBackwardAdapter {
                 return false
             if (avm1.localAttributes[it.key] != it.value)
                 return  false*/
-        }
+        }/*
         if (scoreDetails.any { it.value == 0.0f })
-            return false
-        if (scoreDetails.any { it.value < 0.6f })
-            return false
-       return true
+            return false*/
+        if (scoreDetails.any { it.value == 1.0f })
+            return true
+       return false
     }
 
     fun outputBackwardEquivalentResult(actionId: Int, guiState: State<*>, expectedAbstractState: AbstractState, observedAbstractState: AbstractState){

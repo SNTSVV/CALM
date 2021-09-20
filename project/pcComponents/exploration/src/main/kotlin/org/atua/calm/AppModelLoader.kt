@@ -313,6 +313,8 @@ class AppModelLoader {
                 )*/
             }
 
+
+
         }
 
         private fun createAbstractAction(actionType: AbstractActionType, interactedAVSId: String, actionData: String?, abstractState: AbstractState): AbstractAction {
@@ -343,6 +345,7 @@ class AppModelLoader {
                 createNewInput(abstractTransition, atuaMF)
             val prevWindows = abstractTransition.dependentAbstractStates.map { it.window }
             inputs.forEach { input ->
+                input.coveredMethods.addAll(abstractTransition.methodCoverage)
                 if (prevWindows.isEmpty())
                     atuaMF.wtg.add(abstractTransition.source.window,abstractTransition.dest.window, WindowTransition(
                             abstractTransition.source.window,
@@ -773,207 +776,228 @@ class AppModelLoader {
                     }
                 }
             }
+            val coveredMethods = splitCSVLineToField(data[6])
+            val coveredMethodsId = coveredMethods.map { autMF.statementMF!!.getMethodId(it) }
+            coveredMethodsId.forEach { methodId->
+                if (methodId.isNotBlank()) {
+                    event.coveredMethods.add(methodId)
+                    if (autMF.statementMF!!.isModifiedMethod(methodId)) {
+                        event.modifiedMethods.putIfAbsent(methodId,false)
+                    }
+                    autMF.modifiedMethodWithTopCallers
+                        .filter { it.value.contains(methodId) }
+                        .forEach { updatedMethod, callers ->
+                            if (!event.modifiedMethods.containsKey(updatedMethod)) {
+                                event.modifiedMethods.putIfAbsent(updatedMethod, false)
+                                val updatedStatements = autMF.statementMF!!.getMethodStatements(methodId)
+                                updatedStatements.forEach {
+                                    event.modifiedMethodStatement.put(it, false)
+                                }
+                            }
+                        }
+                }
+            }
 /*            val modifiedMethods = splitCSVLineToField(data[5])
-            modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
-                val methodId = autMF.statementMF!!.getMethodId(method)
-                if (!event.modifiedMethods.contains(methodId)) {
-                    event.modifiedMethods.put(methodId,false)
-                    val updatedStatements = autMF.statementMF!!.getMethodStatements(methodId)
-                    updatedStatements.forEach {
-                        event.modifiedMethodStatement.put(it,false)
-                    }
-
-                }
-            }*/
+modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
+    val methodId = autMF.statementMF!!.getMethodId(method)
+    if (!event.modifiedMethods.contains(methodId)) {
+        event.modifiedMethods.put(methodId,false)
+        val updatedStatements = autMF.statementMF!!.getMethodStatements(methodId)
+        updatedStatements.forEach {
+            event.modifiedMethodStatement.put(it,false)
         }
 
-        private fun createNewInput(data: List<String>, widget: EWTGWidget?, window: Window, createdAtRuntime: Boolean): Input {
-            val eventType = EventType.values().find { it.name == data[0] }
-            if (eventType == null) {
-                throw Exception("Not supported eventType ${data[0]}")
-            }
-            val input = Input.getOrCreateInput(
-                eventHandlers = HashSet(),
-                eventTypeString = eventType.toString(),
-                widget = widget,
-                sourceWindow = window,
-                createdAtRuntime = createdAtRuntime
-            )
-            return input
+    }
+}*/
+}
 
+private fun createNewInput(data: List<String>, widget: EWTGWidget?, window: Window, createdAtRuntime: Boolean): Input {
+val eventType = EventType.values().find { it.name == data[0] }
+if (eventType == null) {
+    throw Exception("Not supported eventType ${data[0]}")
+}
+val input = Input.getOrCreateInput(
+    eventHandlers = HashSet(),
+    eventTypeString = eventType.toString(),
+    widget = widget,
+    sourceWindow = window,
+    createdAtRuntime = createdAtRuntime
+)
+return input
+
+}
+
+private fun loadWindowStructure(window: Window, ewtgFolderPath: Path) {
+val structureFilePath = ewtgFolderPath.resolve("WindowsWidget").resolve("Widgets_${window.windowId}.csv")
+if (!Files.exists(structureFilePath)) {
+    org.atua.modelFeatures.ATUAMF.log.debug("Window $window 'structure does not exist")
+    return
+}
+val lines: List<String>
+structureFilePath.toFile().let {file ->
+    lines = BufferedReader(FileReader(file)).use {
+        it.lines().skip(1).toList()
+    }
+}
+val widgetParentIdMap = HashMap<EWTGWidget,String>()
+lines.forEach { line ->
+    val data = splitCSVLineToField(line)
+    val widgetId = data[0]
+    val widget = window.widgets.find {it.widgetId == widgetId }
+    if (widget == null) {
+        //create new widget
+        createNewWidget(data, window,widgetParentIdMap)
+    }
+}
+window.widgets.forEach {
+    val parentId = widgetParentIdMap[it]
+    if (parentId!=null) {
+        val parentWidget = window.widgets.find { it.widgetId == parentId }
+        if (parentWidget!=null)
+            it.parent = parentWidget
+    }
+}
+
+}
+
+fun splitCSVLineToField(line: String): List<String> {
+val data = ArrayList(line.split(";"))
+val result = ArrayList<String>()
+var startQuote = false
+var temp = ""
+for (s in data) {
+    if (!startQuote) {
+        if (!s.startsWith("\"")) {
+            result.add(s)
+        } else {
+            if (s.length>1 && s.endsWith('"') && s.startsWith('"')) {
+                result.add(s.trim('"'))
+            } else if(s.count { '"' == it } % 2 == 0) {
+                result.add(s)
+            }
+            else {
+                startQuote = true
+                temp = s
+            }
         }
-
-        private fun loadWindowStructure(window: Window, ewtgFolderPath: Path) {
-            val structureFilePath = ewtgFolderPath.resolve("WindowsWidget").resolve("Widgets_${window.windowId}.csv")
-            if (!Files.exists(structureFilePath)) {
-                org.atua.modelFeatures.ATUAMF.log.debug("Window $window 'structure does not exist")
-                return
-            }
-            val lines: List<String>
-            structureFilePath.toFile().let {file ->
-                lines = BufferedReader(FileReader(file)).use {
-                    it.lines().skip(1).toList()
-                }
-            }
-            val widgetParentIdMap = HashMap<EWTGWidget,String>()
-            lines.forEach { line ->
-                val data = splitCSVLineToField(line)
-                val widgetId = data[0]
-                val widget = window.widgets.find {it.widgetId == widgetId }
-                if (widget == null) {
-                    //create new widget
-                    createNewWidget(data, window,widgetParentIdMap)
-                }
-            }
-            window.widgets.forEach {
-                val parentId = widgetParentIdMap[it]
-                if (parentId!=null) {
-                    val parentWidget = window.widgets.find { it.widgetId == parentId }
-                    if (parentWidget!=null)
-                        it.parent = parentWidget
-                }
-            }
-
-        }
-
-        fun splitCSVLineToField(line: String): List<String> {
-            val data = ArrayList(line.split(";"))
-            val result = ArrayList<String>()
-            var startQuote = false
-            var temp = ""
-            for (s in data) {
-                if (!startQuote) {
-                    if (!s.startsWith("\"")) {
-                        result.add(s)
-                    } else {
-                        if (s.length>1 && s.endsWith('"') && s.startsWith('"')) {
-                            result.add(s.trim('"'))
-                        } else if(s.count { '"' == it } % 2 == 0) {
-                            result.add(s)
-                        }
-                        else {
-                            startQuote = true
-                            temp = s
-                        }
-                    }
-                } else {
-                    temp = temp + ";"+s
-                    if (s.endsWith("\"")) {
-                        startQuote = false
-                        // remove quote
-                        temp = temp.substring(1,temp.length-1)
-                        result.add(temp)
-                        temp = ""
-                    }
-                }
-            }
-            return result
-        }
-
-        private fun createNewWidget(data: List<String>, window: Window, widgetParentIdMap: HashMap<EWTGWidget,String>): EWTGWidget {
-            val widgetId = data[0]
-            val resourceIdName = data[1]
-            val className = data[2]
-            val parentId = data[3]
-            val structure = if (data[4] == "null") {
-                ""
-            } else {
-                data[4]
-            }
-            val activity = data[5]
-            val createdAtRuntime = data[6].toBoolean()
-            val widget = EWTGWidget(
-                    widgetId = widgetId,
-                    createdAtRuntime = createdAtRuntime,
-                    resourceIdName = resourceIdName,
-                    className = className,
-                    window = window,
-                    contentDesc = "",
-                    text = "",
-                    structure = structure
-            )
-            widget.modelVersion = ModelVersion.BASE
-            if (parentId!="null") {
-                widgetParentIdMap.put(widget,parentId)
-            }
-            return widget
-        }
-
-        private fun createNewWindow(data: List<String>): Window {
-            val windowId = data[0]
-            val windowType = data[1]
-            val classType = data[2]
-            val createdAtRuntime = data[3].toBoolean()
-            val portraitDimension: Rectangle = Helper.parseRectangle(data[4])
-            val landscapeDimension: Rectangle = Helper.parseRectangle(data[5])
-            val portraitKeyboardDimension: Rectangle = Helper.parseRectangle(data[6])
-            val landscapeKeyboardDimension: Rectangle =Helper.parseRectangle(data[7])
-            val window = when (windowType) {
-                "Activity" -> Activity.getOrCreateNode(nodeId = windowId,
-                        classType = classType,
-                        runtimeCreated = createdAtRuntime,
-                        isBaseMode = true)
-                "Dialog" -> Dialog.getOrCreateNode(nodeId = windowId,
-                        classType = classType,
-                        runtimeCreated = createdAtRuntime,
-                        allocMethod = "",
-                        isBaseModel = true)
-                "OptionsMenu" -> OptionsMenu.getOrCreateNode(nodeId = windowId,
-                        classType = classType,
-                        runtimeCreated = createdAtRuntime,
-                        isBaseModel = true)
-                "ContextMenu" -> ContextMenu.getOrCreateNode(nodeId = windowId,
-                        classType = classType,
-                        runtimeCreated = createdAtRuntime,
-                        isBaseModel = true)
-                "OutOfApp" -> OutOfApp.getOrCreateNode(nodeId = windowId, activity = classType,isBaseModel = true)
-                "FakeWindow" -> FakeWindow.getOrCreateNode(nodeId = windowId,isBaseModel = true)
-                "Launcher" -> Launcher.getOrCreateNode()
-                else -> throw Exception("Error windowType: $windowType")
-            }
-            window.portraitDimension = portraitDimension
-            window.landscapeDimension = landscapeDimension
-            window.portraitKeyboardDimension = portraitKeyboardDimension
-            window.landscapeKeyboardDimension = landscapeKeyboardDimension
-            return window
-        }
-
-        private fun getEWTGWindowsFilePath(ewtgFolderPath: Path): Path {
-            return ewtgFolderPath.resolve("EWTG_WindowList.csv")
-        }
-
-        private fun getEWTGFolderPath(modelPath: Path): Path {
-            return modelPath.resolve("EWTG")
+    } else {
+        temp = temp + ";"+s
+        if (s.endsWith("\"")) {
+            startQuote = false
+            // remove quote
+            temp = temp.substring(1,temp.length-1)
+            result.add(temp)
+            temp = ""
         }
     }
 }
- class AttributeValuationMapPropertyIndex{
-     companion object {
-         val AttributeValuationSetID = 0
-         val parentAVMID = 1
-         val startAttributeValue = 2
-         val xpath = 2
-         val resourceId = 3
-         val className = 4
-         val contentDesc = 5
-         val text = 6
-         val checkable = 7
-         val enabled = 8
-         val password = 9
-         val selected = 10
-         val isInputField = 11
-         val clickable = 12
-         val longClickable = 13
-         val scrollable = 14
-         val scrollDirection = 15
-         val checked = 16
-         val isLeaf = 17
-         val childrenStructure = 18
-         val childrenText = 19
-         val siblingsInfo = 20
-         val cardinality = 21
-         val captured = 22
-         val wtgWidgetMapping = 23
-         val hashcode = 24
-     }
+return result
+}
+
+private fun createNewWidget(data: List<String>, window: Window, widgetParentIdMap: HashMap<EWTGWidget,String>): EWTGWidget {
+val widgetId = data[0]
+val resourceIdName = data[1]
+val className = data[2]
+val parentId = data[3]
+val structure = if (data[4] == "null") {
+    ""
+} else {
+    data[4]
+}
+val activity = data[5]
+val createdAtRuntime = data[6].toBoolean()
+val widget = EWTGWidget(
+        widgetId = widgetId,
+        createdAtRuntime = createdAtRuntime,
+        resourceIdName = resourceIdName,
+        className = className,
+        window = window,
+        contentDesc = "",
+        text = "",
+        structure = structure
+)
+widget.modelVersion = ModelVersion.BASE
+if (parentId!="null") {
+    widgetParentIdMap.put(widget,parentId)
+}
+return widget
+}
+
+private fun createNewWindow(data: List<String>): Window {
+val windowId = data[0]
+val windowType = data[1]
+val classType = data[2]
+val createdAtRuntime = data[3].toBoolean()
+val portraitDimension: Rectangle = Helper.parseRectangle(data[4])
+val landscapeDimension: Rectangle = Helper.parseRectangle(data[5])
+val portraitKeyboardDimension: Rectangle = Helper.parseRectangle(data[6])
+val landscapeKeyboardDimension: Rectangle =Helper.parseRectangle(data[7])
+val window = when (windowType) {
+    "Activity" -> Activity.getOrCreateNode(nodeId = windowId,
+            classType = classType,
+            runtimeCreated = createdAtRuntime,
+            isBaseMode = true)
+    "Dialog" -> Dialog.getOrCreateNode(nodeId = windowId,
+            classType = classType,
+            runtimeCreated = createdAtRuntime,
+            allocMethod = "",
+            isBaseModel = true)
+    "OptionsMenu" -> OptionsMenu.getOrCreateNode(nodeId = windowId,
+            classType = classType,
+            runtimeCreated = createdAtRuntime,
+            isBaseModel = true)
+    "ContextMenu" -> ContextMenu.getOrCreateNode(nodeId = windowId,
+            classType = classType,
+            runtimeCreated = createdAtRuntime,
+            isBaseModel = true)
+    "OutOfApp" -> OutOfApp.getOrCreateNode(nodeId = windowId, activity = classType,isBaseModel = true)
+    "FakeWindow" -> FakeWindow.getOrCreateNode(nodeId = windowId,isBaseModel = true)
+    "Launcher" -> Launcher.getOrCreateNode()
+    else -> throw Exception("Error windowType: $windowType")
+}
+window.portraitDimension = portraitDimension
+window.landscapeDimension = landscapeDimension
+window.portraitKeyboardDimension = portraitKeyboardDimension
+window.landscapeKeyboardDimension = landscapeKeyboardDimension
+return window
+}
+
+private fun getEWTGWindowsFilePath(ewtgFolderPath: Path): Path {
+return ewtgFolderPath.resolve("EWTG_WindowList.csv")
+}
+
+private fun getEWTGFolderPath(modelPath: Path): Path {
+return modelPath.resolve("EWTG")
+}
+}
+}
+class AttributeValuationMapPropertyIndex{
+companion object {
+val AttributeValuationSetID = 0
+val parentAVMID = 1
+val startAttributeValue = 2
+val xpath = 2
+val resourceId = 3
+val className = 4
+val contentDesc = 5
+val text = 6
+val checkable = 7
+val enabled = 8
+val password = 9
+val selected = 10
+val isInputField = 11
+val clickable = 12
+val longClickable = 13
+val scrollable = 14
+val scrollDirection = 15
+val checked = 16
+val isLeaf = 17
+val childrenStructure = 18
+val childrenText = 19
+val siblingsInfo = 20
+val cardinality = 21
+val captured = 22
+val wtgWidgetMapping = 23
+val hashcode = 24
+}
 }

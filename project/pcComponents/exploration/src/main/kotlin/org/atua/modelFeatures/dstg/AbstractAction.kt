@@ -191,7 +191,7 @@ data class AbstractAction (
 
 }
 
-enum class AbstractActionType(val actionName: String) {
+enum class  AbstractActionType(val actionName: String) {
     CLICK("Click"),
     LONGCLICK("LongClick"),
     ITEM_CLICK("ItemClick"),

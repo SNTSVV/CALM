@@ -403,7 +403,7 @@ class PhaseOneStrategy(
         }
 
         if (targetWindow != currentAppState.window) {
-            if (isATargetWindow(currentAppState)) {
+            if (isAvailableTargetWindow(currentAppState)) {
                 if (!explicitTargetWindows.contains(targetWindow)
                             && !explicitTargetWindows.contains(currentAppState.window)) {
                     resetStrategyTask(currentState)
@@ -414,10 +414,10 @@ class PhaseOneStrategy(
                     targetWindow = currentAppState.window
                 } else if (explicitTargetWindows.contains(targetWindow)
                     && explicitTargetWindows.contains(currentAppState.window)) {
-                    if (strategyTask !is GoToTargetWindowTask) {
+                    if (getCurrentTargetEvents(currentState).isNotEmpty()) {
                         resetStrategyTask(currentState)
                         targetWindow = currentAppState.window
-                    } else if (getCurrentTargetEvents(currentState).isNotEmpty()) {
+                    } else if (strategyTask !is GoToTargetWindowTask) {
                         resetStrategyTask(currentState)
                         targetWindow = currentAppState.window
                     }
@@ -426,7 +426,7 @@ class PhaseOneStrategy(
         }
         if (targetWindow != null && !explicitTargetWindows.contains(targetWindow!!)) {
             val oldTargetWindow = targetWindow!!
-            if (explicitTargetWindows.isNotEmpty() && explicitTargetWindows.any { isATargetWindow(it) }) {
+            if (explicitTargetWindows.isNotEmpty() && explicitTargetWindows.any { isAvailableTargetWindow(it) }) {
                 selectTargetNode(currentState, 0).also {
                     if (targetWindow != null && targetWindow != oldTargetWindow) {
                         resetStrategyTask(currentState)
@@ -785,6 +785,7 @@ class PhaseOneStrategy(
             setGoToExploreState(goToAnotherWindow, currentState)
             return true
         }
+        log.info("No available abstract states to explore.")
         return false
     }
 
@@ -1392,13 +1393,13 @@ class PhaseOneStrategy(
                 )
 
 
-    private fun isATargetWindow(currentAppState: AbstractState): Boolean {
+    private fun isAvailableTargetWindow(currentAppState: AbstractState): Boolean {
         return targetWindowTryCount.filterNot {
             outofbudgetWindows.contains(it.key) || fullyCoveredWindows.contains(it.key)
         }.any { it.key == currentAppState.window }
     }
 
-    private fun isATargetWindow(window: Window): Boolean {
+    private fun isAvailableTargetWindow(window: Window): Boolean {
         return targetWindowTryCount.filterNot {
             outofbudgetWindows.contains(it.key) || fullyCoveredWindows.contains(it.key)
         }.containsKey(window)

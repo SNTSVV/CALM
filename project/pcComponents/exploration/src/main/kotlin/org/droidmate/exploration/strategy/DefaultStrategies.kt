@@ -129,6 +129,38 @@ object DefaultStrategies: Logging {
 		}
 	}
 
+	fun handleNoProgress(prio: Int,  maxWaitTime: Long = 1000) = object : AExplorationStrategy() {
+		private val stateFrequency = HashMap<State<Widget>,Int>()
+		private val trace = Stack<State<Widget>>()
+		private val queueLength = 10
+		private val maxNoProgress = 10
+		private val alpha = 0.2
+		private val beta = 0.8
+		private var currentNoProgress = 0
+		override fun getPriority(): Int = prio
+		override suspend fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> hasNext(eContext: ExplorationContext<M, S, W>): Boolean {
+			if (trace.empty())
+				return false
+			val prevState = trace.peek()
+			val currentState = eContext.getCurrentState()
+			if (prevState == currentState) {
+				currentNoProgress += 1
+			} else {
+				trace.push(eContext.getCurrentState())
+				currentNoProgress = 0
+			}
+			if (currentNoProgress > maxNoProgress)
+				return true
+			return false
+		}
+
+		override suspend fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> nextAction(eContext: ExplorationContext<M, S, W>): ExplorationAction {
+			currentNoProgress=0
+			log.info("No progress. Reset app")
+			return eContext.resetApp()
+		}
+
+	}
 	/**
 	 * Check the current state for interactive UI elements to interact with,
 	 * if none are available we try to
