@@ -80,6 +80,7 @@ class ATUAMF(
     private val manualInput: Boolean,
     private val manualIntent: Boolean,
     val reuseBaseModel: Boolean,
+    val reuseSameVersionModel: Boolean,
     private val baseModelDir: Path,
     private val getCurrentActivity: suspend () -> String,
     private val getDeviceRotation: suspend () -> Int
@@ -290,14 +291,18 @@ class ATUAMF(
         /*untriggeredTargetHiddenHandlers.addAll(targetHandlers)*/
 
         WindowManager.instance.updatedModelWindows.filter { it.inputs.any { it.modifiedMethods.isNotEmpty() } }.forEach {
-            modifiedMethodsByWindow.putIfAbsent(it, HashSet())
-            val allUpdatedMethods = modifiedMethodsByWindow.get(it)!!
-            it.inputs.forEach {
-                if (it.modifiedMethods.isNotEmpty()) {
-                    allUpdatedMethods.addAll(it.modifiedMethods.keys)
-                    notFullyExercisedTargetInputs.add(it)
+            if (it !is OutOfApp) {
+                modifiedMethodsByWindow.putIfAbsent(it, HashSet())
+                val allUpdatedMethods = modifiedMethodsByWindow.get(it)!!
+                it.inputs.forEach {
+                    if (it.modifiedMethods.isNotEmpty() ||
+                        (it.eventHandlers.isNotEmpty() && it.eventHandlers.intersect(allTargetHandlers).isNotEmpty())) {
+                        allUpdatedMethods.addAll(it.modifiedMethods.keys)
+                        notFullyExercisedTargetInputs.add(it)
+                    }
                 }
             }
+
         }
 
         var targetInputsCnt = notFullyExercisedTargetInputs.size
@@ -308,14 +313,14 @@ class ATUAMF(
         }*/
 
         targetInputsCnt = notFullyExercisedTargetInputs.size
-        modifiedMethodsByWindow.entries.removeIf { it.key is Launcher || it.key is OutOfApp }
-        modifiedMethodsByWindow.entries.removeIf { entry ->
-            entry.key.inputs.all { it.modifiedMethods.isEmpty() }
-                    && (windowHandlersHashMap[entry.key] == null
-                    || (
-                    windowHandlersHashMap[entry.key] != null
-                            && windowHandlersHashMap[entry.key]!!.all { !targetHandlers.contains(it) }
-                    ))
+        AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.modelVersion == ModelVersion.BASE
+                && it.window is OutOfApp}.forEach {
+            it.abstractTransitions.forEach {
+                if (it.modifiedMethods.isNotEmpty()) {
+                    modifiedMethodsByWindow.putIfAbsent(it.dest.window, HashSet())
+                    modifiedMethodsByWindow[it.dest.window]!!.addAll(it.modifiedMethods.keys)
+                }
+            }
         }
         if (reuseBaseModel) {
             WindowManager.instance.updatedModelWindows.forEach {
@@ -326,12 +331,15 @@ class ATUAMF(
                     }
                 }
             }
-            val newWindows = EWTGDiff.instance.windowDifferentSets["AdditionSet"]!! as AdditionSet<Window>
+            val newWindows = if (!reuseSameVersionModel)
+                EWTGDiff.instance.windowDifferentSets["AdditionSet"]!! as AdditionSet<Window>
+            else
+                null
             val seenWindows =
                 AbstractStateManager.INSTANCE.ABSTRACT_STATES.filterNot { it is VirtualAbstractState || it.modelVersion == ModelVersion.RUNNING }
                     .map { it.window }.distinct()
             val unseenWindows = WindowManager.instance.updatedModelWindows.filterNot {
-                seenWindows.contains(it) || newWindows.addedElements.contains(it)
+                seenWindows.contains(it) || newWindows?.addedElements?.contains(it)?:false
             }
             unseenWindows.forEach {
                 if (modifiedMethodsByWindow.containsKey(it)) {
@@ -345,15 +353,17 @@ class ATUAMF(
                     backupNotFullyExercisedTargetInputs.add(it)
                 toDelete
             }
-             targetInputsCnt = notFullyExercisedTargetInputs.size
+            targetInputsCnt = notFullyExercisedTargetInputs.size
             val seenWidgets = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filterNot { it is VirtualAbstractState }
                 .map { it.EWTGWidgetMapping.values }.flatten().distinct()
-            val newWidgets = (EWTGDiff.instance.widgetDifferentSets["AdditionSet"]!! as AdditionSet<EWTGWidget>).addedElements
-            val newWiddgetsByWindow = newWidgets.groupBy { it.window }
+            val newWidgets = if (!reuseSameVersionModel)
+                (EWTGDiff.instance.widgetDifferentSets["AdditionSet"]!! as AdditionSet<EWTGWidget>).addedElements
+            else
+                null
             notFullyExercisedTargetInputs.removeIf {
                 val toDelete = (it.widget != null
                         && !seenWidgets.contains(it.widget!!)
-                        && !newWidgets.contains(it.widget!!))
+                        && !(newWidgets?.contains(it.widget!!)?:false))
                 if (toDelete)
                     backupNotFullyExercisedTargetInputs.add(it)
                 toDelete
@@ -362,6 +372,18 @@ class ATUAMF(
         }
         notFullyExercisedTargetInputs.removeIf {
             it.modifiedMethods.isEmpty()
+        }
+        modifiedMethodsByWindow.entries.removeIf {
+            it.key is Launcher ||
+                    it.key is OutOfApp || it.key.classType == "com.google.android.gms.signin.activity.SignInActivity" }
+
+        modifiedMethodsByWindow.entries.removeIf { entry ->
+            entry.key.inputs.all { it.modifiedMethods.isEmpty() }
+                    && (windowHandlersHashMap[entry.key] == null
+                    || (
+                    windowHandlersHashMap[entry.key] != null
+                            && windowHandlersHashMap[entry.key]!!.all { !targetHandlers.contains(it) }
+                    ))
         }
         log.info("Before processed target inputs: $beforeProcessedTargetCount")
         log.info("After processed target inputs: ${notFullyExercisedTargetInputs.size}")
@@ -415,7 +437,7 @@ class ATUAMF(
     }
 
     private fun loadBaseModel() {
-        AppModelLoader.loadModel(baseModelDir.resolve(appName), this)
+        AppModelLoader.loadModel(baseModelDir.resolve(appName),reuseSameVersionModel ,this)
         ModelBackwardAdapter.instance.initialBaseAbstractStates.addAll(
                 AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
                     it.modelVersion == ModelVersion.BASE
@@ -424,10 +446,13 @@ class ATUAMF(
         ModelBackwardAdapter.instance.initialBaseAbstractStates.forEach {
             ModelBackwardAdapter.instance.initialBaseAbstractTransitions.addAll(it.abstractTransitions.filter { it.isExplicit() })
         }
-        val ewtgDiff = EWTGDiff.instance
-        val ewtgDiffFile = getEWTGDiffFile(appName, resourceDir)
-        if (ewtgDiffFile!=null)
-            ewtgDiff.loadFromFile(ewtgDiffFile, this)
+        if (!reuseSameVersionModel) {
+            val ewtgDiff = EWTGDiff.instance
+            val ewtgDiffFile = getEWTGDiffFile(appName, resourceDir)
+            if (ewtgDiffFile != null) {
+                ewtgDiff.loadFromFile(ewtgDiffFile, this)
+            }
+        }
         AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP.forEach { window, u ->
             u.values.forEach {
                 it.computeHashCode()
@@ -769,7 +794,7 @@ class ATUAMF(
                 lastExecutedTransition!!.tracing.add(Pair(traceId, transitionId))
             }
             // remove all obsolete abstract transitions that are not derived from interactions
-            AbstractStateManager.INSTANCE.removeObsoleteAbsstractTransitions(lastExecutedTransition!!)
+            // AbstractStateManager.INSTANCE.removeObsoleteAbsstractTransitions(lastExecutedTransition!!)
         }
         log.info("Computing Abstract Interaction. - DONE")
 
@@ -1387,7 +1412,7 @@ class ATUAMF(
                     lastExecutedTransition!!.activated = true
                     if (reuseBaseModel) {
                         val prevWindowAbstractState: AbstractState? = getPrevWindowAbstractState(traceId,transitionId-1)
-                        ModelBackwardAdapter.instance.checkingEquivalence(newState,currentAbstractState, lastExecutedTransition!!,prevWindowAbstractState ,dstg)
+                        ModelBackwardAdapter.instance.checkingEquivalence(newState,currentAbstractState, lastExecutedTransition!!,prevWindowAbstractState ,this)
                     }
                     if (prevAbstractState!!.belongToAUT() && currentAbstractState.isOutOfApplication && lastInteractions.size > 1) {
                         lastOpeningAnotherAppInteraction = lastInteractions.single()
@@ -1470,7 +1495,7 @@ class ATUAMF(
         updateCoverage(prevAbstractState, newAbstractState, abstractInteraction, lastInteractions.first())
         //create StaticEvent if it dose not exist in case this abstract Interaction triggered modified methods
 
-        if (!prevAbstractState.isRequestRuntimePermissionDialogBox) {
+        if (!prevAbstractState.isRequestRuntimePermissionDialogBox && !ignoredStates.contains(prevState)) {
             val coverageIncreased = statementMF!!.executedModifiedMethodStatementsMap.size - statementMF!!.prevUpdateCoverage
             if (prevAbstractState.isOutOfApplication && newAbstractState.belongToAUT() && !abstractInteraction.abstractAction.isLaunchOrReset() && lastOpeningAnotherAppInteraction != null) {
                 val lastAppState = stateList.find { it.stateId == lastOpeningAnotherAppInteraction!!.prevState }!!
@@ -1653,7 +1678,7 @@ class ATUAMF(
         }
     }
 
-    private fun updateInputEventHandlersAndModifiedMethods(input: Input, abstractTransition: AbstractTransition, coverageIncreased: Int) {
+    fun updateInputEventHandlersAndModifiedMethods(input: Input, abstractTransition: AbstractTransition, coverageIncreased: Int) {
         val prevWindows = abstractTransition.dependentAbstractStates.map { it.window }
         //update ewtg transitions
         if (prevWindows.isNotEmpty()) {
@@ -1759,7 +1784,6 @@ class ATUAMF(
         }
         input.coverage[dateFormater.format(System.currentTimeMillis())] = input.modifiedMethodStatement.filterValues { it == true }.size
         removeUnreachableModifiedMethods(input)
-
     }
 
     private fun removeUnreachableModifiedMethods(input: Input) {
@@ -2376,6 +2400,11 @@ class ATUAMF(
         return result
     }
 
+    val ignoredStates: HashSet<State<Widget>> = HashSet()
+    fun registerNotProcessState(currentState: State<Widget>) {
+        ignoredStates.add(currentState)
+    }
+
     companion object {
 
         @JvmStatic
@@ -2388,6 +2417,7 @@ class ATUAMF(
             val manualInput by booleanType
             val manualIntent by booleanType
             val reuseBaseModel by booleanType
+            val reuseSameVersionModel by booleanType
         }
 
 

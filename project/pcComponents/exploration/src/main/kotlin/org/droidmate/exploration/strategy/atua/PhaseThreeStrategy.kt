@@ -305,7 +305,7 @@ class PhaseThreeStrategy(
         log.debug("Choosing Task")
         val exerciseTargetComponentTask = ExerciseTargetComponentTask.getInstance(atuaMF, atuaTestingStrategy, delay, useCoordinateClicks)
         val goToTargetNodeTask = GoToTargetWindowTask.getInstance(atuaMF, atuaTestingStrategy, delay, useCoordinateClicks)
-        val goToAnotherNode = GoToAnotherWindow.getInstance(atuaMF, atuaTestingStrategy, delay, useCoordinateClicks)
+        val goToAnotherNode = GoToAnotherWindowTask.getInstance(atuaMF, atuaTestingStrategy, delay, useCoordinateClicks)
         val randomExplorationTask = RandomExplorationTask.getInstance(atuaMF, atuaTestingStrategy,delay, useCoordinateClicks)
         val currentState = eContext.getCurrentState()
         val currentAppState = atuaMF!!.getAbstractState(currentState)!!
@@ -341,7 +341,7 @@ class PhaseThreeStrategy(
 
     private fun isRandomBudgetAvailable() = randomBudgetLeft > 0 || randomBudgetLeft == -1
 
-    private fun nextActionOnInitial(currentAppState: AbstractState, randomExplorationTask: RandomExplorationTask, currentState: State<*>, goToAnotherNode: GoToAnotherWindow) {
+    private fun nextActionOnInitial(currentAppState: AbstractState, randomExplorationTask: RandomExplorationTask, currentState: State<*>, goToAnotherNode: GoToAnotherWindowTask) {
         if (relatedWindow == null) {
             log.warn("Related Window is null.")
             setRandomExplorationBudget(currentState)
@@ -384,14 +384,14 @@ class PhaseThreeStrategy(
         return
     }
 
-    private fun nextActionOnGoToRelatedWindow(currentState: State<*>, currentAppState: AbstractState, randomExplorationTask: RandomExplorationTask, goToAnotherNode: GoToAnotherWindow) {
+    private fun nextActionOnGoToRelatedWindow(currentState: State<*>, currentAppState: AbstractState, randomExplorationTask: RandomExplorationTask, goToAnotherNode: GoToAnotherWindowTask) {
         if (relatedWindow == null) {
             log.warn("Related Window is null.")
             setRandomExplorationBudget(currentState)
             setRandomExploration(randomExplorationTask, currentState)
             return
         }
-        if (strategyTask is GoToAnotherWindow && !strategyTask!!.isTaskEnd(currentState)) {
+        if (strategyTask is GoToAnotherWindowTask && !strategyTask!!.isTaskEnd(currentState)) {
             log.info("Continue ${strategyTask!!.javaClass.name}")
             return
         }
@@ -423,7 +423,7 @@ class PhaseThreeStrategy(
         return
     }
 
-    private fun nextActionOnRandomExplorationInRelatedWindow(randomExplorationTask: RandomExplorationTask, currentState: State<*>, currentAppState: AbstractState, exerciseTargetComponentTask: ExerciseTargetComponentTask, goToAnotherNode: GoToAnotherWindow, goToTargetNodeTask: GoToTargetWindowTask) {
+    private fun nextActionOnRandomExplorationInRelatedWindow(randomExplorationTask: RandomExplorationTask, currentState: State<*>, currentAppState: AbstractState, exerciseTargetComponentTask: ExerciseTargetComponentTask, goToAnotherNode: GoToAnotherWindowTask, goToTargetNodeTask: GoToTargetWindowTask) {
         if (relatedWindow == null) {
             log.warn("Related Window is null.")
             if (isRandomBudgetAvailable()) {
@@ -593,8 +593,8 @@ class PhaseThreeStrategy(
         }
     }
 
-    private fun nextActionOnGoToTargetWindow(currentAppState: AbstractState, exerciseTargetComponentTask: ExerciseTargetComponentTask, currentState: State<*>, goToTargetNodeTask: GoToTargetWindowTask, randomExplorationTask: RandomExplorationTask, goToAnotherNode: GoToAnotherWindow) {
-        if (strategyTask is GoToAnotherWindow && !strategyTask!!.isTaskEnd(currentState)) {
+    private fun nextActionOnGoToTargetWindow(currentAppState: AbstractState, exerciseTargetComponentTask: ExerciseTargetComponentTask, currentState: State<*>, goToTargetNodeTask: GoToTargetWindowTask, randomExplorationTask: RandomExplorationTask, goToAnotherNode: GoToAnotherWindowTask) {
+        if (strategyTask is GoToAnotherWindowTask && !strategyTask!!.isTaskEnd(currentState)) {
             log.info("Continue ${strategyTask!!.javaClass.name}")
             return
         }
@@ -659,7 +659,7 @@ class PhaseThreeStrategy(
     }
 
     @Suppress
-    private fun nextActionOnGoToExploreState(currentState: State<*>, currentAppState: AbstractState, randomExplorationTask: RandomExplorationTask, exerciseTargetComponentTask: ExerciseTargetComponentTask, goToAnotherNode: GoToAnotherWindow, goToTargetNodeTask: GoToTargetWindowTask) {
+    private fun nextActionOnGoToExploreState(currentState: State<*>, currentAppState: AbstractState, randomExplorationTask: RandomExplorationTask, exerciseTargetComponentTask: ExerciseTargetComponentTask, goToAnotherNode: GoToAnotherWindowTask, goToTargetNodeTask: GoToTargetWindowTask) {
         if (!strategyTask!!.isTaskEnd(currentState)) {
             log.info("Continue ${strategyTask!!.javaClass.name}")
             return
@@ -700,7 +700,7 @@ class PhaseThreeStrategy(
     }
 
     @Suppress
-    private fun nextActionOnRandomExploration(randomExplorationTask: RandomExplorationTask, currentAppState: AbstractState, currentState: State<*>, goToAnotherNode: GoToAnotherWindow, exerciseTargetComponentTask: ExerciseTargetComponentTask, goToTargetNodeTask: GoToTargetWindowTask) {
+    private fun nextActionOnRandomExploration(randomExplorationTask: RandomExplorationTask, currentAppState: AbstractState, currentState: State<*>, goToAnotherNode: GoToAnotherWindowTask, exerciseTargetComponentTask: ExerciseTargetComponentTask, goToTargetNodeTask: GoToTargetWindowTask) {
 
         if (!strategyTask!!.isTaskEnd(currentState)) {
             log.info("Continue ${strategyTask!!.javaClass.name}")
@@ -741,7 +741,7 @@ class PhaseThreeStrategy(
         }
     }
 
-    private fun setGoToExploreState(goToAnotherNode: GoToAnotherWindow, currentState: State<*>) {
+    private fun setGoToExploreState(goToAnotherNode: GoToAnotherWindowTask, currentState: State<*>) {
         strategyTask = goToAnotherNode.also {
             it.initialize(currentState)
             it.retryTimes = 0
@@ -750,7 +750,7 @@ class PhaseThreeStrategy(
 
     }
 
-    private fun setGoToRelatedWindow(goToAnotherNode: GoToAnotherWindow, currentState: State<*>) {
+    private fun setGoToRelatedWindow(goToAnotherNode: GoToAnotherWindowTask, currentState: State<*>) {
         log.info("Task chosen: Go to related window: $relatedWindow")
         phaseState = PhaseState.P3_GO_TO_RELATED_NODE
         remainPhaseStateCount = 0

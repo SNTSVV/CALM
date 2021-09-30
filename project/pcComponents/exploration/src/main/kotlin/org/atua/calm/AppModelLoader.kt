@@ -12,7 +12,7 @@
 
 package org.atua.calm
 
-import org.droidmate.deviceInterface.exploration.Rectangle
+import org.atua.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractState
@@ -24,11 +24,10 @@ import org.atua.modelFeatures.dstg.Cardinality
 import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.modelFeatures.dstg.reducer.AbstractionFunction2
 import org.atua.modelFeatures.dstg.reducer.DecisionNode2
+import org.atua.modelFeatures.ewtg.EWTGWidget
 import org.atua.modelFeatures.ewtg.EventType
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.Input
-import org.atua.modelFeatures.ewtg.EWTGWidget
-import org.atua.modelFeatures.ewtg.window.Window
 import org.atua.modelFeatures.ewtg.WindowManager
 import org.atua.modelFeatures.ewtg.WindowTransition
 import org.atua.modelFeatures.ewtg.window.Activity
@@ -38,7 +37,8 @@ import org.atua.modelFeatures.ewtg.window.FakeWindow
 import org.atua.modelFeatures.ewtg.window.Launcher
 import org.atua.modelFeatures.ewtg.window.OptionsMenu
 import org.atua.modelFeatures.ewtg.window.OutOfApp
-import org.atua.calm.modelReuse.ModelVersion
+import org.atua.modelFeatures.ewtg.window.Window
+import org.droidmate.deviceInterface.exploration.Rectangle
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.BufferedReader
@@ -46,44 +46,234 @@ import java.io.FileReader
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
-import kotlin.collections.HashMap
-import kotlin.collections.HashSet
 import kotlin.streams.toList
 
 class AppModelLoader {
     companion object {
         @JvmStatic
         val log: Logger by lazy { LoggerFactory.getLogger(this::class.java) }
-
-        fun loadModel(modelPath: Path, autAutMF: org.atua.modelFeatures.ATUAMF) {
+        var isSameVersion = false
+        fun loadModel(modelPath: Path, isSameVersion: Boolean, autAutMF: org.atua.modelFeatures.ATUAMF) {
             if (!Files.exists(modelPath)) {
                 log.debug("Base model does not exist")
                 return
             }
+            this.isSameVersion = isSameVersion
             val ewtgFolderPath: Path = getEWTGFolderPath(modelPath)
             log.info("Loading EWTG")
-            loadEWTG(ewtgFolderPath,autAutMF)
-            WindowManager.instance.baseModelWindows.forEach {
-                if (!AbstractStateManager.INSTANCE.ABSTRACT_STATES.any { it is VirtualAbstractState
-                                && it.window == it }) {
+            loadEWTG(ewtgFolderPath, autAutMF)
+            val windowList = if (isSameVersion) {
+                WindowManager.instance.updatedModelWindows
+            } else {
+                WindowManager.instance.baseModelWindows
+            }
+            windowList.forEach {
+                if (!AbstractStateManager.INSTANCE.ABSTRACT_STATES.any {
+                        it is VirtualAbstractState
+                                && it.window == it
+                    }) {
                     val virtualAbstractState = VirtualAbstractState(it.classType, it, it is Launcher)
                     AbstractStateManager.INSTANCE.ABSTRACT_STATES.add(virtualAbstractState)
                 }
             }
             val dstgFolderPath: Path = getDSTGFolderPath(modelPath)
             log.info("Loading DSTG")
-            loadDSTG(dstgFolderPath,autAutMF)
+            loadDSTG(dstgFolderPath, autAutMF)
         }
 
-        private fun loadDSTG(dstgFolderPath: Path,autAutMF: org.atua.modelFeatures.ATUAMF) {
+        private fun loadEWTG(ewtgFolderPath: Path, autAutMF: org.atua.modelFeatures.ATUAMF) {
+            val ewtgWindowsFilePath: Path = getEWTGWindowsFilePath(ewtgFolderPath)
+            if (!Files.exists(ewtgFolderPath))
+                return
+            parseEWTGListFile(ewtgWindowsFilePath, autAutMF)
+        }
+
+        private fun parseEWTGListFile(ewtgWindowsFilePath: Path, autAutMF: org.atua.modelFeatures.ATUAMF) {
+            val lines: List<String>
+            ewtgWindowsFilePath.toFile().let { file ->
+                lines = BufferedReader(FileReader(file)).use {
+                    it.lines().skip(1).toList()
+                }
+            }
+
+            lines.forEach { line ->
+                loadWindow(line, ewtgWindowsFilePath.parent, autAutMF)
+            }
+        }
+
+        private fun loadWindow(line: String, ewtgFolderPath: Path, autAutMF: org.atua.modelFeatures.ATUAMF) {
+            val data = splitCSVLineToField(line)
+            val windowId = data[0]
+            val createdAtRuntime = data[4].toBoolean()
+            if (createdAtRuntime) {
+                createNewWindow(data)
+            }
+            val windowList = if (isSameVersion) {
+                WindowManager.instance.updatedModelWindows
+            } else {
+                WindowManager.instance.baseModelWindows
+            }
+            var window = windowList.find { it.windowId == windowId }
+            if (window == null) {
+                window = createNewWindow(data)
+
+            }
+            loadWindowStructure(window, ewtgFolderPath)
+            loadWindowEvents(window, ewtgFolderPath, autAutMF)
+        }
+
+        private fun loadWindowStructure(window: Window, ewtgFolderPath: Path) {
+            val structureFilePath = ewtgFolderPath.resolve("WindowsWidget").resolve("Widgets_${window.windowId}.csv")
+            if (!Files.exists(structureFilePath)) {
+                org.atua.modelFeatures.ATUAMF.log.debug("Window $window 'structure does not exist")
+                return
+            }
+            val lines: List<String>
+            structureFilePath.toFile().let { file ->
+                lines = BufferedReader(FileReader(file)).use {
+                    it.lines().skip(1).toList()
+                }
+            }
+            val widgetParentIdMap = HashMap<EWTGWidget, String>()
+            lines.forEach { line ->
+                val data = splitCSVLineToField(line)
+                val widgetId = data[0]
+                val widget = window.widgets.find { it.widgetId == widgetId }
+                if (widget == null) {
+                    //create new widget
+                    createNewWidget(data, window, widgetParentIdMap)
+                } else {
+                    val parentId = data[3]
+                    val structure = if (data[4] == "null") {
+                        ""
+                    } else {
+                        data[4]
+                    }
+                    widget!!.structure = structure
+                    if (parentId != "null") {
+                        widgetParentIdMap.put(widget, parentId)
+                    }
+                }
+            }
+            window.widgets.forEach {
+                val parentId = widgetParentIdMap[it]
+                if (parentId != null) {
+                    val parentWidget = window.widgets.find { it.widgetId == parentId }
+                    if (parentWidget != null)
+                        it.parent = parentWidget
+                }
+            }
+
+        }
+
+        private fun loadWindowEvents(window: Window, ewtgFolderPath: Path, autautMF: org.atua.modelFeatures.ATUAMF) {
+            val eventFilePath = ewtgFolderPath.resolve("WindowsEvents").resolve("Events_${window.windowId}.csv")
+            if (!Files.exists(eventFilePath)) {
+                org.atua.modelFeatures.ATUAMF.log.debug("Window $window 'events does not exist")
+                return
+            }
+            val lines: List<String>
+            eventFilePath.toFile().let { file ->
+                lines = BufferedReader(FileReader(file)).use {
+                    it.lines().skip(1).toList()
+                }
+            }
+            lines.forEach { line ->
+                val data = splitCSVLineToField(line)
+                val eventType = data[0]
+                val widgetId = data[1]
+                val createdAtRuntime = data[3].toBoolean()
+                val widget = if (widgetId != "null") {
+                    window.widgets.find { it.widgetId == widgetId }
+                } else
+                    null
+                if (widgetId != "null" && widget == null)
+                    log.warn("Cannot find widget $widgetId in the window $window ")
+                if (widgetId == "null" || widget != null) {
+                    val existingEvent = if (widgetId == "null")
+                        window.inputs.find { it.eventType.toString() == eventType }
+                    else {
+                        window.inputs.find { it.eventType.toString() == eventType && it.widget == widget }
+                    }
+                    val event = if (existingEvent == null) {
+                        createNewInput(data, widget, window, createdAtRuntime)
+                    } else
+                        existingEvent
+                    updateHandlerAndModifiedMethods(event, data, window, autautMF)
+                }
+            }
+        }
+
+        private fun updateHandlerAndModifiedMethods(
+            event: Input,
+            data: List<String>,
+            window: Window,
+            autMF: org.atua.modelFeatures.ATUAMF
+        ) {
+            val eventHandlers = splitCSVLineToField(data[4])
+            eventHandlers.filter { it.isNotBlank() }.forEach { handler ->
+                val methodId = autMF.statementMF!!.getMethodId(handler)
+                if (methodId.isNotBlank()) {
+                    if (!event.eventHandlers.contains(methodId)) {
+                        autMF.modifiedMethodWithTopCallers
+                            .filter { it.value.contains(methodId) }
+                            .forEach { updatedMethod, callers ->
+                                if (!event.modifiedMethods.containsKey(updatedMethod)) {
+                                    event.modifiedMethods.putIfAbsent(updatedMethod, false)
+                                    val updatedStatements = autMF.statementMF!!.getMethodStatements(methodId)
+                                    updatedStatements.forEach {
+                                        event.modifiedMethodStatement.put(it, false)
+                                    }
+                                }
+                            }
+                        event.eventHandlers.add(methodId)
+                    }
+                }
+            }
+            val coveredMethods = splitCSVLineToField(data[6])
+            val coveredMethodsId = coveredMethods.map { autMF.statementMF!!.getMethodId(it) }
+            coveredMethodsId.forEach { methodId ->
+                if (methodId.isNotBlank()) {
+                    event.coveredMethods.add(methodId)
+                    if (autMF.statementMF!!.isModifiedMethod(methodId)) {
+                        event.modifiedMethods.putIfAbsent(methodId, false)
+                    }
+                    autMF.modifiedMethodWithTopCallers
+                        .filter { it.value.contains(methodId) }
+                        .forEach { updatedMethod, callers ->
+                            if (!event.modifiedMethods.containsKey(updatedMethod)) {
+                                event.modifiedMethods.putIfAbsent(updatedMethod, false)
+                                val updatedStatements = autMF.statementMF!!.getMethodStatements(methodId)
+                                updatedStatements.forEach {
+                                    event.modifiedMethodStatement.put(it, false)
+                                }
+                            }
+                        }
+                }
+            }
+/*            val modifiedMethods = splitCSVLineToField(data[5])
+modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
+    val methodId = autMF.statementMF!!.getMethodId(method)
+    if (!event.modifiedMethods.contains(methodId)) {
+        event.modifiedMethods.put(methodId,false)
+        val updatedStatements = autMF.statementMF!!.getMethodStatements(methodId)
+        updatedStatements.forEach {
+            event.modifiedMethodStatement.put(it,false)
+        }
+
+    }
+}*/
+        }
+
+        private fun loadDSTG(dstgFolderPath: Path, autAutMF: org.atua.modelFeatures.ATUAMF) {
             val abstractStateFilePath: Path = getAbstractStateListFilePath(dstgFolderPath)
             if (!abstractStateFilePath.toFile().exists())
                 return
-            loadAbstractStates(abstractStateFilePath,dstgFolderPath)
-            val dstgFilePath: Path  = getDSTGFilePath(dstgFolderPath)
+            loadAbstractStates(abstractStateFilePath, dstgFolderPath)
+            val dstgFilePath: Path = getDSTGFilePath(dstgFolderPath)
             if (!dstgFilePath.toFile().exists())
                 return
-            loadDSTGFile(dstgFilePath,autAutMF)
+            loadDSTGFile(dstgFilePath, autAutMF)
             //Load abstraction functions
             val abstractionFunctionFolderPath: Path = getAbstractionFunctionFolderPath(dstgFolderPath)
             if (!abstractionFunctionFolderPath.toFile().exists())
@@ -100,7 +290,7 @@ class AppModelLoader {
             val abandonedAVSFile = abstractionFunctionFolderPath.resolve("abandonedAttributeValuationSet.csv")
             val lines: List<String>
             lines = readAllLines(abandonedAVSFile)
-            lines.forEach {line->
+            lines.forEach { line ->
 //              parseAbandonedAttributeValuationSet(line)
             }
         }
@@ -115,7 +305,7 @@ class AppModelLoader {
         }*/
 
         private fun loadDecisionNodes(abstractionFunctionFolderPath: Path) {
-            var currentDecisionNode: DecisionNode2?=null
+            var currentDecisionNode: DecisionNode2? = null
             var level = 0
             do {
                 level++
@@ -124,17 +314,17 @@ class AppModelLoader {
                 else
                     currentDecisionNode = currentDecisionNode.nextNode
                 val decisionNodeDataFilePath = abstractionFunctionFolderPath.resolve("DecisionNode_LV$level.csv")
-                loadDecisionNode(decisionNodeDataFilePath,currentDecisionNode!!)
-            }while (currentDecisionNode!=null && currentDecisionNode.nextNode !=null)
+                loadDecisionNode(decisionNodeDataFilePath, currentDecisionNode!!)
+            } while (currentDecisionNode != null && currentDecisionNode.nextNode != null)
 
         }
 
         private fun loadDecisionNode(decisionNodeDataFilePath: Path, currentDecisionNode: DecisionNode2) {
             val lines: List<String>
             lines = readAllLines(decisionNodeDataFilePath)
-            val parentAttributePaths = HashSet<Pair<UUID,String>>()
+            val parentAttributePaths = HashSet<Pair<UUID, String>>()
             lines.forEach {
-                parseDecisionNode(it,currentDecisionNode,parentAttributePaths)
+                parseDecisionNode(it, currentDecisionNode, parentAttributePaths)
                 //currentDecisionNode.attributePaths.add(Pair(attributePath,attributePath.activity))
             }
             /*parentAttributePaths.forEach {
@@ -144,7 +334,11 @@ class AppModelLoader {
             }*/
         }
 
-        private fun parseDecisionNode(line: String, currentDecisionNode: DecisionNode2, parentAttributePaths: HashSet<Pair<UUID,String>>) {
+        private fun parseDecisionNode(
+            line: String,
+            currentDecisionNode: DecisionNode2,
+            parentAttributePaths: HashSet<Pair<UUID, String>>
+        ) {
             val data = splitCSVLineToField(line)
             val widgetId = data[0]
             val ewtgWidget = EWTGWidget.allStaticWidgets.find { it.widgetId == widgetId }
@@ -192,23 +386,23 @@ class AppModelLoader {
             return dstgFolderPath.resolve("AbstractionFunction")
         }
 
-        private fun loadDSTGFile(dstgFilePath: Path,autAutMF: org.atua.modelFeatures.ATUAMF) {
+        private fun loadDSTGFile(dstgFilePath: Path, autAutMF: org.atua.modelFeatures.ATUAMF) {
             val lines: List<String>
             lines = readAllLines(dstgFilePath)
-            var i =0
-            while (i<lines.size) {
-                parseAbstractTransition(lines[i],autAutMF)
-                i+=1
+            var i = 0
+            while (i < lines.size) {
+                parseAbstractTransition(lines[i], autAutMF)
+                i += 1
             }
         }
 
         private fun parseAbstractTransition(line: String, autAutMF: org.atua.modelFeatures.ATUAMF) {
             val data = splitCSVLineToField(line)
-            if (data.size<11)
+            if (data.size < 11)
                 return
             val sourceStateId = data[0]
 
-            val sourceState = if(updatedAbstractStateId.containsKey(sourceStateId)) {
+            val sourceState = if (updatedAbstractStateId.containsKey(sourceStateId)) {
                 val newUUID = updatedAbstractStateId.get(sourceStateId)
                 AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.abstractStateId == newUUID }
             } else {
@@ -217,7 +411,7 @@ class AppModelLoader {
             if (sourceState == null)
                 return
             val destStateId = data[1]
-            val destState =if(updatedAbstractStateId.containsKey(destStateId)) {
+            val destState = if (updatedAbstractStateId.containsKey(destStateId)) {
                 val newUUID = updatedAbstractStateId.get(destStateId)
                 AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.abstractStateId == newUUID }
             } else {
@@ -248,10 +442,11 @@ class AppModelLoader {
                 data[5]
             }
             if (actionType == AbstractActionType.ACTION_QUEUE
-                    || actionType == AbstractActionType.UNKNOWN
-                    || actionType == AbstractActionType.RANDOM_KEYBOARD)
+                || actionType == AbstractActionType.UNKNOWN
+                || actionType == AbstractActionType.RANDOM_KEYBOARD
+            )
                 return
-            val abstractAction = createAbstractAction(actionType,interactedAVSId,actionData,sourceState)
+            val abstractAction = createAbstractAction(actionType, interactedAVSId, actionData, sourceState)
 
             /*val prevWindowId = data[6]
             val prevWindow = WindowManager.instance.baseModelWindows.firstOrNull(){it.windowId == prevWindowId}?:WindowManager.instance.updatedModelWindows.firstOrNull(){it.windowId == prevWindowId}*/
@@ -264,24 +459,26 @@ class AppModelLoader {
             val guardEnabled = data[6].toBoolean()
             val dependentAbstractStateIds = splitCSVLineToField(data[7])
             val dependentAbstractStates = ArrayList<AbstractState>()
-            dependentAbstractStateIds.forEach { dependentAbstractStateId->
+            dependentAbstractStateIds.forEach { dependentAbstractStateId ->
                 var dependentAbstractState: AbstractState? = null
                 if (dependentAbstractStateId != "null") {
-                    dependentAbstractState = if(updatedAbstractStateId.containsKey(dependentAbstractStateId)) {
+                    dependentAbstractState = if (updatedAbstractStateId.containsKey(dependentAbstractStateId)) {
                         val newUUID = updatedAbstractStateId.get(dependentAbstractStateId)
                         AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.abstractStateId == newUUID }
                     } else {
                         AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.abstractStateId == dependentAbstractStateId }
                     }
                 }
-                if (dependentAbstractState!=null)
+                if (dependentAbstractState != null)
                     dependentAbstractStates.add(dependentAbstractState)
             }
             if (dependentAbstractStates.isEmpty()) {
-                    dependentAbstractStates.add(AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.window is Launcher }!!)
+                dependentAbstractStates.add(AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.window is Launcher }!!)
             }
             val handlers = splitCSVLineToField(data[8])
-            val handlerIds = handlers.map { autAutMF.statementMF!!.getMethodId(it) }.filter { it!=null }
+            val handlerIds = handlers.map { autAutMF.statementMF!!.getMethodId(it) }.filter { it != null }
+            val coveredMethods = splitCSVLineToField(data[11])
+            val coveredMethodIds = coveredMethods.map { autAutMF.statementMF!!.getMethodId(it) }.filter { it != null }
             val abstractTransition = sourceState.abstractTransitions.find {
                 it.abstractAction == abstractAction
                         && it.isImplicit == false
@@ -291,21 +488,22 @@ class AppModelLoader {
             }
             if (abstractTransition == null) {
                 val newAbstractTransition = AbstractTransition(
-                        source = sourceState,
-                        dest = destState,
-                        fromWTG = false,
-                        isImplicit = false,
-                        abstractAction = abstractAction,
-                        modelVersion = ModelVersion.BASE
+                    source = sourceState,
+                    dest = destState,
+                    fromWTG = false,
+                    isImplicit = false,
+                    abstractAction = abstractAction,
+                    modelVersion = ModelVersion.BASE
                 )
                 newAbstractTransition.guardEnabled = guardEnabled
                 newAbstractTransition.dependentAbstractStates.addAll(dependentAbstractStates)
                 newAbstractTransition.computeGuaranteedAVMs()
                 handlerIds.forEach {
-                    newAbstractTransition.handlers.put(it,false)
+                    newAbstractTransition.handlers.put(it, false)
                 }
-                autAutMF.dstg.add(sourceState,destState,newAbstractTransition)
-                createWindowTransitionFromAbstractInteraction(newAbstractTransition,autAutMF)
+                newAbstractTransition.methodCoverage.addAll(coveredMethodIds)
+                autAutMF.dstg.add(sourceState, destState, newAbstractTransition)
+                createWindowTransitionFromAbstractInteraction(newAbstractTransition, autAutMF)
                 /*AbstractStateManager.INSTANCE.addImplicitAbstractInteraction(
                         abstractTransition = newAbstractTransition,
                         currentState = null,
@@ -314,28 +512,35 @@ class AppModelLoader {
             }
 
 
-
         }
 
-        private fun createAbstractAction(actionType: AbstractActionType, interactedAVSId: String, actionData: String?, abstractState: AbstractState): AbstractAction {
+        private fun createAbstractAction(
+            actionType: AbstractActionType,
+            interactedAVSId: String,
+            actionData: String?,
+            abstractState: AbstractState
+        ): AbstractAction {
             if (interactedAVSId == "") {
                 val abstractAction = AbstractAction(
-                        actionType = actionType,
-                        attributeValuationMap = null,
-                        extra = actionData
+                    actionType = actionType,
+                    attributeValuationMap = null,
+                    extra = actionData
                 )
                 return abstractAction
             }
             val avs = abstractState.attributeValuationMaps.firstOrNull() { it.avmId == interactedAVSId }
             val abstractAction = AbstractAction(
-                    actionType = actionType,
-                    attributeValuationMap = avs,
-                    extra = actionData
+                actionType = actionType,
+                attributeValuationMap = avs,
+                extra = actionData
             )
             return abstractAction
         }
 
-        private fun createWindowTransitionFromAbstractInteraction(abstractTransition: AbstractTransition, atuaMF: org.atua.modelFeatures.ATUAMF) {
+        private fun createWindowTransitionFromAbstractInteraction(
+            abstractTransition: AbstractTransition,
+            atuaMF: org.atua.modelFeatures.ATUAMF
+        ) {
             val eventType = Input.getEventTypeFromActionName(abstractTransition.abstractAction.actionType)
             if (eventType == EventType.fake_action || eventType == EventType.resetApp || eventType == EventType.implicit_launch_event)
                 return
@@ -347,81 +552,89 @@ class AppModelLoader {
             inputs.forEach { input ->
                 input.coveredMethods.addAll(abstractTransition.methodCoverage)
                 if (prevWindows.isEmpty())
-                    atuaMF.wtg.add(abstractTransition.source.window,abstractTransition.dest.window, WindowTransition(
+                    atuaMF.wtg.add(
+                        abstractTransition.source.window, abstractTransition.dest.window, WindowTransition(
                             abstractTransition.source.window,
                             abstractTransition.dest.window,
                             input,
-                            null))
+                            null
+                        )
+                    )
                 else
                     prevWindows.forEach { prevWindow ->
-                        atuaMF.wtg.add(abstractTransition.source.window,abstractTransition.dest.window, WindowTransition(
+                        atuaMF.wtg.add(
+                            abstractTransition.source.window, abstractTransition.dest.window, WindowTransition(
                                 abstractTransition.source.window,
                                 abstractTransition.dest.window,
                                 input,
-                                prevWindow))
+                                prevWindow
+                            )
+                        )
 
                     }
             }
 
         }
 
-        private fun createNewInput(abstractTransition: AbstractTransition, atuaMF: org.atua.modelFeatures.ATUAMF): HashSet<Input> {
+        private fun createNewInput(
+            abstractTransition: AbstractTransition,
+            atuaMF: org.atua.modelFeatures.ATUAMF
+        ): HashSet<Input> {
             val result = HashSet<Input>()
             val eventType = Input.getEventTypeFromActionName(abstractTransition.abstractAction.actionType)
             val sourceAbstractState = abstractTransition.source
             val destAbstractState = abstractTransition.dest
-            if (abstractTransition.abstractAction.attributeValuationMap == null)
-            {
-                var newInput = Input.getOrCreateInput(emptySet(),eventType.toString(),null,sourceAbstractState.window,true)
+            if (abstractTransition.abstractAction.attributeValuationMap == null) {
+                var newInput =
+                    Input.getOrCreateInput(emptySet(), eventType.toString(), null, sourceAbstractState.window, true)
                 result.add(newInput)
                 newInput.data = abstractTransition.abstractAction.extra
                 newInput.eventHandlers.addAll(abstractTransition.handlers.map { it.key })
-                if (newInput.eventHandlers.intersect(atuaMF.allTargetHandlers).isNotEmpty()) {
-                    atuaMF.notFullyExercisedTargetInputs.add(newInput)
-                }
                 sourceAbstractState.inputMappings.putIfAbsent(abstractTransition.abstractAction, hashSetOf())
                 sourceAbstractState.inputMappings.get(abstractTransition.abstractAction)!!.add(newInput)
-                AbstractStateManager.INSTANCE.ABSTRACT_STATES.filterNot { it == sourceAbstractState }. filter { it.window == sourceAbstractState.window }.forEach {
-                    val similarAbstractAction = it.getAvailableActions().find { it == abstractTransition.abstractAction }
+                AbstractStateManager.INSTANCE.ABSTRACT_STATES.filterNot { it == sourceAbstractState }
+                    .filter { it.window == sourceAbstractState.window }.forEach {
+                    val similarAbstractAction =
+                        it.getAvailableActions().find { it == abstractTransition.abstractAction }
                     if (similarAbstractAction != null) {
                         it.inputMappings.put(similarAbstractAction, hashSetOf(newInput!!))
                     }
                 }
-            }
-            else
-            {
+            } else {
                 val attributeValuationSet = abstractTransition.abstractAction.attributeValuationMap
-                if (!sourceAbstractState.EWTGWidgetMapping.containsKey(attributeValuationSet)){
+                if (!sourceAbstractState.EWTGWidgetMapping.containsKey(attributeValuationSet)) {
                     val attributeValuationSetId = if (attributeValuationSet.getResourceId().isBlank())
                         ""
                     else
                         attributeValuationSet.avmId
                     // create new static widget and add to the abstract state
                     val ewtgWidget = EWTGWidget(
-                            widgetId = attributeValuationSet.avmId.toString(),
-                            resourceIdName = attributeValuationSet.getResourceId(),
-                            window = sourceAbstractState.window,
-                            className = attributeValuationSet.getClassName(),
-                            contentDesc = attributeValuationSet.getContentDesc(),
-                            text = attributeValuationSet.getText(),
-                            createdAtRuntime = true,
-                            structure = attributeValuationSetId
+                        widgetId = attributeValuationSet.avmId.toString(),
+                        resourceIdName = attributeValuationSet.getResourceId(),
+                        window = sourceAbstractState.window,
+                        className = attributeValuationSet.getClassName(),
+                        contentDesc = attributeValuationSet.getContentDesc(),
+                        text = attributeValuationSet.getText(),
+                        createdAtRuntime = true,
+                        structure = attributeValuationSetId
                     )
                     ewtgWidget.modelVersion = ModelVersion.BASE
                     sourceAbstractState.EWTGWidgetMapping.put(attributeValuationSet, ewtgWidget)
-                    AbstractStateManager.INSTANCE.ABSTRACT_STATES.filterNot { it == sourceAbstractState }. filter { it.window == sourceAbstractState.window }.forEach {
+                    AbstractStateManager.INSTANCE.ABSTRACT_STATES.filterNot { it == sourceAbstractState }
+                        .filter { it.window == sourceAbstractState.window }.forEach {
                         val similarWidget = it.attributeValuationMaps.find { it == attributeValuationSet }
-                        if (similarWidget != null ) {
-                            it.EWTGWidgetMapping.put(similarWidget,ewtgWidget)
+                        if (similarWidget != null) {
+                            it.EWTGWidgetMapping.put(similarWidget, ewtgWidget)
                         }
                     }
                 }
-                if (sourceAbstractState.EWTGWidgetMapping.contains(attributeValuationSet))
-                {
+                if (sourceAbstractState.EWTGWidgetMapping.contains(attributeValuationSet)) {
                     val staticWidget = sourceAbstractState.EWTGWidgetMapping[attributeValuationSet]!!
                     atuaMF.allTargetStaticWidgets.add(staticWidget)
-                    val newInput = Input.getOrCreateInput(emptySet(),eventType.toString(),
-                    staticWidget,sourceAbstractState.window,true)
+                    val newInput = Input.getOrCreateInput(
+                        emptySet(), eventType.toString(),
+                        staticWidget, sourceAbstractState.window, true
+                    )
                     result.add(newInput)
                     newInput.data = abstractTransition.abstractAction.extra
                     newInput.eventHandlers.addAll(abstractTransition.handlers.map { it.key })
@@ -429,8 +642,10 @@ class AppModelLoader {
                         sourceAbstractState.inputMappings.put(abstractTransition.abstractAction, hashSetOf())
                     }
                     sourceAbstractState.inputMappings.get(abstractTransition.abstractAction)!!.add(newInput)
-                    AbstractStateManager.INSTANCE.ABSTRACT_STATES.filterNot { it == sourceAbstractState }. filter { it.window == sourceAbstractState.window }.forEach {
-                        val similarAbstractAction = it.getAvailableActions().find { it == abstractTransition.abstractAction }
+                    AbstractStateManager.INSTANCE.ABSTRACT_STATES.filterNot { it == sourceAbstractState }
+                        .filter { it.window == sourceAbstractState.window }.forEach {
+                        val similarAbstractAction =
+                            it.getAvailableActions().find { it == abstractTransition.abstractAction }
                         if (similarAbstractAction != null) {
                             it.inputMappings.put(similarAbstractAction, hashSetOf(newInput))
                         }
@@ -441,7 +656,7 @@ class AppModelLoader {
         }
 
         private fun readAllLines(dstgFilePath: Path): List<String> {
-            val lines : List<String>
+            val lines: List<String>
             dstgFilePath.toFile().let { file ->
                 lines = BufferedReader(FileReader(file)).use {
                     it.lines().skip(1).toList()
@@ -450,25 +665,30 @@ class AppModelLoader {
             return lines
         }
 
-        private fun loadAbstractStates(abstractStateFilePath: Path,dstgFolderPath: Path) {
+        private fun loadAbstractStates(abstractStateFilePath: Path, dstgFolderPath: Path) {
             val lines: List<String> = readAllLines(abstractStateFilePath)
 
             lines.forEach { line ->
-                loadAbstractState(line,dstgFolderPath)
+                loadAbstractState(line, dstgFolderPath)
             }
         }
 
         val updatedAbstractStateId = HashMap<String, String>()
-        val updatedAVMId = HashMap<String,String>()
+        val updatedAVMId = HashMap<String, String>()
 
         private fun loadAbstractState(line: String, dstgFolderPath: Path) {
             val data = splitCSVLineToField(line)
             val uuid = data[0]
             val activity = data[1]
             val windowId = data[2]
-            val window = WindowManager.instance.baseModelWindows.find { it.windowId == windowId }
+            val windowList = if (isSameVersion) {
+                WindowManager.instance.updatedModelWindows
+            } else {
+                WindowManager.instance.baseModelWindows
+            }
+            val window = windowList.find { it.windowId == windowId }
             if (window == null) {
-               log.debug("Cannot find window $windowId")
+                log.debug("Cannot find window $windowId")
                 return
             }
             val rotation = org.atua.modelFeatures.Rotation.values().find { it.name == data[3] }!!
@@ -482,59 +702,62 @@ class AppModelLoader {
             val guiStates = data[11]
             val hashcode = data[12].toInt()
             val isInitalState = data[13].toBoolean()
-            val widgetIdMapping: HashMap<AttributeValuationMap,String> = HashMap()
-            val avmCardinalities = HashMap<AttributeValuationMap,Cardinality>()
-            val attributeValuationSets = loadAttributeValuationSets(uuid, dstgFolderPath,widgetIdMapping, avmCardinalities, window)
-            val widgetMapping = HashMap<AttributeValuationMap,EWTGWidget>()
+            val widgetIdMapping: HashMap<AttributeValuationMap, String> = HashMap()
+            val avmCardinalities = HashMap<AttributeValuationMap, Cardinality>()
+            val attributeValuationSets =
+                loadAttributeValuationSets(uuid, dstgFolderPath, widgetIdMapping, avmCardinalities, window)
+            val widgetMapping = HashMap<AttributeValuationMap, EWTGWidget>()
             widgetIdMapping.forEach { avs, widgetId ->
                 val widget = window.widgets.find { it.widgetId == widgetId }
-                if (widget!=null) {
-                    widgetMapping.put(avs,widget)
+                if (widget != null) {
+                    widgetMapping.put(avs, widget)
                 } else {
                     log.debug("Cannot find WidgetId $widgetId in $window")
                 }
             }
             val abstractState = AbstractState(
-                    activity = activity,
-                    isOutOfApplication = isOutOfApp,
-                    isHomeScreen = isHomeScreen,
-                    rotation = rotation,
-                    isOpeningKeyboard = isOpenningKeyboard,
-                    isRequestRuntimePermissionDialogBox = isRequestRuntimePermissionDialogBox,
-                    isAppHasStoppedDialogBox = isAppHasStoppedDialogBox,
-                    attributeValuationMaps = ArrayList(attributeValuationSets),
-                    avmCardinalities = avmCardinalities,
-                    EWTGWidgetMapping = widgetMapping,
-                    isOpeningMenus = isMenuOpen,
-                    window = window,
-                    loadedFromModel = true,
-                    modelVersion = ModelVersion.BASE
+                activity = activity,
+                isOutOfApplication = isOutOfApp,
+                isHomeScreen = isHomeScreen,
+                rotation = rotation,
+                isOpeningKeyboard = isOpenningKeyboard,
+                isRequestRuntimePermissionDialogBox = isRequestRuntimePermissionDialogBox,
+                isAppHasStoppedDialogBox = isAppHasStoppedDialogBox,
+                attributeValuationMaps = ArrayList(attributeValuationSets),
+                avmCardinalities = avmCardinalities,
+                EWTGWidgetMapping = widgetMapping,
+                isOpeningMenus = isMenuOpen,
+                window = window,
+                loadedFromModel = true,
+                modelVersion = ModelVersion.BASE
             )
             abstractState.hasOptionsMenu = hasOptionsMenu
             abstractState.updateHashCode()
             assert(abstractState.hashCode == hashcode)
             if (abstractState.abstractStateId != uuid) {
-                updatedAbstractStateId.put(uuid,abstractState.abstractStateId)
+                updatedAbstractStateId.put(uuid, abstractState.abstractStateId)
             }
             AbstractStateManager.INSTANCE.ABSTRACT_STATES.add(abstractState)
-            AbstractStateManager.INSTANCE.initAbstractInteractions(abstractState,null)
+            AbstractStateManager.INSTANCE.initAbstractInteractions(abstractState, null)
             if (isInitalState) {
                 abstractState.isInitalState = true
             }
         }
 
 
-        private fun loadAttributeValuationSets(uuid: String, dstgFolderPath: Path,
-                                               widgetMapping: HashMap<AttributeValuationMap, String>,
-                                               avmCardinaties: HashMap<AttributeValuationMap, Cardinality>,
-                                               window: Window): List<AttributeValuationMap> {
+        private fun loadAttributeValuationSets(
+            uuid: String, dstgFolderPath: Path,
+            widgetMapping: HashMap<AttributeValuationMap, String>,
+            avmCardinaties: HashMap<AttributeValuationMap, Cardinality>,
+            window: Window
+        ): List<AttributeValuationMap> {
             val capturedAttributeValuationSets = ArrayList<AttributeValuationMap>()
             val abstractStateFilePath = dstgFolderPath.resolve("AbstractStates").resolve("AbstractState_$uuid.csv")
             if (!Files.exists(abstractStateFilePath)) {
                 throw Exception("Cannot find the AbstractState $uuid")
             }
             val lines: List<String>
-            abstractStateFilePath.toFile().let {file ->
+            abstractStateFilePath.toFile().let { file ->
                 lines = BufferedReader(FileReader(file)).use {
                     it.lines().skip(1).toList()
                 }
@@ -543,7 +766,7 @@ class AppModelLoader {
             lines.forEach { line ->
                 val rawData = splitCSVLineToField(line)
                 val avsId = rawData[0]
-                attributeValuationSetRawData.put(avsId,rawData)
+                attributeValuationSetRawData.put(avsId, rawData)
             }
             for (attributeValuationSetRecord in attributeValuationSetRawData) {
                 val avmuuid = attributeValuationSetRecord.key
@@ -551,7 +774,8 @@ class AppModelLoader {
                     continue
                 }
                 val attributeValuationMap: AttributeValuationMap
-                val existingAVM = AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP.get(window)?.values?.find { it.avmId == avmuuid }
+                val existingAVM =
+                    AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP.get(window)?.values?.find { it.avmId == avmuuid }
                 if (existingAVM != null) {
                     attributeValuationMap = existingAVM
                 } else {
@@ -562,15 +786,18 @@ class AppModelLoader {
                     if (attributeValuationMap.avmId != avmuuid)
                         updatedAVMId.put(avmuuid, attributeValuationMap.avmId)
                 }
-                val cardinality = Cardinality.values().find { it.name == attributeValuationSetRecord.value[AttributeValuationMapPropertyIndex.cardinality] }!!
-                val captured =  attributeValuationSetRecord.value[AttributeValuationMapPropertyIndex.captured]
-                val ewtgWidgetIds = splitCSVLineToField( attributeValuationSetRecord.value[AttributeValuationMapPropertyIndex.wtgWidgetMapping])
+                val cardinality = Cardinality.values()
+                    .find { it.name == attributeValuationSetRecord.value[AttributeValuationMapPropertyIndex.cardinality] }!!
+                val captured = attributeValuationSetRecord.value[AttributeValuationMapPropertyIndex.captured]
+                val ewtgWidgetIds =
+                    splitCSVLineToField(attributeValuationSetRecord.value[AttributeValuationMapPropertyIndex.wtgWidgetMapping])
                 if (captured.toBoolean()) {
                     capturedAttributeValuationSets.add(attributeValuationMap)
-                    avmCardinaties.put(attributeValuationMap,cardinality)
+                    avmCardinaties.put(attributeValuationMap, cardinality)
                 }
                 if (!(ewtgWidgetIds.size == 1 &&
-                            (ewtgWidgetIds.single().isBlank() || ewtgWidgetIds.single() == "null" ))) {
+                            (ewtgWidgetIds.single().isBlank() || ewtgWidgetIds.single() == "null"))
+                ) {
                     widgetMapping.put(attributeValuationMap, ewtgWidgetIds.first())
                 }
             }
@@ -579,30 +806,35 @@ class AppModelLoader {
             }*/
             return capturedAttributeValuationSets
         }
-        private fun createAttributeValuationMap(attributeValuationSetRawRecord: List<String>,
-                                                attributeValuationMaps: ArrayList<AttributeValuationMap>,
-                                                window: Window,
-                                                widgetMapping: HashMap<AttributeValuationMap, String>,
-                                                avmCardinaties: HashMap<AttributeValuationMap,Cardinality>):AttributeValuationMap {
+
+        private fun createAttributeValuationMap(
+            attributeValuationSetRawRecord: List<String>,
+            attributeValuationMaps: ArrayList<AttributeValuationMap>,
+            window: Window,
+            widgetMapping: HashMap<AttributeValuationMap, String>,
+            avmCardinaties: HashMap<AttributeValuationMap, Cardinality>
+        ): AttributeValuationMap {
             //TODO("Not implemented")
-            val parentAVSId = if (attributeValuationSetRawRecord[AttributeValuationMapPropertyIndex.parentAVMID] !="null")
-                attributeValuationSetRawRecord[AttributeValuationMapPropertyIndex.parentAVMID]
-            else
-                ""
+            val parentAVSId =
+                if (attributeValuationSetRawRecord[AttributeValuationMapPropertyIndex.parentAVMID] != "null")
+                    attributeValuationSetRawRecord[AttributeValuationMapPropertyIndex.parentAVMID]
+                else
+                    ""
             var index = AttributeValuationMapPropertyIndex.startAttributeValue
-            val attributes = HashMap<AttributeType,String>()
+            val attributes = HashMap<AttributeType, String>()
             AttributeType.values().toSortedSet().forEach { attributeType ->
                 val value = attributeValuationSetRawRecord[index]!!
-                addAttributeIfNotNull(attributeType,value,attributes)
+                addAttributeIfNotNull(attributeType, value, attributes)
                 index++
             }
 
 
             var attributeValuationMap = AttributeValuationMap(
-                    avmId = attributeValuationSetRawRecord[AttributeValuationMapPropertyIndex.AttributeValuationSetID],
-                    localAttributes = attributes,
-                    parentAVMId = parentAVSId,
-                    window = window)
+                avmId = attributeValuationSetRawRecord[AttributeValuationMapPropertyIndex.AttributeValuationSetID],
+                localAttributes = attributes,
+                parentAVMId = parentAVSId,
+                window = window
+            )
             val existingAVM = AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP[window]!!
                 .values.find { it != attributeValuationMap && it.hashCode == attributeValuationMap.hashCode }
             if (existingAVM != null) {
@@ -615,13 +847,13 @@ class AppModelLoader {
                 )
             }
 
-            val hashcode =  (attributeValuationSetRawRecord[index+3]).toInt()
+            val hashcode = (attributeValuationSetRawRecord[index + 3]).toInt()
             assert(hashcode == attributeValuationMap.hashCode)
-           return attributeValuationMap
+            return attributeValuationMap
         }
 
         private fun parseAttributes(attributeValuationSetRawDatum: List<String>): HashMap<AttributeType, String> {
-            val attributes = HashMap<AttributeType,String>()
+            val attributes = HashMap<AttributeType, String>()
 
             val className = attributeValuationSetRawDatum[1]
             val resourceId = attributeValuationSetRawDatum[2]
@@ -640,39 +872,43 @@ class AppModelLoader {
             val childrenText = attributeValuationSetRawDatum[15]
             val siblingInfo = attributeValuationSetRawDatum[16]
 
-            addAttributeIfNotNull(AttributeType.className, className,attributes)
-            addAttributeIfNotNull(AttributeType.resourceId, resourceId,attributes)
-            addAttributeIfNotNull(AttributeType.contentDesc, contentDesc,attributes)
-            addAttributeIfNotNull(AttributeType.text, text,attributes)
-            addAttributeIfNotNull(AttributeType.enabled, enabled,attributes)
-            addAttributeIfNotNull(AttributeType.selected, selected,attributes)
-            addAttributeIfNotNull(AttributeType.checkable, checkable,attributes)
-            addAttributeIfNotNull(AttributeType.isInputField, isInputField,attributes)
-            addAttributeIfNotNull(AttributeType.clickable, clickable,attributes)
-            addAttributeIfNotNull(AttributeType.longClickable, longClickable,attributes)
-            addAttributeIfNotNull(AttributeType.scrollable, scrollable,attributes)
-            addAttributeIfNotNull(AttributeType.checked, checked,attributes)
-            addAttributeIfNotNull(AttributeType.isLeaf, isLeaf,attributes)
-            addAttributeIfNotNull(AttributeType.childrenStructure, childrenStructure,attributes)
-            addAttributeIfNotNull(AttributeType.childrenText,childrenText,attributes)
-            addAttributeIfNotNull(AttributeType.siblingsInfo,siblingInfo,attributes)
+            addAttributeIfNotNull(AttributeType.className, className, attributes)
+            addAttributeIfNotNull(AttributeType.resourceId, resourceId, attributes)
+            addAttributeIfNotNull(AttributeType.contentDesc, contentDesc, attributes)
+            addAttributeIfNotNull(AttributeType.text, text, attributes)
+            addAttributeIfNotNull(AttributeType.enabled, enabled, attributes)
+            addAttributeIfNotNull(AttributeType.selected, selected, attributes)
+            addAttributeIfNotNull(AttributeType.checkable, checkable, attributes)
+            addAttributeIfNotNull(AttributeType.isInputField, isInputField, attributes)
+            addAttributeIfNotNull(AttributeType.clickable, clickable, attributes)
+            addAttributeIfNotNull(AttributeType.longClickable, longClickable, attributes)
+            addAttributeIfNotNull(AttributeType.scrollable, scrollable, attributes)
+            addAttributeIfNotNull(AttributeType.checked, checked, attributes)
+            addAttributeIfNotNull(AttributeType.isLeaf, isLeaf, attributes)
+            addAttributeIfNotNull(AttributeType.childrenStructure, childrenStructure, attributes)
+            addAttributeIfNotNull(AttributeType.childrenText, childrenText, attributes)
+            addAttributeIfNotNull(AttributeType.siblingsInfo, siblingInfo, attributes)
 
             return attributes
         }
 
-        private fun addAttributeIfNotNull(attributeType: AttributeType, attributeValue: String, attributes: HashMap<AttributeType,String>) {
-            if (attributeValue!= "null" ) {
-                attributes.put(attributeType,attributeValue)
+        private fun addAttributeIfNotNull(
+            attributeType: AttributeType,
+            attributeValue: String,
+            attributes: HashMap<AttributeType, String>
+        ) {
+            if (attributeValue != "null") {
+                attributes.put(attributeType, attributeValue)
             }
         }
 
 
         private fun getDSTGFilePath(dstgFolderPath: Path): Path {
-           return dstgFolderPath.resolve("DSTG.csv")
+            return dstgFolderPath.resolve("DSTG.csv")
         }
 
         private fun getAbstractStateListFilePath(dstgFolderPath: Path): Path {
-           return dstgFolderPath.resolve("AbstractStateList.csv")
+            return dstgFolderPath.resolve("AbstractStateList.csv")
         }
 
         private fun getDSTGFolderPath(modelPath: Path): Path {
@@ -680,324 +916,185 @@ class AppModelLoader {
         }
 
 
-        private fun loadEWTG(ewtgFolderPath: Path, autAutMF: org.atua.modelFeatures.ATUAMF) {
-            val ewtgWindowsFilePath: Path = getEWTGWindowsFilePath(ewtgFolderPath)
-            if (!Files.exists(ewtgFolderPath))
-                return
-            parseEWTGListFile(ewtgWindowsFilePath,autAutMF)
+
+
+        private fun createNewInput(
+            data: List<String>,
+            widget: EWTGWidget?,
+            window: Window,
+            createdAtRuntime: Boolean
+        ): Input {
+            val eventType = EventType.values().find { it.name == data[0] }
+            if (eventType == null) {
+                throw Exception("Not supported eventType ${data[0]}")
+            }
+            val input = Input.getOrCreateInput(
+                eventHandlers = HashSet(),
+                eventTypeString = eventType.toString(),
+                widget = widget,
+                sourceWindow = window,
+                createdAtRuntime = createdAtRuntime
+            )
+            return input
+
         }
 
-        private fun parseEWTGListFile(ewtgWindowsFilePath: Path,autAutMF: org.atua.modelFeatures.ATUAMF) {
-            val lines: List<String>
-            ewtgWindowsFilePath.toFile().let {file ->
-                lines = BufferedReader(FileReader(file)).use {
-                    it.lines().skip(1).toList()
-                }
-            }
 
-            lines.forEach { line ->
-                loadWindow(line,ewtgWindowsFilePath.parent,autAutMF)
-            }
-        }
 
-        private fun loadWindow(line: String, ewtgFolderPath: Path,autAutMF: org.atua.modelFeatures.ATUAMF) {
-            val data = splitCSVLineToField(line)
-            val windowId = data[0]
-            val createdAtRuntime = data[4].toBoolean()
-            if (createdAtRuntime) {
-                createNewWindow(data)
-            }
-            var window = WindowManager.instance.baseModelWindows.find { it.windowId == windowId }
-            if (window == null) {
-                window  = createNewWindow(data)
-
-            }
-            loadWindowStructure(window, ewtgFolderPath)
-            loadWindowEvents(window, ewtgFolderPath,autAutMF)
-        }
-
-        private fun loadWindowEvents(window: Window, ewtgFolderPath: Path, autautMF: org.atua.modelFeatures.ATUAMF) {
-            val eventFilePath = ewtgFolderPath.resolve("WindowsEvents").resolve("Events_${window.windowId}.csv")
-            if (!Files.exists(eventFilePath)) {
-                org.atua.modelFeatures.ATUAMF.log.debug("Window $window 'events does not exist")
-                return
-            }
-            val lines: List<String>
-            eventFilePath.toFile().let {file ->
-                lines = BufferedReader(FileReader(file)).use {
-                    it.lines().skip(1).toList()
-                }
-            }
-            lines.forEach { line ->
-                val data = splitCSVLineToField(line)
-                val eventType = data[0]
-                val widgetId = data[1]
-                val createdAtRuntime = data[3].toBoolean()
-                val widget = if (widgetId != "null") {
-                    window.widgets.find { it.widgetId == widgetId}
-                } else
-                    null
-                if (widgetId != "null" && widget == null)
-                    log.warn("Cannot find widget $widgetId in the window $window ")
-                if (widgetId == "null" || widget != null) {
-                    val existingEvent = if (widgetId == "null")
-                        window.inputs.find { it.eventType.toString() == eventType }
-                    else
-                    {
-                        window.inputs.find { it.eventType.toString() == eventType && it.widget == widget }
-                    }
-                    val event = if (existingEvent == null) {
-                        createNewInput(data,widget,window,createdAtRuntime)
-                    } else
-                        existingEvent
-                    updateHandlerAndModifiedMethods(event, data,window,autautMF)
-                }
-            }
-        }
-
-        private fun updateHandlerAndModifiedMethods(event: Input, data: List<String>, window: Window, autMF: org.atua.modelFeatures.ATUAMF) {
-            val eventHandlers = splitCSVLineToField(data[4])
-            eventHandlers.filter{it.isNotBlank()}. forEach { handler ->
-                val methodId = autMF.statementMF!!.getMethodId(handler)
-                if (methodId.isNotBlank()) {
-                    if (!event.eventHandlers.contains(methodId)) {
-                        autMF.modifiedMethodWithTopCallers
-                            .filter { it.value.contains(methodId) }
-                            .forEach { updatedMethod, callers ->
-                                if (!event.modifiedMethods.containsKey(updatedMethod)) {
-                                    event.modifiedMethods.putIfAbsent(updatedMethod, false)
-                                    val updatedStatements = autMF.statementMF!!.getMethodStatements(methodId)
-                                    updatedStatements.forEach {
-                                        event.modifiedMethodStatement.put(it, false)
-                                    }
-                                }
-                            }
-                        event.eventHandlers.add(methodId)
-                    }
-                }
-            }
-            val coveredMethods = splitCSVLineToField(data[6])
-            val coveredMethodsId = coveredMethods.map { autMF.statementMF!!.getMethodId(it) }
-            coveredMethodsId.forEach { methodId->
-                if (methodId.isNotBlank()) {
-                    event.coveredMethods.add(methodId)
-                    if (autMF.statementMF!!.isModifiedMethod(methodId)) {
-                        event.modifiedMethods.putIfAbsent(methodId,false)
-                    }
-                    autMF.modifiedMethodWithTopCallers
-                        .filter { it.value.contains(methodId) }
-                        .forEach { updatedMethod, callers ->
-                            if (!event.modifiedMethods.containsKey(updatedMethod)) {
-                                event.modifiedMethods.putIfAbsent(updatedMethod, false)
-                                val updatedStatements = autMF.statementMF!!.getMethodStatements(methodId)
-                                updatedStatements.forEach {
-                                    event.modifiedMethodStatement.put(it, false)
-                                }
-                            }
+        fun splitCSVLineToField(line: String): List<String> {
+            val data = ArrayList(line.split(";"))
+            val result = ArrayList<String>()
+            var startQuote = false
+            var temp = ""
+            for (s in data) {
+                if (!startQuote) {
+                    if (!s.startsWith("\"")) {
+                        result.add(s)
+                    } else {
+                        if (s.length > 1 && s.endsWith('"') && s.startsWith('"')) {
+                            result.add(s.trim('"'))
+                        } else if (s.count { '"' == it } % 2 == 0) {
+                            result.add(s)
+                        } else {
+                            startQuote = true
+                            temp = s
                         }
+                    }
+                } else {
+                    temp = temp + ";" + s
+                    if (s.endsWith("\"")) {
+                        startQuote = false
+                        // remove quote
+                        temp = temp.substring(1, temp.length - 1)
+                        result.add(temp)
+                        temp = ""
+                    }
                 }
             }
-/*            val modifiedMethods = splitCSVLineToField(data[5])
-modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
-    val methodId = autMF.statementMF!!.getMethodId(method)
-    if (!event.modifiedMethods.contains(methodId)) {
-        event.modifiedMethods.put(methodId,false)
-        val updatedStatements = autMF.statementMF!!.getMethodStatements(methodId)
-        updatedStatements.forEach {
-            event.modifiedMethodStatement.put(it,false)
+            return result
         }
 
-    }
-}*/
-}
-
-private fun createNewInput(data: List<String>, widget: EWTGWidget?, window: Window, createdAtRuntime: Boolean): Input {
-val eventType = EventType.values().find { it.name == data[0] }
-if (eventType == null) {
-    throw Exception("Not supported eventType ${data[0]}")
-}
-val input = Input.getOrCreateInput(
-    eventHandlers = HashSet(),
-    eventTypeString = eventType.toString(),
-    widget = widget,
-    sourceWindow = window,
-    createdAtRuntime = createdAtRuntime
-)
-return input
-
-}
-
-private fun loadWindowStructure(window: Window, ewtgFolderPath: Path) {
-val structureFilePath = ewtgFolderPath.resolve("WindowsWidget").resolve("Widgets_${window.windowId}.csv")
-if (!Files.exists(structureFilePath)) {
-    org.atua.modelFeatures.ATUAMF.log.debug("Window $window 'structure does not exist")
-    return
-}
-val lines: List<String>
-structureFilePath.toFile().let {file ->
-    lines = BufferedReader(FileReader(file)).use {
-        it.lines().skip(1).toList()
-    }
-}
-val widgetParentIdMap = HashMap<EWTGWidget,String>()
-lines.forEach { line ->
-    val data = splitCSVLineToField(line)
-    val widgetId = data[0]
-    val widget = window.widgets.find {it.widgetId == widgetId }
-    if (widget == null) {
-        //create new widget
-        createNewWidget(data, window,widgetParentIdMap)
-    }
-}
-window.widgets.forEach {
-    val parentId = widgetParentIdMap[it]
-    if (parentId!=null) {
-        val parentWidget = window.widgets.find { it.widgetId == parentId }
-        if (parentWidget!=null)
-            it.parent = parentWidget
-    }
-}
-
-}
-
-fun splitCSVLineToField(line: String): List<String> {
-val data = ArrayList(line.split(";"))
-val result = ArrayList<String>()
-var startQuote = false
-var temp = ""
-for (s in data) {
-    if (!startQuote) {
-        if (!s.startsWith("\"")) {
-            result.add(s)
-        } else {
-            if (s.length>1 && s.endsWith('"') && s.startsWith('"')) {
-                result.add(s.trim('"'))
-            } else if(s.count { '"' == it } % 2 == 0) {
-                result.add(s)
+        private fun createNewWidget(
+            data: List<String>,
+            window: Window,
+            widgetParentIdMap: HashMap<EWTGWidget, String>
+        ): EWTGWidget {
+            val widgetId = data[0]
+            val resourceIdName = data[1]
+            val className = data[2]
+            val parentId = data[3]
+            val structure = if (data[4] == "null") {
+                ""
+            } else {
+                data[4]
             }
-            else {
-                startQuote = true
-                temp = s
+            val activity = data[5]
+            val createdAtRuntime = data[6].toBoolean()
+            val widget = EWTGWidget(
+                widgetId = widgetId,
+                createdAtRuntime = createdAtRuntime,
+                resourceIdName = resourceIdName,
+                className = className,
+                window = window,
+                contentDesc = "",
+                text = "",
+                structure = structure
+            )
+            widget.modelVersion = ModelVersion.BASE
+            if (parentId != "null") {
+                widgetParentIdMap.put(widget, parentId)
             }
+            return widget
         }
-    } else {
-        temp = temp + ";"+s
-        if (s.endsWith("\"")) {
-            startQuote = false
-            // remove quote
-            temp = temp.substring(1,temp.length-1)
-            result.add(temp)
-            temp = ""
+
+        private fun createNewWindow(data: List<String>): Window {
+            val windowId = data[0]
+            val windowType = data[1]
+            val classType = data[2]
+            val createdAtRuntime = data[3].toBoolean()
+            val portraitDimension: Rectangle = Helper.parseRectangle(data[4])
+            val landscapeDimension: Rectangle = Helper.parseRectangle(data[5])
+            val portraitKeyboardDimension: Rectangle = Helper.parseRectangle(data[6])
+            val landscapeKeyboardDimension: Rectangle = Helper.parseRectangle(data[7])
+            val window = when (windowType) {
+                "Activity" -> Activity.getOrCreateNode(
+                    nodeId = windowId,
+                    classType = classType,
+                    runtimeCreated = createdAtRuntime,
+                    isBaseMode = !isSameVersion
+                )
+                "Dialog" -> Dialog.getOrCreateNode(
+                    nodeId = windowId,
+                    classType = classType,
+                    runtimeCreated = createdAtRuntime,
+                    allocMethod = "",
+                    isBaseModel = !isSameVersion
+                )
+                "OptionsMenu" -> OptionsMenu.getOrCreateNode(
+                    nodeId = windowId,
+                    classType = classType,
+                    runtimeCreated = createdAtRuntime,
+                    isBaseModel = !isSameVersion
+                )
+                "ContextMenu" -> ContextMenu.getOrCreateNode(
+                    nodeId = windowId,
+                    classType = classType,
+                    runtimeCreated = createdAtRuntime,
+                    isBaseModel = !isSameVersion
+                )
+                "OutOfApp" -> OutOfApp.getOrCreateNode(
+                    nodeId = windowId,
+                    activity = classType,
+                    isBaseModel = !isSameVersion
+                )
+                "FakeWindow" -> FakeWindow.getOrCreateNode(nodeId = windowId, isBaseModel = !isSameVersion)
+                "Launcher" -> Launcher.getOrCreateNode()
+                else -> throw Exception("Error windowType: $windowType")
+            }
+            window.portraitDimension = portraitDimension
+            window.landscapeDimension = landscapeDimension
+            window.portraitKeyboardDimension = portraitKeyboardDimension
+            window.landscapeKeyboardDimension = landscapeKeyboardDimension
+            return window
+        }
+
+        private fun getEWTGWindowsFilePath(ewtgFolderPath: Path): Path {
+            return ewtgFolderPath.resolve("EWTG_WindowList.csv")
+        }
+
+        private fun getEWTGFolderPath(modelPath: Path): Path {
+            return modelPath.resolve("EWTG")
         }
     }
 }
-return result
-}
 
-private fun createNewWidget(data: List<String>, window: Window, widgetParentIdMap: HashMap<EWTGWidget,String>): EWTGWidget {
-val widgetId = data[0]
-val resourceIdName = data[1]
-val className = data[2]
-val parentId = data[3]
-val structure = if (data[4] == "null") {
-    ""
-} else {
-    data[4]
-}
-val activity = data[5]
-val createdAtRuntime = data[6].toBoolean()
-val widget = EWTGWidget(
-        widgetId = widgetId,
-        createdAtRuntime = createdAtRuntime,
-        resourceIdName = resourceIdName,
-        className = className,
-        window = window,
-        contentDesc = "",
-        text = "",
-        structure = structure
-)
-widget.modelVersion = ModelVersion.BASE
-if (parentId!="null") {
-    widgetParentIdMap.put(widget,parentId)
-}
-return widget
-}
-
-private fun createNewWindow(data: List<String>): Window {
-val windowId = data[0]
-val windowType = data[1]
-val classType = data[2]
-val createdAtRuntime = data[3].toBoolean()
-val portraitDimension: Rectangle = Helper.parseRectangle(data[4])
-val landscapeDimension: Rectangle = Helper.parseRectangle(data[5])
-val portraitKeyboardDimension: Rectangle = Helper.parseRectangle(data[6])
-val landscapeKeyboardDimension: Rectangle =Helper.parseRectangle(data[7])
-val window = when (windowType) {
-    "Activity" -> Activity.getOrCreateNode(nodeId = windowId,
-            classType = classType,
-            runtimeCreated = createdAtRuntime,
-            isBaseMode = true)
-    "Dialog" -> Dialog.getOrCreateNode(nodeId = windowId,
-            classType = classType,
-            runtimeCreated = createdAtRuntime,
-            allocMethod = "",
-            isBaseModel = true)
-    "OptionsMenu" -> OptionsMenu.getOrCreateNode(nodeId = windowId,
-            classType = classType,
-            runtimeCreated = createdAtRuntime,
-            isBaseModel = true)
-    "ContextMenu" -> ContextMenu.getOrCreateNode(nodeId = windowId,
-            classType = classType,
-            runtimeCreated = createdAtRuntime,
-            isBaseModel = true)
-    "OutOfApp" -> OutOfApp.getOrCreateNode(nodeId = windowId, activity = classType,isBaseModel = true)
-    "FakeWindow" -> FakeWindow.getOrCreateNode(nodeId = windowId,isBaseModel = true)
-    "Launcher" -> Launcher.getOrCreateNode()
-    else -> throw Exception("Error windowType: $windowType")
-}
-window.portraitDimension = portraitDimension
-window.landscapeDimension = landscapeDimension
-window.portraitKeyboardDimension = portraitKeyboardDimension
-window.landscapeKeyboardDimension = landscapeKeyboardDimension
-return window
-}
-
-private fun getEWTGWindowsFilePath(ewtgFolderPath: Path): Path {
-return ewtgFolderPath.resolve("EWTG_WindowList.csv")
-}
-
-private fun getEWTGFolderPath(modelPath: Path): Path {
-return modelPath.resolve("EWTG")
-}
-}
-}
-class AttributeValuationMapPropertyIndex{
-companion object {
-val AttributeValuationSetID = 0
-val parentAVMID = 1
-val startAttributeValue = 2
-val xpath = 2
-val resourceId = 3
-val className = 4
-val contentDesc = 5
-val text = 6
-val checkable = 7
-val enabled = 8
-val password = 9
-val selected = 10
-val isInputField = 11
-val clickable = 12
-val longClickable = 13
-val scrollable = 14
-val scrollDirection = 15
-val checked = 16
-val isLeaf = 17
-val childrenStructure = 18
-val childrenText = 19
-val siblingsInfo = 20
-val cardinality = 21
-val captured = 22
-val wtgWidgetMapping = 23
-val hashcode = 24
-}
+class AttributeValuationMapPropertyIndex {
+    companion object {
+        val AttributeValuationSetID = 0
+        val parentAVMID = 1
+        val startAttributeValue = 2
+        val xpath = 2
+        val resourceId = 3
+        val className = 4
+        val contentDesc = 5
+        val text = 6
+        val checkable = 7
+        val enabled = 8
+        val password = 9
+        val selected = 10
+        val isInputField = 11
+        val clickable = 12
+        val longClickable = 13
+        val scrollable = 14
+        val scrollDirection = 15
+        val checked = 16
+        val isLeaf = 17
+        val childrenStructure = 18
+        val childrenText = 19
+        val siblingsInfo = 20
+        val cardinality = 21
+        val captured = 22
+        val wtgWidgetMapping = 23
+        val hashcode = 24
+    }
 }

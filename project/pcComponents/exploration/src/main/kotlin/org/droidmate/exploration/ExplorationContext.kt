@@ -101,6 +101,7 @@ class ExplorationContext<M,S,W> @JvmOverloads constructor(val cfg: Configuration
 				val manualInput = model.config[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.manualInput]
 				val manualIntent = model.config[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.manualIntent]
 				val reuseBaseModel = model.config[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.reuseBaseModel]
+				val reuseSameVersionModel = model.config[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.reuseSameVersionModel]
 				val baseModelDir = Paths.get(cfg[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.baseModelDir]).toAbsolutePath()
 				addWatcher(
 					org.atua.modelFeatures.ATUAMF(
@@ -109,6 +110,7 @@ class ExplorationContext<M,S,W> @JvmOverloads constructor(val cfg: Configuration
 						manualInput,
 						manualIntent,
 						reuseBaseModel,
+						reuseSameVersionModel,
 						baseModelDir,
 						getCurrentActivity,
 						getDeviceRotation
@@ -204,13 +206,26 @@ class ExplorationContext<M,S,W> @JvmOverloads constructor(val cfg: Configuration
 //			(!getCurrentState().isHomeScreen && belongsToApp(getCurrentState()) && getCurrentState().actionableWidgets.isNotEmpty())
 
 		//FIXBUG daemonUI could not extract correct information of widgets
-	fun explorationCanMoveOn() = isEmpty() || // we are starting the app -> no terminate yet
-			getCurrentState().isRequestRuntimePermissionDialogBox || isOpenWithDialog() || isActivityChooser(getCurrentState()) || // FIXME what if we currently have isHomeScreen?
-				(!getCurrentState().isHomeScreen
-						&& belongsToApp(getCurrentState())
-						&& getCurrentState().visibleTargets.any { it.clickable }
-						&& !isSystemSettingActivies(getCurrentState())
-						)
+	fun explorationCanMoveOn(): Boolean {
+			// we are starting the app -> no terminate yet
+			if (isEmpty())
+				return true
+			if (getCurrentState().isRequestRuntimePermissionDialogBox )
+				return true
+			if (isOpenWithDialog())
+				return true
+			if (isActivityChooser(getCurrentState()))
+				return true
+			if (getCurrentState().isHomeScreen)
+					return false
+			if (getCurrentState().visibleTargets.isEmpty())
+					return false
+			if (isSystemSettingActivies(getCurrentState()))
+					return false
+			if (belongsToApp(getCurrentState()))
+					return true
+			return false
+	}
 
 	private fun isSystemSettingActivies(currentState: S): Boolean {
 		return currentState.widgets.any {

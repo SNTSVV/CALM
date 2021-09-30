@@ -28,7 +28,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.*
 
-open class GoToAnotherWindow constructor(
+open class GoToAnotherWindowTask constructor(
     autautMF: org.atua.modelFeatures.ATUAMF,
     atuaTestingStrategy: ATUATestingStrategy,
     delay: Long, useCoordinateClicks: Boolean
@@ -81,6 +81,7 @@ open class GoToAnotherWindow constructor(
         tryScroll = false
     }
 
+    var webviewTry = 0
     override fun isTaskEnd(currentState: State<*>): Boolean {
         // update testing path
         if (atuaMF.prevAbstractStateRefinement > 0)
@@ -117,6 +118,14 @@ open class GoToAnotherWindow constructor(
         if (expectedNextAbState != null) {
             if (!isReachExpectedState(currentState)) {
                 // Try another path if current state is not target node
+                if (pathTraverser!!.getCurrentTransition()!!.abstractAction.isWebViewAction()) {
+                    if (webviewTry < 5 && pathTraverser!!.getCurrentTransition()!!.abstractAction.attributeValuationMap!!.getGUIWidgets(currentState).isNotEmpty()) {
+                        pathTraverser!!.latestEdgeId = pathTraverser!!.latestEdgeId!!-1
+                        webviewTry++
+                        return false
+                    }
+                }
+                webviewTry = 0
                 expectedNextAbState = pathTraverser!!.getCurrentTransition()?.dest
                 log.debug("Fail to reach $expectedNextAbState")
                 addIncorrectPath(currentAppState)
@@ -142,6 +151,7 @@ open class GoToAnotherWindow constructor(
 
                 return reroutePath(currentState, currentAppState)
             } else {
+                webviewTry = 0
                 expectedNextAbState = pathTraverser!!.getCurrentTransition()!!.dest
                 if (pathTraverser!!.finalStateAchieved()) {
                     return true
@@ -200,7 +210,7 @@ open class GoToAnotherWindow constructor(
             val retryBudget = if (includeResetAction) {
                 (5 * atuaStrategy.scaleFactor).toInt()
             } else
-                (5 * atuaStrategy.scaleFactor).toInt()
+                (3 * atuaStrategy.scaleFactor).toInt()
             if (retryTimes < retryBudget && currentPath!!.pathType != PathFindingHelper.PathType.FULLTRACE) {
                 retryTimes += 1
                 initPossiblePaths(currentState, true)
@@ -776,7 +786,7 @@ open class GoToAnotherWindow constructor(
                 if (currentEdge.fromWTG && currentEdge.dest is VirtualAbstractState) {
                     pathTraverser!!.latestEdgeId = pathTraverser!!.latestEdgeId!! - 1
                 } else {
-                    mainTaskFinished = true
+                    pathTraverser!!.next()
                 }
                 return randomExplorationTask!!.chooseAction(currentState)
             }
@@ -830,15 +840,15 @@ open class GoToAnotherWindow constructor(
     companion object {
         private val log: Logger by lazy { LoggerFactory.getLogger(this.javaClass.name) }
 
-        var instance: GoToAnotherWindow? = null
+        var instance: GoToAnotherWindowTask? = null
         var executedCount: Int = 0
         fun getInstance(
             regressionWatcher: org.atua.modelFeatures.ATUAMF,
             atuaTestingStrategy: ATUATestingStrategy,
             delay: Long, useCoordinateClicks: Boolean
-        ): GoToAnotherWindow {
+        ): GoToAnotherWindowTask {
             if (instance == null) {
-                instance = GoToAnotherWindow(regressionWatcher, atuaTestingStrategy, delay, useCoordinateClicks)
+                instance = GoToAnotherWindowTask(regressionWatcher, atuaTestingStrategy, delay, useCoordinateClicks)
             }
             return instance!!
         }

@@ -217,7 +217,8 @@ public class ConfigurationBuilder : IConfigurationBuilder {
 			CommandLineOption(org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.use , description = "If true, regression testing is used"),
 			CommandLineOption(org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.budgetScale, description = "Budget scale. Increase this for longer testing time."),
 			CommandLineOption(org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.reuseBaseModel, description = "Enable base model reuse."),
-			CommandLineOption(org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.baseModelDir, description = "Base model dir.")
+			CommandLineOption(org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.baseModelDir, description = "Base model dir."),
+			CommandLineOption(org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.reuseSameVersionModel, description = "Reuse model of the same version.")
 			).first, fs)
 
 	@Throws(ConfigurationException::class)

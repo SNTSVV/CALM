@@ -138,38 +138,30 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                         val timestamp = statement[0]
                         val tms = dateFormat.parse(timestamp)
                         //NGO
-                        val statementId = statementUUIDByRawString.get(statement[1])!!
-                        /*
-                        val uuidIndex = statement[1].toString().lastIndexOf(" uuid=")
-                        //val parts = statement[1].toString().split(" uuid=".toRegex()).toTypedArray()
-                        val statementId = statement[1].toString().substring(uuidIndex+" uuid=".length)
-                        val fullStatement = statement[1].toString().substring(0,uuidIndex)
-                        // val l = "9946a686-9ef6-494f-b893-ac8b78efb667"
-                        val methodIdIndex = fullStatement.lastIndexOf(" methodId=")
-                        //val methodId = parts2.last()
-                        val methodId = fullStatement.substring(methodIdIndex+" methodId=".length)*/
-                        val methodId = statementMethodInstrumentationMap.get(statementId)!!
-                        // Add the statement if it wasn't executed before
-                        if (!recentExecutedMethods.contains(methodId))
-                            recentExecutedMethods.add(methodId)
-                        val methodFound = executedMethodsMap.containsKey(methodId)
-                        if (!methodFound)
-                        {
-                            executedMethodsMap[methodId] = tms
-                        }
-                        val isUpdatedMethod = isModifiedMethod(methodId)
-                        if (!recentExecutedStatements.contains(statementId)) {
-                            recentExecutedStatements.add(statementId)
-                            if (isUpdatedMethod) {
-                                executedUpdatedStatements.add(statementId)
+                        val statementId = statementUUIDByRawString.get(statement[1])?:""
+                        if (statementId!="") {
+                            val methodId = statementMethodInstrumentationMap.get(statementId)!!
+                            // Add the statement if it wasn't executed before
+                            if (!recentExecutedMethods.contains(methodId))
+                                recentExecutedMethods.add(methodId)
+                            val methodFound = executedMethodsMap.containsKey(methodId)
+                            if (!methodFound) {
+                                executedMethodsMap[methodId] = tms
                             }
-                        }
-                        var found = executedStatementsMap.containsKey(statementId)
-                        if (!found /*&& instrumentationMap.containsKey(id)*/) {
-                            executedStatementsMap[statementId] = tms
-                            newExecutedStatements.add(statementId)
-                            if (isUpdatedMethod) {
-                                newUpdatedExecutedStatements.add(statementId)
+                            val isUpdatedMethod = isModifiedMethod(methodId)
+                            if (!recentExecutedStatements.contains(statementId)) {
+                                recentExecutedStatements.add(statementId)
+                                if (isUpdatedMethod) {
+                                    executedUpdatedStatements.add(statementId)
+                                }
+                            }
+                            var found = executedStatementsMap.containsKey(statementId)
+                            if (!found /*&& instrumentationMap.containsKey(id)*/) {
+                                executedStatementsMap[statementId] = tms
+                                newExecutedStatements.add(statementId)
+                                if (isUpdatedMethod) {
+                                    newUpdatedExecutedStatements.add(statementId)
+                                }
                             }
                         }
                     }
@@ -646,7 +638,8 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                 } else {
                     val newScreenshotFile =
                         actionCoverageHTMLFolderPath.resolve("screenshot").resolve("${it.actionId}.jpg")
-                    Files.copy(screenshotFile, newScreenshotFile)
+                    if (!Files.exists(newScreenshotFile))
+                        Files.copy(screenshotFile, newScreenshotFile)
                     actionJSONObject.put("image", actionCoverageHTMLFolderPath.relativize(newScreenshotFile).toString())
                 }
                 actionJSONObject.put("executedStatements", actionCoverageTracking.get(it.actionId)?.size ?: 0)
@@ -695,10 +688,12 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
             if (actionIncreasingUpdatedCoverageTracking.containsKey(it.actionId)
                 && actionIncreasingUpdatedCoverageTracking.get(it.actionId)!!.size>0) {
                 val newHTMLFilePath = actionCoverageHTMLFolderPath.resolve("${it.actionId}.html")
-                Files.createFile(newHTMLFilePath)
-                val newHTMLFile = File(newHTMLFilePath.toUri())
-                content.forEach { line ->
-                    newHTMLFile.appendText(line.replace("##action_id##", it.actionId.toString()))
+                if (!Files.exists(newHTMLFilePath)) {
+                    Files.createFile(newHTMLFilePath)
+                    val newHTMLFile = File(newHTMLFilePath.toUri())
+                    content.forEach { line ->
+                        newHTMLFile.appendText(line.replace("##action_id##", it.actionId.toString()))
+                    }
                 }
             }
         }

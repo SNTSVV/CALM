@@ -1,7 +1,6 @@
 package org.droidmate.exploration.strategy.atua.task
 
 import kotlinx.coroutines.runBlocking
-import org.atua.calm.modelReuse.ModelVersion
 import org.droidmate.deviceInterface.exploration.*
 import org.droidmate.exploration.actions.*
 import org.atua.modelFeatures.dstg.AbstractAction
@@ -40,10 +39,10 @@ class RandomExplorationTask constructor(
     private val fillDataTask = PrepareContextTask(regressionTestingMF, atuaTestingStrategy, delay, useCoordinateClicks)
     private var qlearningRunning = false
     private var qlearningSteps = 0
-    var goToLockedWindowTask: GoToAnotherWindow? = null
+    var goToLockedWindowTask: GoToAnotherWindowTask? = null
     protected var openNavigationBarTask = OpenNavigationBarTask.getInstance(regressionTestingMF, atuaTestingStrategy, delay, useCoordinateClicks)
     var fillingData = false
-    private var dataFilled = false
+    var dataFilled = false
     private var initialExerciseCount = -1
     private var currentExerciseCount = -1
     var reset = false
@@ -212,8 +211,10 @@ class RandomExplorationTask constructor(
         val widgetActions = unexercisedActions.filter {
             it.attributeValuationMap == null
         }
-        if (shouldRandomExplorationOutOfApp(currentAbstractState,currentState)) {
+        if (!isOutOfAppState(currentAbstractState)) {
             actionOnOutOfAppCount = 0
+        } else {
+            actionOnOutOfAppCount += 1
         }
         val prevAbstractState = if (atuaMF.appPrevState != null)
             atuaMF.getAbstractState(atuaMF.appPrevState!!) ?: currentAbstractState
@@ -243,7 +244,7 @@ class RandomExplorationTask constructor(
                     if (currentAbstractState.isOpeningKeyboard) {
                         return GlobalAction(actionType = ActionType.CloseKeyboard)
                     }
-                    goToLockedWindowTask = GoToAnotherWindow(atuaTestingStrategy = atuaStrategy, autautMF = atuaMF, delay = delay, useCoordinateClicks = useCoordinateClicks)
+                    goToLockedWindowTask = GoToAnotherWindowTask(atuaTestingStrategy = atuaStrategy, autautMF = atuaMF, delay = delay, useCoordinateClicks = useCoordinateClicks)
                     if (goToLockedWindowTask!!.isAvailable(
                             currentState =  currentState,
                             destWindow = lockedWindow!!,
@@ -256,19 +257,20 @@ class RandomExplorationTask constructor(
                     }
                 }
             }
-            if (actionOnOutOfAppCount >= 5 || !shouldRandomExplorationOutOfApp(currentAbstractState,currentState)){
-                dataFilled = false
-                fillingData = false
-                if (actionOnOutOfAppCount >= 11) {
-                    return atuaStrategy.eContext.resetApp()
+            if (isOutOfAppState(currentAbstractState)) {
+                if (actionOnOutOfAppCount >= 5 || !shouldRandomExplorationOutOfApp(currentAbstractState,currentState)){
+                    dataFilled = false
+                    fillingData = false
+                    if (actionOnOutOfAppCount >= 11) {
+                        return atuaStrategy.eContext.resetApp()
+                    }
+                    if (actionOnOutOfAppCount >= 10) {
+                        return atuaStrategy.eContext.launchApp()
+                    }
+                    if (actionOnOutOfAppCount >= 5 || !shouldRandomExplorationOutOfApp(currentAbstractState,currentState)) {
+                        return ExplorationAction.pressBack()
+                    }
                 }
-                if (actionOnOutOfAppCount >= 10) {
-                    return atuaStrategy.eContext.launchApp()
-                }
-                if (actionOnOutOfAppCount >= 5 || !shouldRandomExplorationOutOfApp(currentAbstractState,currentState)) {
-                    return ExplorationAction.pressBack()
-                }
-
             }
         }
         goToLockedWindowTask = null
@@ -370,11 +372,7 @@ class RandomExplorationTask constructor(
         }
         fillingData = false
         attemptCount++
-        if (currentAbstractState.window is OutOfApp ||
-            (currentAbstractState.window is Dialog
-                    && !WindowManager.instance.updatedModelWindows.filter { it is OutOfApp }.map { it.classType }.contains(currentAbstractState.activity))) {
-            actionOnOutOfAppCount += 1
-        }
+
         var randomAction: AbstractAction? = null
         if (qlearningRunning) {
             // have not tested
@@ -561,6 +559,12 @@ class RandomExplorationTask constructor(
 
     }
 
+    private fun isOutOfAppState(currentAbstractState: AbstractState) =
+        currentAbstractState.window is OutOfApp ||
+                (currentAbstractState.window is Dialog
+                        && WindowManager.instance.updatedModelWindows.filter { it is OutOfApp }.map { it.classType }
+                    .contains(currentAbstractState.activity))
+
     private fun randomlyExploreLessExercisedWidgets(
         unexploredWidgets: List<Widget>,
         currentState: State<*>
@@ -614,7 +618,7 @@ class RandomExplorationTask constructor(
                     .isNotEmpty()
             }.toHashSet()
             if (targetStates.isNotEmpty()) {
-                goToLockedWindowTask = GoToAnotherWindow(
+                goToLockedWindowTask = GoToAnotherWindowTask(
                     atuaTestingStrategy = atuaStrategy,
                     autautMF = atuaMF,
                     delay = delay,
@@ -628,7 +632,7 @@ class RandomExplorationTask constructor(
                         isExploration = true
                     )
                 ) {
-                    if (goToLockedWindowTask!!.possiblePaths.any { it.path.size<5 }) {
+                    if (goToLockedWindowTask!!.possiblePaths.any { it.path.size<5*atuaStrategy.scaleFactor }) {
                         recentGoToExploreState = true
                         goToLockedWindowTask!!.initialize(currentState)
                         return true

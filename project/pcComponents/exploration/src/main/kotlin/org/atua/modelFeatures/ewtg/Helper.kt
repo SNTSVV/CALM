@@ -407,7 +407,7 @@ class Helper {
                                 true
                             else
                                 (it.structure == guiWidget.deriveStructure() ||
-                                        (it.seen == false
+                                        (it.witnessed == false
                                                 && StringComparison.compareStringsLevenshtein(it.structure ,guiWidget.deriveStructure())>0.6f))
                         } else
                             false
@@ -425,7 +425,7 @@ class Helper {
                 val candidates = seenWidgets.filter { w ->
                     w.resourceIdName.isBlank() && w.className == guiWidget.className
                             (w.structure == guiWidget.deriveStructure() ||
-                                    (w.seen == false
+                                    (w.witnessed == false
                                             && StringComparison.compareStringsLevenshtein(w.structure ,guiWidget.deriveStructure())>0.6f)) &&
                     w.possibleContentDescriptions.contains(guiWidget.contentDesc)
                 }
@@ -435,7 +435,7 @@ class Helper {
                 val candidates = seenWidgets.filter { w ->
                     w.resourceIdName.isBlank() && w.className == guiWidget.className
                             && (w.structure == guiWidget.deriveStructure() ||
-                            (w.seen == false
+                            (w.witnessed == false
                                     && StringComparison.compareStringsLevenshtein(w.structure ,guiWidget.deriveStructure())>0.6f))
                             && w.possibleTexts.contains(guiWidget.text)
                 }
@@ -445,7 +445,7 @@ class Helper {
                 val candidates = seenWidgets.filter { w ->
                     w.resourceIdName.isBlank() && w.className == guiWidget.className
                             && (w.structure == guiWidget.deriveStructure() ||
-                            (w.seen == false
+                            (w.witnessed == false
                                     && StringComparison.compareStringsLevenshtein(w.structure ,guiWidget.deriveStructure())>0.6f))
                 }
                 matchedEWTGWidgets.addAll(candidates)
@@ -494,7 +494,7 @@ class Helper {
                             structure = guiWidget.deriveStructure()
                     )
                     newWidget.createdAtRuntime = true
-                    newWidget.seen = true
+                    newWidget.witnessed = true
                     updateWindowHierarchy(guiWidget, guiState, guiWidgetId_ewtgWidgets, newWidget, window)
                     if (guiWidget.text.isNotBlank())
                         newWidget.possibleTexts.add(guiWidget.text)
@@ -505,8 +505,8 @@ class Helper {
                     guiWidgetId_ewtgWidgets[guiWidget.id]=newWidget
                 } else {
                     val matchedWidget = matchedEWTGWidgets.first()
-                    if (matchedWidget.seen == false) {
-                        matchedWidget.seen = true
+                    if (matchedWidget.witnessed == false) {
+                        matchedWidget.witnessed = true
                         matchedWidget.structure = guiWidget.deriveStructure()
                         updateWindowHierarchy(guiWidget, guiState, guiWidgetId_ewtgWidgets, matchedWidget, window)
                     }

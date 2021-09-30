@@ -28,7 +28,7 @@ open class EWTGWidget constructor(val widgetId: String,//sootandroid id
                                   var structure: String = ""
                                     ){
     var isUserLikeInput: Boolean = false
-    var seen = false
+    var witnessed = false
     val possibleTexts= ArrayList<String>()
     val possibleContentDescriptions = ArrayList<String>()
     var exercised: Boolean = false

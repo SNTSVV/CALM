@@ -204,4 +204,23 @@ abstract class AbstractPhaseStrategy(
         LoggerFactory.getLogger(this::class.simpleName).debug("Paths count: ${transitionPaths.size}")
     }
 
+    protected fun isBlocked(abstractState: AbstractState, currentState: State<*>): Boolean {
+        val transitionPath = ArrayList<TransitionPath>()
+        val abstractStates = HashMap<AbstractState, Double>()
+        val currentAbstractState = atuaMF.getAbstractState(currentState)!!
+        if (abstractState == currentAbstractState)
+            return false
+        abstractStates.put(abstractState, 1.0)
+        getPathToStates(
+            transitionPaths = transitionPath,
+            stateByScore = abstractStates,
+            currentState = currentState,
+            currentAbstractState = currentAbstractState,
+            shortest = false,
+            pathCountLimitation = 1,
+            pathType = PathFindingHelper.PathType.ANY
+        )
+        return false
+    }
+
 }

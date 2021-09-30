@@ -101,9 +101,9 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
                             abstractStates.isNotEmpty()
                         }) {
                         phaseStrategy = PhaseTwoStrategy(this, scaleFactor, delay, useCoordinateClicks, unreachableWindows)
+//                        phaseStrategy = PhaseThreeStrategy(this,scaleFactor, delay, useCoordinateClicks)
                         atuaMF.updateStage1Info(eContext)
-                      /*  phaseStrategy = PhaseThreeStrategy(this,scaleFactor, delay, useCoordinateClicks)
-                         atuaMF.updateStage2Info(eContext)*/
+//                         atuaMF.updateStage2Info(eContext)
                     }
                 }
 

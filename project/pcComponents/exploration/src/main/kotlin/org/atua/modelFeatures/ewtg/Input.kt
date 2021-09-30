@@ -12,6 +12,7 @@
 
 package org.atua.modelFeatures.ewtg
 
+import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
@@ -93,6 +94,8 @@ open class Input{
     override fun toString(): String {
         return "$sourceWindow-->$eventType-->[$widget]"
     }
+
+
     companion object{
         val allInputs = arrayListOf<Input>()
         fun isNoWidgetEvent(action: String): Boolean {

@@ -112,6 +112,13 @@ class AttributeValuationMap {
     fun computeHashCode() {
         hashCode = this.fullAttributeValuationMap().hashCode()
     }
+
+    fun isWebView(): Boolean {
+        if (getClassName().equals("android.webkit.WebView")) {
+            return true
+        }
+        return false
+    }
     fun initActions() {
         /*if (!AbstractStateManager.instance.activity_attrValSetsMap.containsKey(activity))
             AbstractStateManager.instance.activity_attrValSetsMap.put(activity, ArrayList())*/
@@ -137,6 +144,7 @@ class AttributeValuationMap {
                 actionCount.putIfAbsent(abstractAction, 0)
             }
         }
+
         if (isLongClickable() && !isInputField()) {
             val abstractAction = AbstractAction(
                     actionType = AbstractActionType.LONGCLICK,
@@ -144,6 +152,7 @@ class AttributeValuationMap {
             )
             actionCount.putIfAbsent(abstractAction, 0)
         }
+
         if (isScrollable()) {
             if (localAttributes[AttributeType.scrollDirection]== DescendantLayoutDirection.HORIZONTAL.toString()) {
                 val abstractActionSwipeLeft = AbstractAction(

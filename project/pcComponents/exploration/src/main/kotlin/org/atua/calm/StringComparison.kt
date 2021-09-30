@@ -12,18 +12,26 @@
 
 package org.atua.calm
 
+import org.atua.calm.simmetrics.LevenshteinList
 import org.simmetrics.StringMetric
 import org.simmetrics.builders.StringMetricBuilder.with
 import org.simmetrics.metrics.CosineSimilarity
 import org.simmetrics.metrics.Dice
 import org.simmetrics.metrics.Jaccard
 import org.simmetrics.metrics.Levenshtein
+import org.simmetrics.metrics.LongestCommonSubsequence
 import org.simmetrics.simplifiers.Simplifiers
 import org.simmetrics.tokenizers.Tokenizers
 import java.util.*
 
 class StringComparison {
     companion object {
+
+        fun compareStringsSimple(arg1: String, arg2: String): Float {
+            if (arg1 == arg2)
+                return 1.0f
+            return 0.0f
+        }
 
         fun compareStringsLevenshtein(arg1: String, arg2: String): Float {
             var result = 0f
@@ -45,6 +53,17 @@ class StringComparison {
 
             /*QGramsDistance ds2 = new QGramsDistance();*/
             val ds2 = with(CosineSimilarity())
+                .tokenize(Tokenizers.pattern("/"))
+                .build()
+            result = ds2.compare(arg1, arg2)
+            return result
+        }
+
+        fun compareStringsXpathLevenshtein(arg1: String, arg2: String): Float {
+            var result = 0f
+
+            /*QGramsDistance ds2 = new QGramsDistance();*/
+            val ds2 = with(LevenshteinList())
                 .tokenize(Tokenizers.pattern("/"))
                 .build()
             result = ds2.compare(arg1, arg2)
@@ -73,6 +92,15 @@ class StringComparison {
             return result
         }
 
+        fun compareStringsXpathCommonLongestSubsequence(arg1: String, arg2: String):Float {
+            var result = 0f
+
+            /*QGramsDistance ds2 = new QGramsDistance();*/
+            val ds2 = with(LongestCommonSubsequence())
+                .build()
+            result = ds2.compare(arg1, arg2)
+            return result
+        }
         fun tokenizeString(arg: String): String {
             var result = ""
             for (br in 0 until arg.length) {

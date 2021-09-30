@@ -53,6 +53,7 @@ object UiHierarchy : UiParser() {
 					w.area = LinkedList<Rect>().apply { w.initialArea.forEach { add(it) } }
 					if(w.rootNode == null) Log.w(LOGTAG,"ERROR root should not be null (window=$w)")
 					check(w.rootNode != null) {"if extraction is enabled we have to have a rootNode"}
+					parsedOrder=0
 					createBottomUp(w, w.rootNode!!, parentXpath = "//", nodes = nodes, img = if(validImg) img else null)
 					Log.d(LOGTAG, "${w.w.pkgName}:${w.w.windowId} ${visibleOuterBounds(w.initialArea)} " +
 							"#elems = ${nodes.size} ${w.initialArea} empty=${w.initialArea.isEmpty()}")

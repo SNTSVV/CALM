@@ -49,6 +49,10 @@ data class AbstractAction (
     fun isWidgetAction(): Boolean {
         return attributeValuationMap!=null
     }
+
+    fun isWebViewAction(): Boolean {
+        return isWidgetAction() && attributeValuationMap!!.isWebView()
+    }
     fun isLaunchOrReset(): Boolean {
         return actionType == AbstractActionType.LAUNCH_APP || actionType == AbstractActionType.RESET_APP
     }

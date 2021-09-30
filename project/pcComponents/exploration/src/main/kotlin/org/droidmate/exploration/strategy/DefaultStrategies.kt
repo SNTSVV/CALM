@@ -1,6 +1,7 @@
 package org.droidmate.exploration.strategy
 
 import kotlinx.coroutines.delay
+import org.atua.modelFeatures.ATUAMF
 import org.droidmate.deviceInterface.exploration.*
 import org.droidmate.exploration.ExplorationContext
 import org.droidmate.exploration.actions.*
@@ -178,7 +179,7 @@ object DefaultStrategies: Logging {
 		private var pressEnter = false
 		// may be used to terminate if there are no targets after waiting for maxWaitTime
 		private var terminate = false
-
+		private var waitingForLaunch = false
 		override fun getPriority(): Int = prio
 
 		override suspend fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> hasNext(eContext: ExplorationContext<M, S, W>): Boolean {
@@ -189,6 +190,7 @@ object DefaultStrategies: Logging {
 					clickScreen = false
 					pressEnter = false
 					terminate = false
+					waitingForLaunch = false
 				}
 			}
 			return hasNext
@@ -198,6 +200,7 @@ object DefaultStrategies: Logging {
 			return when{
 				cnt++ < 2 ->{
 					delay(maxWaitTime)
+					waitingForLaunch = true
 					GlobalAction(ActionType.FetchGUI) // try to refetch after waiting for some time
 				}
 				terminate -> {
@@ -212,6 +215,10 @@ object DefaultStrategies: Logging {
 			//DEBUG
 			val currentState = eContext.getCurrentState()
 			//END DEBUG
+			val atuaMF: ATUAMF? = eContext.findWatcher { it is ATUAMF } as ATUAMF?
+			if (atuaMF!=null) {
+				atuaMF.registerNotProcessState(currentState)
+			}
 			val lastActionType = eContext.getLastActionType()
 			val (lastLaunchDistance,secondLast) = with(
 				eContext.explorationTrace.getActions().filterNot {
@@ -230,7 +237,7 @@ object DefaultStrategies: Logging {
 					log.debug("Cannot explore. Returning 'Wait'")
 					waitForLaunch(eContext)
 				}
-				lastActionType.isFetch() -> {
+				waitingForLaunch  -> {
 					when {
 						cnt<2 -> {
 							log.debug("Cannot explore. Returning 'Wait'")
@@ -241,7 +248,7 @@ object DefaultStrategies: Logging {
 						}
 					}
 				}
-				s.isHomeScreen || !s.widgets.any { it.packageName==eContext.model.config.appName } -> {
+				s.isHomeScreen  -> {
 					eContext.launchApp()
 				}
 				lastActionType.isPressBack() -> {
@@ -268,11 +275,15 @@ object DefaultStrategies: Logging {
 				}
 				// by default, if it cannot explore, presses back
 				else -> {
+					if (s.visibleTargets.isEmpty() && !lastActionType.isFetch()) {
+						delay(maxWaitTime)
+						GlobalAction(ActionType.FetchGUI)
+					}
 					// if current state is not a relevent state
-					if ( !s.widgets.any { it.packageName == eContext.model.config.appName }) {
+					else if ( !s.widgets.any { it.packageName == eContext.model.config.appName }) {
 						pressbackCnt +=1
 						ExplorationAction.pressBack()
-					} else if ( !s.actionableWidgets.any { it.clickable }  ) {
+					} else if ( !s.visibleTargets.any { it.clickable }  ) {
 						// for example: vlc video player
 						log.debug("Cannot explore because of no actionable widgets. Randomly choose PressBack or Click")
 						if (pressEnter || clickScreen) {

@@ -52,6 +52,15 @@ class ExerciseTargetComponentTask private constructor(
         if (isCameraOpening(currentState)) {
             return false
         }
+        val abstractState = atuaMF.getAbstractState(currentState)!!
+        eventList.removeIf {
+            it.isWidgetAction() &&
+                    !abstractState.attributeValuationMaps.contains(it.attributeValuationMap)
+        }
+        establishTargetInputs(currentState)
+        eventList.removeIf {
+            exercisedInputs.contains(it)
+        }
         val currentAbstractState = atuaMF.getAbstractState(currentState)!!
        /* if (currentAbstractState.window is Dialog || currentAbstractState.window is OptionsMenu || currentAbstractState.window is OutOfApp) {
             if (isDoingRandomExplorationTask && randomExplorationTask.isTaskEnd(currentState)) {
@@ -66,15 +75,6 @@ class ExerciseTargetComponentTask private constructor(
             /*if (randomBudget>=0)
                 return false*/
             return false
-        }
-        val abstractState = atuaMF.getAbstractState(currentState)!!
-        eventList.removeIf {
-            it.isWidgetAction() &&
-                    !abstractState.attributeValuationMaps.contains(it.attributeValuationMap)
-        }
-        establishTargetInputs(currentState)
-        eventList.removeIf {
-            exercisedInputs.contains(it)
         }
         if (eventList.isNotEmpty()) {
             return false
@@ -139,7 +139,7 @@ class ExerciseTargetComponentTask private constructor(
         environmentChange = false
         alwaysUseRandomInput = false
         targetWindow = null
-        randomBudget=5*atuaStrategy.scaleFactor.toInt()
+        randomBudget=3*atuaStrategy.scaleFactor.toInt()
         isDoingRandomExplorationTask = false
     }
 
@@ -174,6 +174,14 @@ class ExerciseTargetComponentTask private constructor(
     override fun chooseAction(currentState: State<*>): ExplorationAction? {
         executedCount++
         val currentAbstractState = atuaMF.getAbstractState(currentState)!!
+        eventList.removeIf {
+            it.isWidgetAction() &&
+                    !currentAbstractState.attributeValuationMaps.contains(it.attributeValuationMap)
+        }
+        establishTargetInputs(currentState)
+        eventList.removeIf {
+            exercisedInputs.contains(it)
+        }
         val prevAbstractState = if (atuaMF.appPrevState != null)
             atuaMF.getAbstractState(atuaMF.appPrevState!!) ?: currentAbstractState
         else
@@ -190,7 +198,7 @@ class ExerciseTargetComponentTask private constructor(
                 return randomExplorationTask.chooseAction(currentState)
             }*/
         }
-        if (currentState.widgets.any { it.isKeyboard }) {
+        if (currentState.widgets.any { it.isKeyboard } && eventList.isEmpty()) {
             val keyboardAction = dealWithKeyboard(currentState)
             if (keyboardAction != null)
                 return keyboardAction
@@ -278,6 +286,7 @@ class ExerciseTargetComponentTask private constructor(
         fillingData = false
         if (chosenAbstractAction!=null)
         {
+
             log.info("Exercise Event: ${chosenAbstractAction!!.actionType}")
             var chosenWidget: Widget? = null
             if (chosenAbstractAction!!.attributeValuationMap!=null)
@@ -341,6 +350,7 @@ class ExerciseTargetComponentTask private constructor(
         randomExplorationTask.initialize(currentState)
         randomExplorationTask.isPureRandom = true
         randomExplorationTask.setMaxiumAttempt(5 * atuaStrategy.scaleFactor.toInt())
+        randomExplorationTask.dataFilled = true
     }
 
     companion object

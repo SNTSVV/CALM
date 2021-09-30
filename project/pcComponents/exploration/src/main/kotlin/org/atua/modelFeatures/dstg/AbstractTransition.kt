@@ -13,6 +13,7 @@
 package org.atua.modelFeatures.dstg
 
 import org.atua.calm.modelReuse.ModelVersion
+import org.atua.modelFeatures.ewtg.Helper
 import org.droidmate.explorationModel.ConcreteId
 import org.droidmate.explorationModel.interaction.Interaction
 import org.droidmate.explorationModel.interaction.State
@@ -165,6 +166,9 @@ class AbstractTransition(
             }
             if (actionType == AbstractActionType.SEND_INTENT)
                 return interaction.data
+            if (interaction.targetWidget!=null && Helper.hasParentWithType(interaction.targetWidget!!,guiState,"WebView")) {
+                return interaction.targetWidget
+            }
             if (actionType != AbstractActionType.SWIPE) {
                 return null
             }

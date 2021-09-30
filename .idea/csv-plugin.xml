@@ -3,35 +3,7 @@
   <component name="CsvFileAttributes">
     <option name="attributeMap">
       <map>
-        <entry key="/apks/model/org.wikipedia/DSTG/AbstractStates/AbstractState_160c5ec6-6562-304e-a175-6f0473d28475.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value=";" />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/apks/model/org.wikipedia/EWTG/WindowsWidget/Widgets_2775.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value=";" />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/apks/model/org.wikipedia/EWTG/WindowsWidget/Widgets_2927.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value=";" />
-            </Attribute>
-          </value>
-        </entry>
         <entry key="/apks/model/org.wikipedia/EWTG/WindowsWidget/Widgets_2964.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value=";" />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/apks/model/org.wikipedia/EWTG/WindowsWidget/Widgets_3210.csv">
           <value>
             <Attribute>
               <option name="separator" value=";" />

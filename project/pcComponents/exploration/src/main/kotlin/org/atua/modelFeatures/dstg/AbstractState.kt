@@ -316,9 +316,12 @@ open class AbstractState(
             val actions = it.filterNot {
                         (it.key.actionType == AbstractActionType.ITEM_CLICK && !hasClickableSubItems(it.key.attributeValuationMap!!, currentState))
                                 || (it.key.actionType == AbstractActionType.ITEM_LONGCLICK && !hasLongClickableSubItems(it.key.attributeValuationMap!!, currentState))
-            }.filter { it.value == 0 || (avmCardinalities.get(it.key.attributeValuationMap)==Cardinality.MANY && it.value <= 2) }.map { it.key }
+            }.filter { it.value == 0
+                    || (avmCardinalities.get(it.key.attributeValuationMap)==Cardinality.MANY && it.value <= 2)
+                    || (it.key.isWebViewAction() && it.value <= 5)}.map { it.key }
             unexcerisedActions.addAll(actions)
         }
+
         if (currentState!=null) {
             unexcerisedActions.removeIf { abstractAction ->
                 abstractAction.isWidgetAction()

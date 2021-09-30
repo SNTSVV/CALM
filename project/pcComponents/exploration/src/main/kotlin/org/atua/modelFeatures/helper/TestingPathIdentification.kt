@@ -377,6 +377,7 @@ class PathFindingHelper {
                         && includingResetOrNot(it, includeResetAction,depth, pathType == PathType.FULLTRACE)
                         && includingWTGOrNot(it, includeWTG)
                         && includingLaunchOrNot(it, includeLaunchAction,depth)
+                        && includingBackwardEquivalentAT(it.label,depth)
                         && followTrace(it,depth,targetTraces ,traversedEdges, prevEdgeId,pathTracking, pathType)
                        /* && (it.label.dependentAbstractStates.isEmpty() ||
                         it.label.dependentAbstractStates.intersect(ancestorAbstractStates).isNotEmpty())*/
@@ -442,7 +443,7 @@ class PathFindingHelper {
                             selectedTransition.addAll(u)
                         }
                         else {
-                            val explicitTransitions = u.filter { !it.label.interactions.isEmpty() }
+                            val explicitTransitions = u.filter { !it.label.interactions.isEmpty() || (it.label.modelVersion == ModelVersion.BASE && it.label.isExplicit())}
                             val implicitTransitions = u.filter { it.label.interactions.isEmpty() && it.source != it.destination }
                             if (explicitTransitions.isEmpty() || prevAbstractTransition?.first?.isImplicit?:false) {
                                  if (includeImplicitInteraction == true) {
@@ -560,6 +561,18 @@ class PathFindingHelper {
                 if (!traversedEdges.containsKey(it.label)) {
                 }*/
             }
+        }
+
+        private fun includingBackwardEquivalentAT(transition: AbstractTransition, depth: Int): Boolean {
+            return true
+        /*if (depth<=5) {
+                return true
+            }
+            val isBackwardEquivalent = (
+                    transition.source.modelVersion != ModelVersion.BASE
+                            && transition.interactions.isEmpty()
+                            && transition.modelVersion == ModelVersion.BASE)
+            return !isBackwardEquivalent*/
         }
 
         private fun IsCurrentPathStartingWithLaunchOrReset(ancestorEdgeId: Int?, traversedEdges: HashMap<Int, Pair<AbstractTransition, Stack<Window>>>, ancestorAbstractStates: ArrayList<AbstractState>, pathTracking: HashMap<Int, Int>): Boolean {

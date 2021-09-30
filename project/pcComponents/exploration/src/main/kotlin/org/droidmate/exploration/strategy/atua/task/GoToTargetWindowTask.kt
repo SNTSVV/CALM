@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory
 class GoToTargetWindowTask (
     regressionWatcher: org.atua.modelFeatures.ATUAMF,
     atuaTestingStrategy: ATUATestingStrategy,
-    delay: Long, useCoordinateClicks: Boolean) : GoToAnotherWindow(regressionWatcher, atuaTestingStrategy, delay, useCoordinateClicks) {
+    delay: Long, useCoordinateClicks: Boolean) : GoToAnotherWindowTask(regressionWatcher, atuaTestingStrategy, delay, useCoordinateClicks) {
 
     override fun increaseExecutedCount() {
         executedCount++

@@ -808,15 +808,14 @@ abstract class AbstractStrategyTask (val atuaStrategy: ATUATestingStrategy,
         if (isCameraOpening(currentState)) {
             return true
         }
-        if (currentAbstractState.activity == "com.android.internal.app.ChooserActivity")
+        if (currentAbstractState.activity == "com.android.internal.app.ChooserActivity"
+            || currentAbstractState.activity == "com.android.internal.app.ResolverActivity")
             return true
+        if (currentAbstractState.window is Dialog) {
+            return true
+        }
         if (currentAbstractState.window is OutOfApp)
             return false
-        if (currentAbstractState.window is Dialog) {
-            if (WindowManager.instance.updatedModelWindows.filter { it is OutOfApp }.map { it.classType }.contains(currentAbstractState.activity) ){
-                return true
-            }
-        }
         return false
     }
 

@@ -13,6 +13,7 @@
 package org.atua.calm.ewtgdiff
 
 import org.atua.calm.modelReuse.ModelVersion
+import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
 import org.atua.modelFeatures.dstg.AbstractTransition
@@ -79,18 +80,11 @@ class EWTGDiff private constructor(){
         }
         if (windowDifferentSets.containsKey("DeletionSet")) {
             for (deleted in (windowDifferentSets.get("DeletionSet")!! as DeletionSet<Window>).deletedElements) {
-                val toRemoves = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.window == deleted }
-                removedAbstractStates.addAll(toRemoves)
-                AbstractStateManager.INSTANCE.ABSTRACT_STATES.removeAll(toRemoves)
-                AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP.remove(deleted)
-                AttributeValuationMap.allWidgetAVMHashMap.remove(deleted)
-                AttributeValuationMap.attributePath_AttributeValuationMap.remove(deleted)
-                AttributePath.allAttributePaths.remove(deleted)
-                WindowManager.instance.baseModelWindows.remove(deleted)
-                toRemoves.forEach {
-                    atuamf.dstg.removeVertex(it)
+                removeWindow(deleted, atuamf)
+                WindowManager.instance.baseModelWindows.filter {
+                    it is Dialog && it.ownerActivitys.contains(deleted) }.forEach {
+                        removeWindow(it,atuamf)
                 }
-
 
             }
         }
@@ -185,6 +179,20 @@ class EWTGDiff private constructor(){
             toRemoveMappings.forEach { avm->
                 it.EWTGWidgetMapping.remove(avm)
             }
+        }
+    }
+
+    private fun removeWindow(deleted: Window, atuamf: ATUAMF) {
+        val toRemoves = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.window == deleted }
+        removedAbstractStates.addAll(toRemoves)
+        AbstractStateManager.INSTANCE.ABSTRACT_STATES.removeAll(toRemoves)
+        AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP.remove(deleted)
+        AttributeValuationMap.allWidgetAVMHashMap.remove(deleted)
+        AttributeValuationMap.attributePath_AttributeValuationMap.remove(deleted)
+        AttributePath.allAttributePaths.remove(deleted)
+        // WindowManager.instance.baseModelWindows.remove(deleted)
+        toRemoves.forEach {
+            atuamf.dstg.removeVertex(it)
         }
     }
 
@@ -333,6 +341,12 @@ class EWTGDiff private constructor(){
         }
         toRemoveEdges.forEach {
             atuamf.wtg.remove(it)
+        }
+        WindowManager.instance.baseModelWindows.filter {
+            it is Dialog && it.ownerActivitys.contains(replacement.old)
+        }.forEach {
+            (it as Dialog).ownerActivitys.remove(replacement.old)
+            it.ownerActivitys.add(replacement.new)
         }
     }
 

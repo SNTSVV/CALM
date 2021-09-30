@@ -62,10 +62,11 @@ abstract class UiParser {
 				nodes.add(it)
 		}
 	}
-
+	var parsedOrder = 0
 	private val isClickableDescendant:(UiElementProperties)->Boolean= { it.hasClickableDescendant || it.clickable || it.selected.isEnabled() }
 	private fun AccessibilityNodeInfo.createWidget(w: DisplayedWindow, xPath: String, children: List<UiElementProperties>,
 	                                               img: Bitmap?, idHash: Int, parentH: Int, processedNodes: List<UiElementProperties>): UiElementProperties {
+		parsedOrder++
 		val nodeRect = Rect()
 		this.getBoundsInScreen(nodeRect)  // determine the 'overall' boundaries these may be outside of the app window or even outside of the screen
 		val props = LinkedList<String>()
@@ -88,6 +89,8 @@ abstract class UiParser {
 		props.add("liveRegion = ${this.liveRegion}")
 		props.add("windowId = ${this.windowId}")
 		props.add("visibleToUser = ${this.isVisibleToUser}")
+		props.add("windowInitAreas = ${w.initialArea}")
+		props.add("parseOrder = $parsedOrder")
 		var uncoveredArea = true
 		// let's figure if a view could be transparent
 		/*val rootNodeRect = Rect()

@@ -1,5 +1,6 @@
 package org.droidmate.exploration.strategy.atua
 
+import org.atua.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
@@ -22,7 +23,7 @@ import org.droidmate.exploration.ExplorationContext
 import org.droidmate.exploration.actions.pressBack
 import org.droidmate.exploration.actions.resetApp
 import org.droidmate.exploration.strategy.atua.task.ExerciseTargetComponentTask
-import org.droidmate.exploration.strategy.atua.task.GoToAnotherWindow
+import org.droidmate.exploration.strategy.atua.task.GoToAnotherWindowTask
 import org.droidmate.exploration.strategy.atua.task.GoToTargetWindowTask
 import org.droidmate.exploration.strategy.atua.task.OpenNavigationBarTask
 import org.droidmate.exploration.strategy.atua.task.PrepareContextTask
@@ -191,10 +192,11 @@ class PhaseOneStrategy(
             .filter {
                 it !is VirtualAbstractState
                         && it.attributeValuationMaps.isNotEmpty()
-                        && !outofbudgetWindows.contains(it.window)
-                        && it.guiStates.isNotEmpty()
-                        && (hasBudgetLeft(it.window) || currentAppState.getUnExercisedActions(currentState, atuaMF)
-                    .isNotEmpty())
+                        && ((windowRandomExplorationBudget.containsKey(it.window)
+                                && hasBudgetLeft(it.window)
+                                && it.guiStates.isNotEmpty())
+                            || (!windowRandomExplorationBudget.containsKey(it.window)
+                                && it.modelVersion == ModelVersion.BASE))
             }
         if (availableAbstractStates.isEmpty())
             return false
@@ -359,26 +361,6 @@ class PhaseOneStrategy(
         }
     }
 
-    private fun isBlocked(abstractState: AbstractState, currentState: State<*>): Boolean {
-        val transitionPath = ArrayList<TransitionPath>()
-        val abstractStates = HashMap<AbstractState, Double>()
-        val currentAbstractState = atuaMF.getAbstractState(currentState)!!
-        if (abstractState == currentAbstractState)
-            return false
-        abstractStates.put(abstractState, 1.0)
-        getPathToStates(
-            transitionPaths = transitionPath,
-            stateByScore = abstractStates,
-            currentState = currentState,
-            currentAbstractState = currentAbstractState,
-            shortest = false,
-            pathCountLimitation = 1,
-            pathType = PathFindingHelper.PathType.FULLTRACE
-        )
-
-        return false
-    }
-
     override fun nextAction(eContext: ExplorationContext<*, *, *>): ExplorationAction {
         //TODO Update target windows
         episodeCountDown--
@@ -459,15 +441,6 @@ class PhaseOneStrategy(
                 }
             }
         }*/
-
-        if (targetWindow == null) {
-            if (targetWindowTryCount.containsKey(currentAppState.window)
-                && (hasBudgetLeft(currentAppState.window) || currentAppState.getUnExercisedActions(currentState, atuaMF)
-                    .isNotEmpty())
-            ) {
-                targetWindow = currentAppState.window
-            }
-        }
         ExplorationTrace.widgetTargets.clear()
 
         log.info("Target window: $targetWindow")
@@ -511,7 +484,7 @@ class PhaseOneStrategy(
     }
 
     private fun resetStrategyTask(currentState: State<*>) {
-        if (strategyTask != null && strategyTask is GoToAnotherWindow) {
+        if (strategyTask != null && strategyTask is GoToAnotherWindowTask) {
             strategyTask!!.isTaskEnd(currentState)
         }
         strategyTask = null
@@ -525,7 +498,7 @@ class PhaseOneStrategy(
             ExerciseTargetComponentTask.getInstance(atuaMF, atuaTestingStrategy, delay, useCoordinateClicks)
         val goToTargetNodeTask =
             GoToTargetWindowTask.getInstance(atuaMF, atuaTestingStrategy, delay, useCoordinateClicks)
-        val goToAnotherNode = GoToAnotherWindow.getInstance(atuaMF, atuaTestingStrategy, delay, useCoordinateClicks)
+        val goToAnotherNode = GoToAnotherWindowTask.getInstance(atuaMF, atuaTestingStrategy, delay, useCoordinateClicks)
         val randomExplorationTask =
             RandomExplorationTask.getInstance(atuaMF, atuaTestingStrategy, delay, useCoordinateClicks)
         val openNavigationBarTask =
@@ -617,20 +590,18 @@ class PhaseOneStrategy(
         currentState: State<*>,
         currentAppState: AbstractState,
         randomExplorationTask: RandomExplorationTask,
-        goToExploreWindows: GoToAnotherWindow
+        goToExploreWindows: GoToAnotherWindowTask
     ) {
         if (strategyTask != null) {
             if (continueOrEndCurrentTask(currentState)) return
         }
         if (randomExplorationInSpecialWindows(currentAppState, randomExplorationTask, currentState)) return
-        if (hasBudgetLeft(currentAppState.window) || currentAppState.getUnExercisedActions(currentState, atuaMF)
-                .isNotEmpty()
-        ) {
+        if (hasBudgetLeft(currentAppState.window)) {
             setRandomExploration(randomExplorationTask, currentState, false, true)
             return
         }
         //Current window has no more random exploration budget
-        if (strategyTask !is GoToAnotherWindow && goToExploreWindows.isAvailable(currentState)) {
+        if (strategyTask !is GoToAnotherWindowTask && goToExploreWindows.isAvailable(currentState)) {
             setGoToExploreState(goToExploreWindows, currentState)
             return
         }
@@ -644,7 +615,7 @@ class PhaseOneStrategy(
         exerciseTargetComponentTask: ExerciseTargetComponentTask,
         currentState: State<*>,
         randomExplorationTask: RandomExplorationTask,
-        goToAnotherNode: GoToAnotherWindow,
+        goToAnotherNode: GoToAnotherWindowTask,
         goToTargetNodeTask: GoToTargetWindowTask
     ) {
         if (currentAppState.window == targetWindow) {
@@ -708,7 +679,7 @@ class PhaseOneStrategy(
         currentState: State<*>,
         exerciseTargetComponentTask: ExerciseTargetComponentTask,
         randomExplorationTask: RandomExplorationTask,
-        goToAnotherNode: GoToAnotherWindow,
+        goToAnotherNode: GoToAnotherWindowTask,
         goToTargetNodeTask: GoToTargetWindowTask
     ) {
         if (continueOrEndCurrentTask(currentState)) return
@@ -780,7 +751,7 @@ class PhaseOneStrategy(
         return
     }
 
-    private fun exploreApp(currentState: State<*>, goToAnotherWindow: GoToAnotherWindow): Boolean {
+    private fun exploreApp(currentState: State<*>, goToAnotherWindow: GoToAnotherWindowTask): Boolean {
         if (goToAnotherWindow.isAvailable(currentState)) {
             setGoToExploreState(goToAnotherWindow, currentState)
             return true
@@ -794,7 +765,7 @@ class PhaseOneStrategy(
         exerciseTargetComponentTask: ExerciseTargetComponentTask,
         currentState: State<*>,
         randomExplorationTask: RandomExplorationTask,
-        goToAnotherNode: GoToAnotherWindow,
+        goToAnotherNode: GoToAnotherWindowTask,
         goToTargetNodeTask: GoToTargetWindowTask
     ) {
         if (currentAppState.window == targetWindow) {
@@ -865,7 +836,7 @@ class PhaseOneStrategy(
         exerciseTargetComponentTask: ExerciseTargetComponentTask,
         currentState: State<*>,
         randomExplorationTask: RandomExplorationTask,
-        goToAnotherNode: GoToAnotherWindow,
+        goToAnotherNode: GoToAnotherWindowTask,
         goToTargetNodeTask: GoToTargetWindowTask
     ) {
         if (currentAppState.window == targetWindow) {
@@ -939,7 +910,7 @@ class PhaseOneStrategy(
         randomExplorationTask: RandomExplorationTask,
         exerciseTargetComponentTask: ExerciseTargetComponentTask,
         currentState: State<*>,
-        goToAnotherNode: GoToAnotherWindow,
+        goToAnotherNode: GoToAnotherWindowTask,
         goToTargetNodeTask: GoToTargetWindowTask
     ) {
         if (currentAppState.window == targetWindow) {
@@ -1015,7 +986,7 @@ class PhaseOneStrategy(
 
     private fun goToWindowToExploreOrRandomExploration(
         currentAppState: AbstractState,
-        goToAnotherNode: GoToAnotherWindow,
+        goToAnotherNode: GoToAnotherWindowTask,
         currentState: State<*>,
         randomExplorationTask: RandomExplorationTask
     ): Boolean {
@@ -1059,7 +1030,7 @@ class PhaseOneStrategy(
         exerciseTargetComponentTask: ExerciseTargetComponentTask,
         currentState: State<*>,
         randomExplorationTask: RandomExplorationTask,
-        goToAnotherNode: GoToAnotherWindow,
+        goToAnotherNode: GoToAnotherWindowTask,
         goToTargetNodeTask: GoToTargetWindowTask
     ) {
         if (currentAppState.window == targetWindow) {
@@ -1154,7 +1125,7 @@ class PhaseOneStrategy(
 
     private fun goToUnexploitedAbstractStateOrRandomlyExplore(
         currentAppState: AbstractState,
-        goToAnotherNode: GoToAnotherWindow,
+        goToAnotherNode: GoToAnotherWindowTask,
         currentState: State<*>,
         randomExplorationTask: RandomExplorationTask
     ): Boolean {
@@ -1227,7 +1198,7 @@ class PhaseOneStrategy(
         return false
     }
 
-    private fun setGoToExploreState(goToAnotherNode: GoToAnotherWindow, currentState: State<*>) {
+    private fun setGoToExploreState(goToAnotherNode: GoToAnotherWindowTask, currentState: State<*>) {
         strategyTask = goToAnotherNode.also {
             it.initialize(currentState)
             it.retryTimes = 0
