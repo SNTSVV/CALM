@@ -80,6 +80,9 @@ abstract class AbstractPhaseStrategy(
             return transitionPaths
         var targetStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
             it.window == targetWindow
+                    && (   pathType == PathFindingHelper.PathType.FULLTRACE
+                    || pathType == PathFindingHelper.PathType.PARTIAL_TRACE
+                    || !AbstractStateManager.INSTANCE.unreachableAbstractState.contains(it))
                     && it != currentAbstractState
                     && (it is VirtualAbstractState ||
                     (it.attributeValuationMaps.isNotEmpty() && it.guiStates.isNotEmpty()))
@@ -110,7 +113,7 @@ abstract class AbstractPhaseStrategy(
                     stateByActionCount.put(it,1.0)
             }
         }
-        getPathToStatesBasedOnPathType(pathType, transitionPaths, stateByActionCount, currentAbstractState, currentState)
+        getPathToStatesBasedOnPathType(pathType, transitionPaths, stateByActionCount, currentAbstractState, currentState,true)
         return transitionPaths
     }
 
@@ -175,12 +178,12 @@ abstract class AbstractPhaseStrategy(
 
     fun getPathToStates(transitionPaths: ArrayList<TransitionPath>, stateByScore: Map<AbstractState, Double>
                         , currentAbstractState: AbstractState, currentState: State<*>
-                        , shortest: Boolean
+                        , shortest: Boolean=true
                         , pathCountLimitation: Int = 1
                         , pathType: PathFindingHelper.PathType) {
         val candidateStates = HashMap(stateByScore)
         while (candidateStates.isNotEmpty()) {
-            if (transitionPaths.isNotEmpty() && shortest)
+            if (!shortest && transitionPaths.isNotEmpty())
                 break
             val maxValue = candidateStates.maxBy { it.value }!!.value
             val abstractStates = candidateStates.filter { it.value == maxValue }
@@ -189,7 +192,7 @@ abstract class AbstractPhaseStrategy(
                     , root = currentAbstractState
                     , finalTarget = abstractState
                     , allPaths = transitionPaths
-                    , shortest = shortest
+                    , shortest = true
                     , pathCountLimitation = pathCountLimitation
                     , autautMF = atuaMF
                     , pathType = pathType)
@@ -211,16 +214,30 @@ abstract class AbstractPhaseStrategy(
         if (abstractState == currentAbstractState)
             return false
         abstractStates.put(abstractState, 1.0)
-        getPathToStates(
-            transitionPaths = transitionPath,
-            stateByScore = abstractStates,
-            currentState = currentState,
-            currentAbstractState = currentAbstractState,
-            shortest = false,
-            pathCountLimitation = 1,
-            pathType = PathFindingHelper.PathType.ANY
-        )
-        return false
+        if (abstractState.guiStates.isNotEmpty())
+            getPathToStates(
+                transitionPaths = transitionPath,
+                stateByScore = abstractStates,
+                currentState = currentState,
+                currentAbstractState = currentAbstractState,
+                shortest = true,
+                pathCountLimitation = 1,
+                pathType = PathFindingHelper.PathType.FULLTRACE
+            )
+        else if (abstractState.modelVersion == ModelVersion.BASE) {
+            getPathToStates(
+                transitionPaths = transitionPath,
+                stateByScore = abstractStates,
+                currentState = currentState,
+                currentAbstractState = currentAbstractState,
+                shortest = true,
+                pathCountLimitation = 1,
+                pathType = PathFindingHelper.PathType.NORMAL
+            )
+        }
+        if (transitionPath.isNotEmpty())
+            return false
+        return true
     }
 
 }

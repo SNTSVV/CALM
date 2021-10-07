@@ -13,8 +13,7 @@
 package org.atua.modelFeatures.dstg
 
 import org.atua.calm.AppModelLoader
-import org.atua.modelFeatures.dstg.reducer.WidgetReducer
-import org.atua.modelFeatures.ewtg.DescendantLayoutDirection
+import org.atua.modelFeatures.ewtg.ScrollDirection
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.window.Window
 import org.droidmate.explorationModel.emptyUUID
@@ -129,7 +128,6 @@ class AttributeValuationMap {
                         attributeValuationMap = this
                 )
                 actionCount.putIfAbsent(itemAbstractAction,0)
-
                 val itemLongClickAbstractAction = AbstractAction(
                         actionType = AbstractActionType.ITEM_LONGCLICK,
                         attributeValuationMap = this
@@ -146,15 +144,29 @@ class AttributeValuationMap {
         }
 
         if (isLongClickable() && !isInputField()) {
-            val abstractAction = AbstractAction(
+            if (getClassName().equals("android.webkit.WebView")) {
+                val itemAbstractAction = AbstractAction(
+                    actionType = AbstractActionType.ITEM_LONGCLICK,
+                    attributeValuationMap = this
+                )
+                actionCount.putIfAbsent(itemAbstractAction,0)
+                val itemLongClickAbstractAction = AbstractAction(
+                    actionType = AbstractActionType.ITEM_LONGCLICK,
+                    attributeValuationMap = this
+                )
+                actionCount.putIfAbsent(itemLongClickAbstractAction,0)
+
+            } else {
+                val abstractAction = AbstractAction(
                     actionType = AbstractActionType.LONGCLICK,
                     attributeValuationMap = this
-            )
-            actionCount.putIfAbsent(abstractAction, 0)
+                )
+                actionCount.putIfAbsent(abstractAction, 0)
+            }
         }
 
         if (isScrollable()) {
-            if (localAttributes[AttributeType.scrollDirection]== DescendantLayoutDirection.HORIZONTAL.toString()) {
+            if (localAttributes[AttributeType.scrollDirection]== ScrollDirection.HORIZONTAL.toString()) {
                 val abstractActionSwipeLeft = AbstractAction(
                         actionType = AbstractActionType.SWIPE,
                         attributeValuationMap = this,
@@ -167,7 +179,7 @@ class AttributeValuationMap {
                 )
                 actionCount.putIfAbsent(abstractActionSwipeLeft, 0)
                 actionCount.putIfAbsent(abstractActionSwipeRight, 0)
-            } else if (localAttributes[AttributeType.scrollDirection]== DescendantLayoutDirection.VERTICAL.toString()) {
+            } else if (localAttributes[AttributeType.scrollDirection]== ScrollDirection.VERTICAL.toString()) {
                 val abstractActionSwipeUp = AbstractAction(
                         actionType = AbstractActionType.SWIPE,
                         attributeValuationMap = this,
@@ -181,7 +193,36 @@ class AttributeValuationMap {
                 actionCount.putIfAbsent(abstractActionSwipeUp, 0)
                 actionCount.putIfAbsent(abstractActionSwipeDown, 0)
 
-            } else {
+            } else if (localAttributes[AttributeType.scrollDirection] == ScrollDirection.UP.toString()){
+                val abstractActionSwipe = AbstractAction(
+                    actionType = AbstractActionType.SWIPE,
+                    attributeValuationMap = this,
+                    extra = "SwipeUp"
+                )
+                actionCount.putIfAbsent(abstractActionSwipe, 0)
+            } else if (localAttributes[AttributeType.scrollDirection] == ScrollDirection.DOWN.toString()){
+                val abstractActionSwipe = AbstractAction(
+                    actionType = AbstractActionType.SWIPE,
+                    attributeValuationMap = this,
+                    extra = "SwipeDown"
+                )
+                actionCount.putIfAbsent(abstractActionSwipe, 0)
+            } else if (localAttributes[AttributeType.scrollDirection] == ScrollDirection.LEFT.toString()){
+                val abstractActionSwipe = AbstractAction(
+                    actionType = AbstractActionType.SWIPE,
+                    attributeValuationMap = this,
+                    extra = "SwipeLeft"
+                )
+                actionCount.putIfAbsent(abstractActionSwipe, 0)
+            } else if (localAttributes[AttributeType.scrollDirection] == ScrollDirection.RIGHT.toString()){
+                val abstractActionSwipe = AbstractAction(
+                    actionType = AbstractActionType.SWIPE,
+                    attributeValuationMap = this,
+                    extra = "SwipeRight"
+                )
+                actionCount.putIfAbsent(abstractActionSwipe, 0)
+            }
+            else {
                 val abstractActionSwipeUp = AbstractAction(
                         actionType = AbstractActionType.SWIPE,
                         attributeValuationMap = this,

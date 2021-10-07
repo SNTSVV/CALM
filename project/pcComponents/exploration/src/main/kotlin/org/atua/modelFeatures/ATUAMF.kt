@@ -867,6 +867,11 @@ class ATUAMF(
             val widgetGroup = prevAbstractState.getAttributeValuationSet(interaction.targetWidget!!, prevState, this)
             if (widgetGroup != null) {
                 deriveWidgetInteraction(prevAbstractState, actionType, widgetGroup, actionData, currentAbstractState, interaction, interactionData, prevWindowAbstractState, prevState)
+                if (Helper.hasParentWithType(interaction.targetWidget!!,prevState,"WebView")) {
+                    val tmpLastExecutedTransition = lastExecutedTransition
+                    deriveWebViewInteraction(interaction, prevState, prevAbstractState, actionType, actionData, currentAbstractState, interactionData, prevWindowAbstractState)
+                    lastExecutedTransition = tmpLastExecutedTransition
+                }
             } else {
                 if (Helper.hasParentWithType(interaction.targetWidget!!, prevState, "WebView")) {
                     deriveWebViewInteraction(interaction, prevState, prevAbstractState, actionType, actionData, currentAbstractState, interactionData, prevWindowAbstractState)
@@ -932,6 +937,11 @@ class ATUAMF(
     private fun deriveWebViewInteraction(interaction: Interaction<Widget>, prevState: State<*>, prevAbstractState: AbstractState, actionType: AbstractActionType, actionData: Any?, currentAbstractState: AbstractState, interactionData: Any?, prevWindowAbstractState: AbstractState?) {
         val webViewWidget = Helper.tryGetParentHavingClassName(interaction.targetWidget!!, prevState, "WebView")
         if (webViewWidget != null) {
+            val webViewActionType: AbstractActionType = when(actionType) {
+                AbstractActionType.CLICK -> AbstractActionType.ITEM_CLICK
+                AbstractActionType.LONGCLICK -> AbstractActionType.ITEM_LONGCLICK
+                else -> actionType
+            }
             val avm = prevAbstractState.getAttributeValuationSet(webViewWidget, prevState, this)
             if (avm == null) {
                 org.atua.modelFeatures.ATUAMF.Companion.log.debug("Cannot find WebView's AVM")
@@ -940,7 +950,7 @@ class ATUAMF(
                 val explicitInteractions = prevAbstractState.abstractTransitions.filter { it.isImplicit == false }
                 val existingTransition = AbstractTransition.findExistingAbstractTransitions(
                         abstractTransitionSet = explicitInteractions,
-                        abstractAction = AbstractAction(actionType, avm, actionData),
+                        abstractAction = AbstractAction(webViewActionType, avm, actionData),
                         source = prevAbstractState,
                         dest = currentAbstractState
                 )
@@ -951,7 +961,7 @@ class ATUAMF(
                     //No recored abstract interaction before
                     //Or the abstractInteraction is implicit
                     //Record new AbstractInteraction
-                    createNewAbstractTransition(actionType, interaction, prevState, prevAbstractState, avm, interactionData, currentAbstractState, prevWindowAbstractState)
+                    createNewAbstractTransition(webViewActionType, interaction, prevState, prevAbstractState, avm, interactionData, currentAbstractState, prevWindowAbstractState)
                 }
             }
         }
@@ -1368,6 +1378,7 @@ class ATUAMF(
         measureTimeMillis {
             statementMF!!.statementRead = false
             val currentAbstractState = computeAbstractState(newState, context)
+            AbstractStateManager.INSTANCE.unreachableAbstractState.remove(currentAbstractState)
             stateList.add(newState)
 
 

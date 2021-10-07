@@ -385,7 +385,7 @@ class PathFindingHelper {
             }
 
             val filteredTransitions = ArrayList<Edge<AbstractState, AbstractTransition>>()
-            if (pathType == PathType.FULLTRACE) {
+            if (pathType != PathType.FULLTRACE) {
                 filteredTransitions.addAll(forwardTransitions.filter { it.label.activated == true })
             } else {
                 filteredTransitions.addAll(forwardTransitions)

@@ -49,7 +49,7 @@ class AbstractionFunction2 (val root: DecisionNode2) {
                     && abstractTransition.dest.equals(it.dest)
                     *//*&& abstractTransition.prevWindow == it.prevWindow*//*
         }*/
-        val result = abandonedAbstractTransitions.any { it.source.hashCode == abstractTransition.source.hashCode
+        val result = abandonedAbstractTransitions.any { it.source.window == abstractTransition.source.window
                 && it.abstractAction == abstractTransition.abstractAction
                 && it.dest.window == abstractTransition.dest.window}
         return result

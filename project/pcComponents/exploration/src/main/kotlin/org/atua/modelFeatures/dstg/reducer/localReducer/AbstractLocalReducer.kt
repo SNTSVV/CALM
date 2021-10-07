@@ -53,6 +53,8 @@ abstract class AbstractLocalReducer {
             } else {
                 reducedAttributes.put(AttributeType.scrollable, false.toString())
             }
+            if (reducedAttributes.get(AttributeType.scrollable)!!.toBoolean()==true)
+                reducedAttributes.put(AttributeType.scrollDirection, Helper.getViewsChildrenLayout(guiWidget,guiState).toString())
         }
         /*if (guiWidget.selected.isEnabled())
             reducedAttributes.put(AttributeType.selected, guiWidget.selected.toString())*/

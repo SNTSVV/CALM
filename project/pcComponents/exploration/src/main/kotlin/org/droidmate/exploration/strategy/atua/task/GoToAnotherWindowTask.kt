@@ -81,7 +81,9 @@ open class GoToAnotherWindowTask constructor(
         tryScroll = false
     }
 
-    var webviewTry = 0
+    var actionTryCount = 0
+    val maxActionTryCount = 3*atuaStrategy.scaleFactor
+
     override fun isTaskEnd(currentState: State<*>): Boolean {
         // update testing path
         if (atuaMF.prevAbstractStateRefinement > 0)
@@ -95,6 +97,7 @@ open class GoToAnotherWindowTask constructor(
         if (pathTraverser!!.getCurrentTransition() == null)
             return true
         val currentAppState = atuaMF.getAbstractState(currentState)!!
+
         if (isWindowAsTarget && currentAppState.window == destWindow) {
             return true
         }
@@ -117,15 +120,27 @@ open class GoToAnotherWindowTask constructor(
         }
         if (expectedNextAbState != null) {
             if (!isReachExpectedState(currentState)) {
+                val prevState = atuaMF.appPrevState!!
+                val prevAppState = atuaMF.getAbstractState(prevState)
                 // Try another path if current state is not target node
-                if (pathTraverser!!.getCurrentTransition()!!.abstractAction.isWebViewAction()) {
-                    if (webviewTry < 5 && pathTraverser!!.getCurrentTransition()!!.abstractAction.attributeValuationMap!!.getGUIWidgets(currentState).isNotEmpty()) {
+                val lastAbstractAction = pathTraverser!!.getCurrentTransition()!!.abstractAction
+                if (lastAbstractAction.isWebViewAction() && lastAbstractAction.actionType!=AbstractActionType.SWIPE) {
+                    if (actionTryCount < maxActionTryCount && lastAbstractAction.attributeValuationMap!!.getGUIWidgets(currentState).isNotEmpty()) {
                         pathTraverser!!.latestEdgeId = pathTraverser!!.latestEdgeId!!-1
-                        webviewTry++
+                        actionTryCount++
                         return false
                     }
                 }
-                webviewTry = 0
+                else if (lastAbstractAction.isWidgetAction()
+                    && lastAbstractAction.actionType == AbstractActionType.SWIPE
+                    && prevAppState != currentAppState) {
+                    if (actionTryCount < maxActionTryCount && lastAbstractAction.attributeValuationMap!!.getGUIWidgets(currentState).isNotEmpty()) {
+                        pathTraverser!!.latestEdgeId = pathTraverser!!.latestEdgeId!!-1
+                        actionTryCount++
+                        return false
+                    }
+                }
+                actionTryCount = 0
                 expectedNextAbState = pathTraverser!!.getCurrentTransition()?.dest
                 log.debug("Fail to reach $expectedNextAbState")
                 addIncorrectPath(currentAppState)
@@ -151,7 +166,7 @@ open class GoToAnotherWindowTask constructor(
 
                 return reroutePath(currentState, currentAppState)
             } else {
-                webviewTry = 0
+                actionTryCount = 0
                 expectedNextAbState = pathTraverser!!.getCurrentTransition()!!.dest
                 if (pathTraverser!!.finalStateAchieved()) {
                     return true
@@ -183,12 +198,12 @@ open class GoToAnotherWindowTask constructor(
     ): Boolean {
         log.debug("Reidentify paths to the destination.")
         val transitionPaths = ArrayList<TransitionPath>()
+        val finalTarget =
+            if (AbstractStateManager.INSTANCE.ABSTRACT_STATES.contains(currentPath!!.getFinalDestination()))
+                currentPath!!.getFinalDestination()
+            else
+                AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.hashCode == currentPath!!.getFinalDestination().hashCode }
         if (currentPath!!.getFinalDestination() !is VirtualAbstractState) {
-            val finalTarget =
-                if (AbstractStateManager.INSTANCE.ABSTRACT_STATES.contains(currentPath!!.getFinalDestination()))
-                    currentPath!!.getFinalDestination()
-                else
-                    AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.hashCode == currentPath!!.getFinalDestination().hashCode }
             if (finalTarget != null)
                 PathFindingHelper.findPathToTargetComponent(
                     currentState = currentState,
@@ -201,12 +216,13 @@ open class GoToAnotherWindowTask constructor(
                     pathType = currentPath!!.pathType
                 )
         }
-        if (transitionPaths.isNotEmpty() && transitionPaths.any { it.path.size < currentPath!!.path.size }) {
+        if (transitionPaths.isNotEmpty() && transitionPaths.any { it.path.size < (currentPath!!.path.size-pathTraverser!!.latestEdgeId!!+1) }) {
             possiblePaths.clear()
             possiblePaths.addAll(transitionPaths)
             initialize(currentState)
             return false
         } else {
+            AbstractStateManager.INSTANCE.unreachableAbstractState.add(finalTarget!!)
             val retryBudget = if (includeResetAction) {
                 (5 * atuaStrategy.scaleFactor).toInt()
             } else
@@ -214,6 +230,14 @@ open class GoToAnotherWindowTask constructor(
             if (retryTimes < retryBudget && currentPath!!.pathType != PathFindingHelper.PathType.FULLTRACE) {
                 retryTimes += 1
                 initPossiblePaths(currentState, true)
+                if (possiblePaths.isNotEmpty()) {
+                    initialize(currentState)
+                    log.debug(" Paths is not empty")
+                    return false
+                }
+            } else if (currentPath!!.pathType != PathFindingHelper.PathType.FULLTRACE) {
+                retryTimes += 1
+                initPossiblePaths(currentState, true,PathFindingHelper.PathType.FULLTRACE)
                 if (possiblePaths.isNotEmpty()) {
                     initialize(currentState)
                     log.debug(" Paths is not empty")
@@ -540,9 +564,9 @@ open class GoToAnotherWindowTask constructor(
     var includeResetAction = true
     var isExploration = true
 
-    open protected fun initPossiblePaths(currentState: State<*>, continueMode: Boolean = false) {
+    open protected fun initPossiblePaths(currentState: State<*>, continueMode: Boolean = false, pathType: PathFindingHelper.PathType=PathFindingHelper.PathType.NORMAL) {
         possiblePaths.clear()
-        var nextPathType = PathFindingHelper.PathType.NORMAL
+        var nextPathType = pathType
         /*var nextPathType = if (currentPath == null)
                 PathFindingHelper.PathType.NORMAL
         else
@@ -828,8 +852,21 @@ open class GoToAnotherWindowTask constructor(
         }
         if (lastTransition.modelVersion == ModelVersion.BASE)
             lastTransition.activated = false
-        if (lastTransition.isExplicit())
+        else if (lastTransition.isExplicit())
             lastTransition.activated = false
+        else if (lastTransition.isImplicit) {
+            lastTransition.activated = false
+            if (currentAbstractState.window != lastTransition.dest.window) {
+                var isIgnored = false
+                if (!lastTransition.guardEnabled)
+                    // this will be solved by refinement
+                    isIgnored = false
+                else
+                    isIgnored = true
+                if (isIgnored)
+                    AbstractStateManager.INSTANCE.ignoreImplicitDerivedTransition.add(Triple(lastTransition.source.window,lastTransition.abstractAction,lastTransition.dest.window))
+            }
+        }
         PathFindingHelper.addDisablePathFromState(currentPath!!, corruptedEdge, lastTransition)
         /*if (currentEdge!=null) {
 

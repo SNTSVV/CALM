@@ -15,9 +15,9 @@ class GoToTargetWindowTask (
         executedCount++
     }
 
-    override fun initPossiblePaths(currentState: State<*>, continueMode: Boolean) {
+    override fun initPossiblePaths(currentState: State<*>, continueMode: Boolean, pathType: PathFindingHelper.PathType) {
         possiblePaths.clear()
-        var nextPathType = PathFindingHelper.PathType.NORMAL
+        var nextPathType = pathType
      /*   var nextPathType = if (currentPath == null)
             PathFindingHelper.PathType.NORMAL
         *//*else if (continueMode)

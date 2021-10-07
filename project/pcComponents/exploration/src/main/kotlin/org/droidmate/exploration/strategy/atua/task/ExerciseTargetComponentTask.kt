@@ -1,6 +1,7 @@
 package org.droidmate.exploration.strategy.atua.task
 
 import kotlinx.coroutines.runBlocking
+import org.atua.calm.modelReuse.ModelVersion
 import org.droidmate.deviceInterface.exploration.*
 import org.droidmate.exploration.actions.click
 import org.droidmate.exploration.actions.pressBack
@@ -215,6 +216,36 @@ class ExerciseTargetComponentTask private constructor(
         if (eventList.isEmpty()) {
             dataFilled = false
             fillingData = false
+//            Let's see if we can swipe to explore more target inputs
+            if (currentAbstractState.window == targetWindow) {
+                val swipeActions = currentAbstractState.getActionCountMap().map { it.key }. filter {
+                    it.isWidgetAction() && !it.isWebViewAction() && it.actionType == AbstractActionType.SWIPE }
+                val unexercisedActions = swipeActions.filter {action->
+                    !currentAbstractState.abstractTransitions.any {
+                        it.abstractAction == action && (
+                                it.modelVersion != ModelVersion.BASE
+                                        || (it.modelVersion == ModelVersion.BASE && it.interactions.isNotEmpty())
+                                ) } }
+                if (unexercisedActions.isNotEmpty() && randomBudget>=0) {
+                    val action = unexercisedActions.random()
+                    var chosenWidget: Widget? = null
+                    val chosenWidgets = action.attributeValuationMap!!.getGUIWidgets(currentState)
+                    if (chosenWidgets.isEmpty()) {
+                        chosenWidget = null
+                    } else {
+                        val candidates = runBlocking { getCandidates(chosenWidgets) }
+                        chosenWidget = if (candidates.isEmpty())
+                            chosenWidgets.random()
+                        else
+                            candidates.random()
+                    }
+
+                    if (chosenWidget != null) {
+                        return chooseActionWithName(action.actionType,action.extra,chosenWidget,currentState,action)
+                    }
+                }
+            }
+
             log.debug("No more target event. Random exploration.")
             return doRandomExploration(currentState)
         }
@@ -273,7 +304,8 @@ class ExerciseTargetComponentTask private constructor(
         } else {
             chosenAbstractAction = eventList.filter { it.attributeValuationMap!=null && !it.attributeValuationMap.isInputField() }.random()
         }
-        val unexercisedActions = currentAbstractState.getUnExercisedActions(currentState,atuaMF).filter { it.isWidgetAction() }
+        val unexercisedActions = currentAbstractState.getUnExercisedActions(currentState,atuaMF).filter {
+            it.isWidgetAction() }
         if (unexercisedActions.isNotEmpty()
             && atuaStrategy.phaseStrategy is PhaseTwoStrategy
             && !unexercisedActions.contains(chosenAbstractAction!!)) {

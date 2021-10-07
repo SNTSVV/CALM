@@ -1,5 +1,6 @@
 package org.droidmate.exploration.strategy.atua
 
+import org.atua.calm.modelReuse.ModelVersion
 import org.droidmate.deviceInterface.exploration.ExplorationAction
 import org.droidmate.deviceInterface.exploration.Swipe
 import org.droidmate.deviceInterface.exploration.isLaunchApp
@@ -308,6 +309,9 @@ class PhaseTwoStrategy(
         val targetAbstractStatesPbMap = HashMap<AbstractState, Double>()
         val targetAbstractStatesProbability = abstractStateProbabilityByWindow[targetWindow]?.filter {
             AbstractStateManager.INSTANCE.ABSTRACT_STATES.contains(it.first)
+                    && (pathType==PathFindingHelper.PathType.FULLTRACE
+                    || pathType==PathFindingHelper.PathType.PARTIAL_TRACE
+                    || !AbstractStateManager.INSTANCE.unreachableAbstractState.contains(it.first))
                     && it.first != currentAbState
                     && it.first.guiStates.isNotEmpty()
         }
@@ -328,9 +332,15 @@ class PhaseTwoStrategy(
                 targetAbstractStatesPbMap.put(it, 1.0)
             }
         }
+        if (targetAbstractStatesPbMap.isEmpty()) {
+            val virtualAbstractState = AbstractStateManager.INSTANCE.ABSTRACT_STATES.find {
+                it is VirtualAbstractState && it.window == targetWindow!!
+            }!!
+            targetAbstractStatesPbMap.put(virtualAbstractState, 1.0)
+        }
         targetAbstractStatesPbMap.remove(currentAbState)
         val transitionPaths = ArrayList<TransitionPath>()
-        getPathToStatesBasedOnPathType(pathType, transitionPaths, targetAbstractStatesPbMap, currentAbState, currentState)
+        getPathToStatesBasedOnPathType(pathType, transitionPaths, targetAbstractStatesPbMap, currentAbState, currentState,false)
         return transitionPaths
     }
 
@@ -345,14 +355,15 @@ class PhaseTwoStrategy(
                 stateByActionCount.put(it, weight)
             }
         }
-        getPathToStatesBasedOnPathType(pathType, transitionPaths, stateByActionCount, currentAbstractState, currentState)
+        getPathToStatesBasedOnPathType(pathType, transitionPaths, stateByActionCount, currentAbstractState, currentState,true)
         return transitionPaths
     }
     override fun getCurrentTargetEvents(currentState: State<*>): Set<AbstractAction> {
         val targetEvents = HashMap<Input, List<AbstractAction>>()
         targetEvents.clear()
 
-        val abstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)
+        val abstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)!!
+
         if (abstractState!!.window == targetWindow) {
             val availableEvents = abstractState.inputMappings.map { it.value }.flatten()
 
@@ -365,8 +376,14 @@ class PhaseTwoStrategy(
                     targetEvents.put(input, abstractActions)
                 }
             }
+            val potentialAbstractInteractions = abstractState.abstractTransitions
+                .filter { it.interactions.isEmpty()
+                        && it.modelVersion == ModelVersion.BASE
+                        && it.modifiedMethods.isNotEmpty()
+                        && it.modifiedMethods.keys.any { !atuaMF.statementMF!!.executedMethodsMap.containsKey(it) }}
+            return targetEvents.map { it.value }.flatten().union( potentialAbstractInteractions.map { it.abstractAction }).distinct().toSet()
         }
-        return targetEvents.map { it.value }.flatten().toSet()
+        return emptySet<AbstractAction>()
     }
 
     var alreadyRandomInputInTarget = false
@@ -653,16 +670,6 @@ class PhaseTwoStrategy(
             log.info("Continue go to the window")
             return
         }
-        if (goToTargetNodeTask.isAvailable(currentState,
-                destWindow = targetWindow!!,
-                isWindowAsTarget = false,
-                includePressback =  true,
-                includeResetApp =  true,
-                isExploration =  false))  {
-            setGoToTarget(goToTargetNodeTask, currentState)
-            return
-        }
-
         setRandomExploration(randomExplorationTask, currentState,currentAppState)
         return
     }
@@ -691,19 +698,6 @@ class PhaseTwoStrategy(
                 setRandomExplorationInTargetWindow(randomExplorationTask, currentState)
                 return true
             }*/
-        }
-        if (!strategyTask!!.isTaskEnd(currentState) && !(strategyTask as RandomExplorationTask)!!.stopWhenHavingTestPath) {
-            //Keep current task
-            log.info("Continue doing random exploration")
-            return
-        }
-        if (goToTargetNodeTask.isAvailable(currentState, targetWindow!!, true,true, false, false)) {
-            setGoToTarget(goToTargetNodeTask, currentState)
-            return
-        }
-        if (goToTargetNodeTask.isAvailable(currentState)) {
-            setGoToTarget(goToTargetNodeTask, currentState)
-            return
         }
         if (!strategyTask!!.isTaskEnd(currentState)) {
             //Keep current task
@@ -915,7 +909,24 @@ class PhaseTwoStrategy(
         appStateList.forEach {
             var appStateScore: Double = 0.0
             val frequency = atuaMF.abstractStateVisitCount.get(it)?:1
-            if (appStateModifiedMethodMap.containsKey(it)) {
+            // an abstract state has higher score if there are more unexercised target abstract transitions
+            val unexercisedTargetAbstractActions = it.abstractTransitions.filter { t->
+                t.interactions.isNotEmpty()
+            }.map { it.abstractAction }.distinct().filter { action -> it.inputMappings.get(action)?.any { it.modifiedMethods.isNotEmpty() }?:false }
+            unexercisedTargetAbstractActions.forEach { action ->
+                val inputs = it.inputMappings.get(action)?: emptyList<Input>()
+                for (item in inputs.map { it.modifiedMethods.entries }.flatten()) {
+                    if (!modifiedMethodWeights.containsKey(item.key))
+                        modifiedMethodWeights.put(item.key, 1.0)
+                    val methodWeight = modifiedMethodWeights[item.key]!!
+                    if (modifiedMethodMissingStatements.containsKey(item.key)) {
+                        val missingStatementNumber = modifiedMethodMissingStatements[item.key]!!.size
+                        appStateScore += (methodWeight * missingStatementNumber/frequency)
+                    }
+                }
+            }
+            abstractStatesScores.put(it, appStateScore)
+           /* if (appStateModifiedMethodMap.containsKey(it)) {
                 appStateModifiedMethodMap[it]!!.forEach {
                     if (!modifiedMethodWeights.containsKey(it))
                         modifiedMethodWeights.put(it, 1.0)
@@ -927,7 +938,7 @@ class PhaseTwoStrategy(
                 }
                 //appStateScore += 1
                 abstractStatesScores.put(it, appStateScore)
-            }
+            }*/
         }
 
         //calculate appState probability

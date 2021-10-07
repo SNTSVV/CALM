@@ -47,6 +47,7 @@ class ModelBackwardAdapter {
     val initialBaseAbstractStates = HashSet<AbstractState>()
     val keptBaseAbstractStates = HashSet<AbstractState>()
     val entierlyNewAbstractStates = HashSet<AbstractState>()
+    val entierlyNewGuiStates = HashSet<State<*>>()
     val quasibackwardEquivalentMapping = HashMap<Pair<AbstractState, AbstractAction>,HashSet<Pair<AbstractState,AbstractState>>>()
     val checkingQuasibackwardEquivalent = Stack<Triple<AbstractState,AbstractAction,AbstractState>> ()
 
@@ -58,42 +59,56 @@ class ModelBackwardAdapter {
         if (!isConsideringAbstractAction(abstractTransition.abstractAction)) {
             return
         }
+        val obsoleteBaseAbstractTransitions =
+            getObsoletReusedAbstractTransitions(abstractTransition, prevWindowAbstractState)
+        // TODO check
+        abstractTransition.source.abstractTransitions.removeIf { obsoleteBaseAbstractTransitions.contains(it) }
+        obsoleteBaseAbstractTransitions.forEach {
+            val edge = atuamf.dstg.edge(it.source,it.dest,it)
+            if (edge!=null)
+                atuamf.dstg.remove(edge)
+        }
         if (observedAbstractState.isHomeScreen)
             return
         /*if (abstractTransition.abstractAction.actionType == AbstractActionType.RESET_APP) {
             checkingQuasibackwardEquivalent.clear()
         }*/
-        if (entierlyNewAbstractStates.contains(observedAbstractState))
-            return
-        if (abstractTransition.modelVersion == ModelVersion.BASE) {
-            observedBasedAbstractTransitions.add(abstractTransition)
+        if (entierlyNewAbstractStates.contains(observedAbstractState)) {
+            backwardEquivalentByGUIState.putIfAbsent(guiState,HashSet())
             return
         }
-        if (observedAbstractState.modelVersion == ModelVersion.BASE) {
-            observedBaseAbstractState.add(observedAbstractState)
-            return
-        }
-        if (backwardEquivalentAbstractStateMapping.containsKey(observedAbstractState)) {
-            return
-        }
-        if (backwardEquivalentByGUIState.containsKey(guiState) && backwardEquivalentByGUIState[guiState]!!.isEmpty())
-            return
-        var backwardEquivalenceFound = false
         val candidates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
-            (!backwardEquivalentByGUIState.contains(guiState)
-                    || backwardEquivalentByGUIState[guiState]!!.contains(it))
+            (!backwardEquivalentByGUIState.contains(guiState))
                     && it.modelVersion == ModelVersion.BASE
-                    && it.guiStates.isEmpty()
                     && it !is VirtualAbstractState && it.window == observedAbstractState.window
                     && it.rotation == observedAbstractState.rotation
                     && it.isOpeningMenus == observedAbstractState.isOpeningMenus
                     && it.isOpeningKeyboard == observedAbstractState.isOpeningKeyboard
         }
+        backwardEquivalentByGUIState.putIfAbsent(guiState,HashSet())
+
         val matchedAVMs1 = HashMap<AttributeValuationMap,ArrayList<AttributeValuationMap>>() // observered - expected
         val matchedAVMs2 = HashMap<AttributeValuationMap,ArrayList<AttributeValuationMap>>() // expected - observered
         val unmatchedAVMs1 = ArrayList<AttributeValuationMap>()
         val unmatchedAVMs2 = ArrayList<AttributeValuationMap>()
-        backwardEquivalentByGUIState.putIfAbsent(guiState,HashSet())
+        if (abstractTransition.modelVersion == ModelVersion.BASE) {
+            observedBasedAbstractTransitions.add(abstractTransition)
+        }
+        if (backwardEquivalentAbstractStateMapping.containsKey(observedAbstractState)) {
+            backwardEquivalentByGUIState[guiState]!!.add(observedAbstractState)
+            // need verify reused abstract transitions
+            return
+        }
+        if (observedAbstractState.modelVersion == ModelVersion.BASE) {
+            observedBaseAbstractState.add(observedAbstractState)
+            if (isBackwardEquivant(observedAbstractState, observedAbstractState,matchedAVMs1,matchedAVMs2,unmatchedAVMs1,unmatchedAVMs2, false)) {
+                registerBackwardEquivalence(guiState, observedAbstractState, observedAbstractState, atuamf, matchedAVMs2,candidates)
+            }
+            return
+        }
+        if (entierlyNewGuiStates.contains(guiState))
+            return
+        var backwardEquivalenceFound = false
         if (abstractTransition.abstractAction.isLaunchOrReset()) {
             val baseModelInitialStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
                 it.isInitalState && it.modelVersion == ModelVersion.BASE
@@ -119,29 +134,7 @@ class ModelBackwardAdapter {
             }*/
         }
         if(!backwardEquivalenceFound) {
-            val obsoleteBaseAbstractTransitions = ArrayList<AbstractTransition>()
-            val sameActionBaseAbstractTransitions = abstractTransition.source.abstractTransitions.filter {
-                it.abstractAction == abstractTransition.abstractAction
-                        && it.modelVersion == ModelVersion.BASE
-                        && it.interactions.isEmpty()
-            }
-            val reliableTransitions = sameActionBaseAbstractTransitions.filter{
-                (!it.guardEnabled || it.dependentAbstractStates.isEmpty()
-                        || (prevWindowAbstractState!=null &&
-                        (it.dependentAbstractStates.contains(prevWindowAbstractState)
-                                || it.dependentAbstractStates.any { it == backwardEquivalentAbstractStateMapping.get(prevWindowAbstractState) })))
-            }
-            if (reliableTransitions.isNotEmpty())
-                obsoleteBaseAbstractTransitions.addAll(reliableTransitions)
-            else
-                obsoleteBaseAbstractTransitions.addAll(sameActionBaseAbstractTransitions)
-            // TODO check
-            abstractTransition.source.abstractTransitions.removeIf { obsoleteBaseAbstractTransitions.contains(it) }
-            obsoleteBaseAbstractTransitions.forEach {
-                val edge = atuamf.dstg.edge(it.source,it.dest,it)
-                if (edge!=null)
-                    atuamf.dstg.remove(edge)
-            }
+
             if (obsoleteBaseAbstractTransitions.isNotEmpty()) {
                 obsoleteBaseAbstractTransitions.forEach {
                     val expected = it.dest
@@ -169,8 +162,8 @@ class ModelBackwardAdapter {
                 }
             }
             if (!backwardEquivalenceFound) {
-
-                candidates.forEach {
+                candidates.filter { backwardEquivalentByGUIState.get(guiState)!!.contains(it)
+                        || backwardEquivalentByGUIState.get(guiState)!!.isEmpty()  } .forEach {
                     matchedAVMs1.clear()
                     matchedAVMs2.clear()
                     unmatchedAVMs1.clear()
@@ -185,6 +178,7 @@ class ModelBackwardAdapter {
                 return
             } else {
                 entierlyNewAbstractStates.add(observedAbstractState)
+                entierlyNewGuiStates.add(guiState)
                 return
             }
            /* var continueCheckingQuasibackwardEquivalent = false
@@ -196,6 +190,33 @@ class ModelBackwardAdapter {
                 }
             }*/
         }
+    }
+
+    private fun getObsoletReusedAbstractTransitions(
+        abstractTransition: AbstractTransition,
+        prevWindowAbstractState: AbstractState?
+    ): List<AbstractTransition> {
+        val obsoleteBaseAbstractTransitions = ArrayList<AbstractTransition>()
+        val sameActionBaseAbstractTransitions = abstractTransition.source.abstractTransitions.filter {
+            it.abstractAction == abstractTransition.abstractAction
+                    && it.modelVersion == ModelVersion.BASE
+                    && it.interactions.isEmpty()
+        }
+        val reliableTransitions = sameActionBaseAbstractTransitions.filter {
+            (!it.guardEnabled || it.dependentAbstractStates.isEmpty()
+                    || (prevWindowAbstractState != null &&
+                    (it.dependentAbstractStates.contains(prevWindowAbstractState)
+                            || it.dependentAbstractStates.any {
+                        it == backwardEquivalentAbstractStateMapping.get(
+                            prevWindowAbstractState
+                        )
+                    })))
+        }
+        if (reliableTransitions.isNotEmpty())
+            obsoleteBaseAbstractTransitions.addAll(reliableTransitions)
+        else
+            obsoleteBaseAbstractTransitions.addAll(sameActionBaseAbstractTransitions)
+        return obsoleteBaseAbstractTransitions
     }
 
     private fun registerBackwardEquivalence(guiState: State<*>, observedAbstractState: AbstractState, expected: AbstractState, atuamf: ATUAMF, matchedAVMs2: HashMap<AttributeValuationMap, ArrayList<AttributeValuationMap>>,otherSimilarAbstractStates: List<AbstractState>) {
@@ -303,6 +324,15 @@ class ModelBackwardAdapter {
             baseTransition.dest
         else
             backwardEquivalentAbstractStateMapping.get(baseTransition.dest)?.firstOrNull() ?: baseTransition.dest
+        if (dependendAbstractStates.contains(dest)) {
+            AbstractStateManager.INSTANCE.goBackAbstractActions.add(updatedAbstractAction)
+        }
+        if (copyAsImplicit && AbstractStateManager.INSTANCE.ignoreImplicitDerivedTransition.contains(Triple(updatedAbstractState.window,updatedAbstractAction,dest.window))){
+            return
+        }
+        if (copyAsImplicit && AbstractStateManager.INSTANCE.goBackAbstractActions.contains(updatedAbstractAction)) {
+            return
+        }
         if (!baseTransition.abstractAction.isWebViewAction()) {
             if (!copyAsImplicit) {
                 val existingUpdatedAbstractTransition = updatedAbstractState.abstractTransitions.find {
@@ -362,6 +392,7 @@ class ModelBackwardAdapter {
                 newAbstractTransition.handlers.putIfAbsent(handler, false)
             }
             val possiblyCoveredUpdatedMethods = baseTransition.methodCoverage.filter { atuamf.statementMF!!.isModifiedMethod(it) }
+            newAbstractTransition.modifiedMethods.putAll(possiblyCoveredUpdatedMethods.associateWith { false })
             val inputs = updatedAbstractState.inputMappings.get(updatedAbstractAction)
             if (inputs!=null) {
                 inputs.forEach { it ->
@@ -379,6 +410,19 @@ class ModelBackwardAdapter {
             // copy additional information
             existingAbstractTransition.guardEnabled = baseTransition.guardEnabled
             existingAbstractTransition.dependentAbstractStates.addAll(dependendAbstractStates)
+            val possiblyCoveredUpdatedMethods = baseTransition.methodCoverage.filter { atuamf.statementMF!!.isModifiedMethod(it) }
+            existingAbstractTransition.modifiedMethods.putAll(possiblyCoveredUpdatedMethods.associateWith { false })
+            val inputs = updatedAbstractState.inputMappings.get(updatedAbstractAction)
+            if (inputs!=null) {
+                inputs.forEach { it ->
+                    it.modifiedMethods.putAll(possiblyCoveredUpdatedMethods.associateWith { false })
+                    if (it.modifiedMethods.isNotEmpty()
+                        && !it.modifiedMethods.all { atuamf.statementMF!!.fullyCoveredMethods.contains(it.key) }
+                        && !atuamf.notFullyExercisedTargetInputs.contains(it)) {
+                        atuamf.notFullyExercisedTargetInputs.add(it)
+                    }
+                }
+            }
             backwardEquivalentAbstractTransitionMapping.putIfAbsent(existingAbstractTransition, HashSet())
             backwardEquivalentAbstractTransitionMapping[existingAbstractTransition]!!.add(baseTransition)
         }

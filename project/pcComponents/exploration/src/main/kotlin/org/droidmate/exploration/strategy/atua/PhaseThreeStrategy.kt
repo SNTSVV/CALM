@@ -221,7 +221,7 @@ class PhaseThreeStrategy(
         val stateCandidates: Map<AbstractState,Double>
         stateCandidates = stateByActionCount
 
-        getPathToStatesBasedOnPathType(pathType,transitionPaths,stateByActionCount,currentAbState,currentState)
+        getPathToStatesBasedOnPathType(pathType,transitionPaths,stateByActionCount,currentAbState,currentState,true)
         return transitionPaths
     }
 
@@ -255,7 +255,7 @@ class PhaseThreeStrategy(
             targetScores.put(it,1.0)
         }
         val transitionPaths = ArrayList<TransitionPath>()
-        getPathToStatesBasedOnPathType(pathType,transitionPaths,targetScores,currentAbState,currentState,true)
+        getPathToStatesBasedOnPathType(pathType,transitionPaths,targetScores,currentAbState,currentState,false)
         return transitionPaths
     }
 

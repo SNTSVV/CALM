@@ -125,7 +125,7 @@ class Helper {
         }
 
         private fun isTrivialWebViewContent(it: Widget, guiState: State<*>) =
-                !it.className.contains("WebView") && hasParentWithType(it, guiState, "WebView") && it.resourceId.isBlank()
+                 hasParentWithType(it, guiState, "WebView") && it.resourceId.isBlank()
 
         fun calculateMatchScoreForEachNode2(guiState: State<*>, allPossibleNodes: List<Window>, appPackage: String, isMenuOpen: Boolean): HashMap<Window, Double> {
             val matchWidgetsPerWindow = HashMap<Window, HashMap<Widget, EWTGWidget>>()
@@ -395,6 +395,7 @@ class Helper {
                     matchedEWTGWidgets.add(existingMapping.get(guiWidget)!!)
                 }
             }
+            val guiWidgetStructure = guiWidget.deriveStructure()
             if (matchedEWTGWidgets.isEmpty() && guiWidget.resourceId.isNotBlank()) {
                 val unqualifiedResourceId = getUnqualifiedResourceId(guiWidget.resourceId,appPackage)
                 val candidates = window.widgets.filter {
@@ -406,9 +407,11 @@ class Helper {
                             if (it.structure.isBlank())
                                 true
                             else
-                                (it.structure == guiWidget.deriveStructure() ||
+                                (it.structure == guiWidgetStructure ||
                                         (it.witnessed == false
-                                                && StringComparison.compareStringsLevenshtein(it.structure ,guiWidget.deriveStructure())>0.6f))
+                                                && StringComparison.compareStringsLevenshtein(it.structure ,
+                                            guiWidgetStructure
+                                        )>0.6f))
                         } else
                             false
                     }
@@ -424,9 +427,11 @@ class Helper {
                     && guiWidget.contentDesc.isNotBlank()) {
                 val candidates = seenWidgets.filter { w ->
                     w.resourceIdName.isBlank() && w.className == guiWidget.className
-                            (w.structure == guiWidget.deriveStructure() ||
+                            (w.structure == guiWidgetStructure ||
                                     (w.witnessed == false
-                                            && StringComparison.compareStringsLevenshtein(w.structure ,guiWidget.deriveStructure())>0.6f)) &&
+                                            && StringComparison.compareStringsLevenshtein(w.structure ,
+                                        guiWidgetStructure
+                                    )>0.6f)) &&
                     w.possibleContentDescriptions.contains(guiWidget.contentDesc)
                 }
                 matchedEWTGWidgets.addAll(candidates)
@@ -434,9 +439,9 @@ class Helper {
             if (matchedEWTGWidgets.isEmpty() && guiWidget.resourceId.isBlank()&& !guiWidget.isInputField && guiWidget.text.isNotBlank()) {
                 val candidates = seenWidgets.filter { w ->
                     w.resourceIdName.isBlank() && w.className == guiWidget.className
-                            && (w.structure == guiWidget.deriveStructure() ||
+                            && (w.structure == guiWidgetStructure ||
                             (w.witnessed == false
-                                    && StringComparison.compareStringsLevenshtein(w.structure ,guiWidget.deriveStructure())>0.6f))
+                                    && StringComparison.compareStringsLevenshtein(w.structure , guiWidgetStructure)>0.6f))
                             && w.possibleTexts.contains(guiWidget.text)
                 }
                 matchedEWTGWidgets.addAll(candidates)
@@ -444,9 +449,9 @@ class Helper {
             if (matchedEWTGWidgets.isEmpty() && guiWidget.resourceId.isBlank()) {
                 val candidates = seenWidgets.filter { w ->
                     w.resourceIdName.isBlank() && w.className == guiWidget.className
-                            && (w.structure == guiWidget.deriveStructure() ||
+                            && (w.structure == guiWidgetStructure ||
                             (w.witnessed == false
-                                    && StringComparison.compareStringsLevenshtein(w.structure ,guiWidget.deriveStructure())>0.6f))
+                                    && StringComparison.compareStringsLevenshtein(w.structure , guiWidgetStructure)>0.6f))
                 }
                 matchedEWTGWidgets.addAll(candidates)
             }
@@ -459,20 +464,23 @@ class Helper {
             }
             if (matchedEWTGWidgets.size>1) {
                 val matchingScores = HashMap<EWTGWidget,Double>()
-
-                matchedEWTGWidgets.forEach {
-                    val hierarchyMatchingScore: Double = verifyMatchingHierchyWindowLayout2(guiWidget, it, window, guiState,guiWidgetId_ewtgWidgets )
-                    if (hierarchyMatchingScore != Double.POSITIVE_INFINITY){
-                        matchingScores.put(it,hierarchyMatchingScore)
+                if (matchedEWTGWidgets.any { it.structure == guiWidgetStructure }) {
+                    matchedEWTGWidgets.removeIf { it.structure != guiWidgetStructure }
+                } else {
+                    matchedEWTGWidgets.forEach {
+                        val hierarchyMatchingScore: Double =
+                            verifyMatchingHierchyWindowLayout2(guiWidget, it, window, guiState, guiWidgetId_ewtgWidgets)
+                        if (hierarchyMatchingScore != Double.POSITIVE_INFINITY) {
+                            matchingScores.put(it, hierarchyMatchingScore)
+                        }
+                    }
+                    if (matchingScores.isEmpty()) {
+                        matchedEWTGWidgets.clear()
+                    } else {
+                        val minScore = matchingScores.minBy { it.value }!!.value
+                        matchedEWTGWidgets.removeIf { matchingScores[it] != minScore }
                     }
                 }
-                if (matchingScores.isEmpty()){
-                    matchedEWTGWidgets.clear()
-                } else {
-                    val minScore = matchingScores.minBy { it.value }!!.value
-                    matchedEWTGWidgets.removeIf { matchingScores[it] != minScore }
-                }
-
             }
             if (matchedEWTGWidgets.isNotEmpty()) {
                 guiWidgetId_ewtgWidgets[guiWidget.id]=matchedEWTGWidgets.first()
@@ -491,7 +499,7 @@ class Helper {
                             className = guiWidget.className,
                             window = window,
                             resourceId = "",
-                            structure = guiWidget.deriveStructure()
+                            structure = guiWidgetStructure
                     )
                     newWidget.createdAtRuntime = true
                     newWidget.witnessed = true
@@ -507,7 +515,7 @@ class Helper {
                     val matchedWidget = matchedEWTGWidgets.first()
                     if (matchedWidget.witnessed == false) {
                         matchedWidget.witnessed = true
-                        matchedWidget.structure = guiWidget.deriveStructure()
+                        matchedWidget.structure = guiWidgetStructure
                         updateWindowHierarchy(guiWidget, guiState, guiWidgetId_ewtgWidgets, matchedWidget, window)
                     }
                     if (guiWidget.text.isNotBlank())
@@ -667,27 +675,77 @@ class Helper {
                 return false
         }
 
-        fun getViewsChildrenLayout(widget: Widget, state: State<*>): DescendantLayoutDirection {
-            val childWidgets = state.widgets.filter { it.isVisible && widget.childHashes.contains(it.idHash) }
+        fun getViewsChildrenLayout(widget: Widget, state: State<*>): ScrollDirection {
+            val childWidgets = state.widgets.filter { Helper.isVisibleWidget(it) && widget.childHashes.contains(it.idHash) }
+            var layoutDirection: LayoutDirection = LayoutDirection.UNKNOWN
             if (childWidgets.size < 2) {
-                return DescendantLayoutDirection.UNKNOWN
+                layoutDirection = LayoutDirection.UNKNOWN
+            } else {
+                val arrayLeft = childWidgets.map { it.visibleBounds.leftX }
+                val arrayTop = childWidgets.map { it.visibleBounds.topY }
+                val avgLeft = arrayLeft.average()
+                val avgTop = arrayTop.average()
+                val avgDistantX = childWidgets.map { abs(it.visibleBounds.leftX - avgLeft) }.average()
+                val avgDistantY = childWidgets.map { abs(it.visibleBounds.topY - avgTop) }.average()
+                if (avgDistantX < 200 && avgDistantY < 200) {
+                    layoutDirection = LayoutDirection.UNKNOWN
+                } else if (avgDistantX >= avgDistantY * 0.9 && avgDistantX <= avgDistantY * 1.1) {
+                    layoutDirection = LayoutDirection.UNKNOWN
+                } else if (avgDistantX > avgDistantY * 0.9) {
+                    layoutDirection = LayoutDirection.HORIZONTAL
+                } else
+                    layoutDirection = LayoutDirection.VERTICAL
             }
-            val arrayLeft = childWidgets.map { it.visibleBounds.leftX }
-            val arrayTop = childWidgets.map { it.visibleBounds.topY }
-            val avgLeft = arrayLeft.average()
-            val avgTop = arrayTop.average()
-            val avgDistantX = childWidgets.map { abs(it.visibleBounds.leftX - avgLeft) }.average()
-            val avgDistantY = childWidgets.map { abs(it.visibleBounds.topY - avgTop) }.average()
-            if (avgDistantX < 200 && avgDistantY < 200) {
-                return DescendantLayoutDirection.UNKNOWN
+            var up = false
+            var down = false
+            var left = false
+            var right = false
+            if (widget.metaInfo.any { it.contains("ACTION_SCROLL_FORWARD") }) {
+                if (widget.metaInfo.any { it.contains("ACTION_SCROLL_RIGHT") })
+                    left = true
+                else if (widget.metaInfo.any { it.contains("ACTION_SCROLL_DOWN") })
+                    up = true
+                else {
+                    if (layoutDirection == LayoutDirection.HORIZONTAL)
+                        left = true
+                    else if (layoutDirection == LayoutDirection.VERTICAL)
+                        up = true
+                    else {
+                        left = true
+                        up = true
+                    }
+
+                }
             }
-            if (avgDistantX >= avgDistantY * 0.9 && avgDistantX <= avgDistantY * 1.1) {
-                return DescendantLayoutDirection.UNKNOWN
+            if (widget.metaInfo.any { it.contains("ACTION_SCROLL_BACKWARD") }) {
+                if (widget.metaInfo.any { it.contains("ACTION_SCROLL_LEFT") })
+                    right = true
+                else if (widget.metaInfo.any { it.contains("ACTION_SCROLL_UP") })
+                    down = true
+                else {
+                    if (layoutDirection == LayoutDirection.HORIZONTAL)
+                        right = true
+                    else if (layoutDirection == LayoutDirection.VERTICAL)
+                        down = true
+                    else {
+                        right = true
+                        down = true
+                    }
+                }
             }
-            if (avgDistantX > avgDistantY * 0.9) {
-                return DescendantLayoutDirection.HORIZONTAL
-            }
-            return DescendantLayoutDirection.VERTICAL
+            if ((left|| right) && (up || down ))
+                return ScrollDirection.UNKNOWN
+            if (left && right)
+                return ScrollDirection.HORIZONTAL
+            if (left)
+                return ScrollDirection.LEFT
+            if (right)
+                return ScrollDirection.RIGHT
+            if (up && down)
+                return ScrollDirection.VERTICAL
+            if (up)
+                return ScrollDirection.UP
+            return ScrollDirection.DOWN
         }
 
         fun hasParentWithType(it: Widget, state: State<*>, parentType: String): Boolean {
@@ -998,7 +1056,7 @@ class Helper {
 
               if (Helper.isScrollableWidget(chosenWidget)) {
                 when (Helper.getViewsChildrenLayout(chosenWidget, currentState)) {
-                    DescendantLayoutDirection.HORIZONTAL -> {
+                    ScrollDirection.HORIZONTAL -> {
                         if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_FORWARD") }) {
                             availableActions.add(chosenWidget.swipeLeft())
                         }
@@ -1012,7 +1070,7 @@ class Helper {
                             availableActions.add(chosenWidget.swipeRight())
                         }
                     }
-                    DescendantLayoutDirection.VERTICAL -> {
+                    ScrollDirection.VERTICAL -> {
                         if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_FORWARD") }) {
                             availableActions.add(chosenWidget.swipeUp())
                         }
@@ -1066,13 +1124,13 @@ class Helper {
             }
             if (Helper.isScrollableWidget(chosenWidget)) {
                 when (Helper.getViewsChildrenLayout(chosenWidget, currentState)) {
-                    DescendantLayoutDirection.HORIZONTAL -> {
+                    ScrollDirection.HORIZONTAL -> {
                         val action_data1 = Pair("Swipe","SwipeLeft")
                         result.add(action_data1)
                         val action_data2 = Pair("Swipe","SwipeRight")
                         result.add(action_data2)
                     }
-                    DescendantLayoutDirection.VERTICAL -> {
+                    ScrollDirection.VERTICAL -> {
                         val action_data1 = Pair("Swipe","SwipeUp")
                         result.add(action_data1)
                         val action_data2 = Pair("Swipe","SwipeDown")
@@ -1127,7 +1185,17 @@ private fun Widget.getDrawOrder(): Int {
     return metaInfo.find { it.contains("drawingOrder") }!!.split(" = ")[1].toInt()
 }
 
-enum class DescendantLayoutDirection {
+enum class ScrollDirection {
+    HORIZONTAL,
+    VERTICAL,
+    UP,
+    DOWN,
+    LEFT,
+    RIGHT,
+    UNKNOWN
+}
+
+enum class LayoutDirection {
     HORIZONTAL,
     VERTICAL,
     UNKNOWN

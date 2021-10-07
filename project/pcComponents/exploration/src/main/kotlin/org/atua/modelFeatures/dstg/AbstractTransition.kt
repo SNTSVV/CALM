@@ -167,7 +167,7 @@ class AbstractTransition(
             if (actionType == AbstractActionType.SEND_INTENT)
                 return interaction.data
             if (interaction.targetWidget!=null && Helper.hasParentWithType(interaction.targetWidget!!,guiState,"WebView")) {
-                return interaction.targetWidget
+                return interaction.targetWidget!!.nlpText
             }
             if (actionType != AbstractActionType.SWIPE) {
                 return null

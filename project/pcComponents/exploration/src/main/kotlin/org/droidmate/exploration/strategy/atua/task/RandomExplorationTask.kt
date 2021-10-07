@@ -1,6 +1,7 @@
 package org.droidmate.exploration.strategy.atua.task
 
 import kotlinx.coroutines.runBlocking
+import org.atua.calm.modelReuse.ModelVersion
 import org.droidmate.deviceInterface.exploration.*
 import org.droidmate.exploration.actions.*
 import org.atua.modelFeatures.dstg.AbstractAction
@@ -432,8 +433,25 @@ class RandomExplorationTask constructor(
                     unexercisedActions.random()
                 }
             } else {
-                lastAction = null
-                if (random.nextDouble() < 0.1) {
+                val swipeActions = currentAbstractState.getActionCountMap().map { it.key }. filter {
+                    !it.isWebViewAction()
+                            && it.isWidgetAction()
+                            && it.actionType == AbstractActionType.SWIPE }
+                val unexercisedActionsInCurrentState = swipeActions.filter { action->
+                    !currentAbstractState.abstractTransitions.any {
+                        it.abstractAction == action && (
+                                it.modelVersion != ModelVersion.BASE
+                                        || (it.modelVersion == ModelVersion.BASE && it.interactions.isNotEmpty())
+                                ) } }
+                if (unexercisedActionsInCurrentState.isNotEmpty()) {
+                    randomAction = unexercisedActionsInCurrentState.random()
+                } else if (!isPureRandom && canGoToUnexploredStates(
+                        currentAbstractState,
+                        currentState
+                    )
+                ) {
+                    return goToLockedWindowTask!!.chooseAction(currentState)
+                } else if (random.nextDouble() < 0.1) {
                     val abstractActions = currentAbstractState.getAvailableActions().filter {
                         !it.isWidgetAction() && !recentActions.contains(it) && !it.isLaunchOrReset()
                     }
@@ -450,13 +468,6 @@ class RandomExplorationTask constructor(
                         recentGoToExploreState = false
                         return randomlyExploreLessExercisedWidgets(unexploredWidgets, currentState)
                     }  else {
-                        if (!isPureRandom && canGoToUnexploredStates(
-                                currentAbstractState,
-                                currentState
-                            )
-                        ) {
-                            return goToLockedWindowTask!!.chooseAction(currentState)
-                        }
                         recentGoToExploreState = false
                         return randomlyExploreLessExercisedWidgets(visibleTargets,currentState)
                     }

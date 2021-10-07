@@ -104,7 +104,7 @@ data class LaunchApp(val packageName: String, val launchActivityDelay: Long = 0,
 		val name: String = this::class.java.declaringClass.simpleName
 	}
 }
-data class ResetApp(val packageName: String, val launchActivityDelay: Long = 0, val timeout: Long = 10000) : ExplorationAction() {
+data class ResetApp(val packageName: String, val launchActivityDelay: Long = 0, val timeout: Long = 30000) : ExplorationAction() {
 	companion object {
 		val name: String = this::class.java.declaringClass.simpleName
 	}

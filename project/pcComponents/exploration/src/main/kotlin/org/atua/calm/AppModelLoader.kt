@@ -742,6 +742,12 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             if (isInitalState) {
                 abstractState.isInitalState = true
             }
+            if (window is Dialog) {
+                val activity = windowList.find { it.classType == abstractState.activity }
+                if (activity!=null) {
+                    window.ownerActivitys.add(activity)
+                }
+            }
         }
 
 
