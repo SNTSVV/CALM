@@ -12,6 +12,7 @@
 
 package org.atua.calm.ewtgdiff
 
+import org.atua.calm.modelReuse.ModelHistoryInformation
 import org.atua.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.dstg.AbstractState
@@ -140,6 +141,11 @@ class EWTGDiff private constructor(){
                 updateEWTGWidgetAVMMappingWithDeleted(deleted,atuamf)
                 deleted.window.widgets.remove(deleted)
                 updateWindowHierarchyWithDeleted(deleted)
+                ModelHistoryInformation.INSTANCE.inputUsefulness.filter {
+                    it.key.widget == deleted
+                }.forEach {
+                    ModelHistoryInformation.INSTANCE.inputUsefulness.remove(it.key)
+                }
             }
         }
 
@@ -151,6 +157,18 @@ class EWTGDiff private constructor(){
                 // update EWTGWidget structure
                 updateWindowHierarchy(replacement)
                 updateEWTGWidgetAVMMapping(replacement)
+                ModelHistoryInformation.INSTANCE.inputUsefulness.filter {
+                    it.key.widget == replacement.old
+                }.forEach {
+                    val newInput = replacement.new.window.inputs.find { input->
+                        input.eventType == it.key.eventType
+                                && input.widget == replacement.new
+                    }
+                    if (newInput != null) {
+                        ModelHistoryInformation.INSTANCE.inputUsefulness.put(newInput,it.value)
+                    }
+                    ModelHistoryInformation.INSTANCE.inputUsefulness.remove(it.key)
+                }
             }
         }
 
@@ -161,6 +179,18 @@ class EWTGDiff private constructor(){
                 updateWindowHierarchy(replacement)
                 updateAbstractionFunction(replacement)
                 updateEWTGWidgetAVMMapping(replacement)
+                ModelHistoryInformation.INSTANCE.inputUsefulness.filter {
+                    it.key.widget == replacement.old
+                }.forEach {
+                    val newInput = replacement.new.window.inputs.find { input->
+                        input.eventType == it.key.eventType
+                                && input.widget == replacement.new
+                    }
+                    if (newInput != null) {
+                        ModelHistoryInformation.INSTANCE.inputUsefulness.put(newInput,it.value)
+                    }
+                    ModelHistoryInformation.INSTANCE.inputUsefulness.remove(it.key)
+                }
             }
         }
         if (transitionDifferentSets.containsKey("RetainerSet")) {
@@ -193,6 +223,11 @@ class EWTGDiff private constructor(){
         // WindowManager.instance.baseModelWindows.remove(deleted)
         toRemoves.forEach {
             atuamf.dstg.removeVertex(it)
+        }
+        ModelHistoryInformation.INSTANCE.inputUsefulness.filter {
+            it.key.sourceWindow == deleted
+        }.forEach {
+            ModelHistoryInformation.INSTANCE.inputUsefulness.remove(it.key)
         }
     }
 
@@ -247,7 +282,7 @@ class EWTGDiff private constructor(){
         replacement.old.window.widgets.remove(replacement.old)
     }
 
-    private fun updateInputs(replacement: Replacement<EWTGWidget>, isReplaced: Boolean) {
+    private fun updateInputs(replacement: Replacement<EWTGWidget>, isReplaced: Boolean, atuamf: ATUAMF) {
         replacement.old.window.inputs.filter { it.widget == replacement.old }.forEach { oldInput ->
             val existingInputInUpdateVers = replacement.new.window.inputs
                     .find { it.widget == replacement.new && it.eventType == oldInput.eventType }
@@ -260,7 +295,15 @@ class EWTGDiff private constructor(){
                     existingInputInUpdateVers.modifiedMethods.clear()
                     existingInputInUpdateVers.modifiedMethodStatement.clear()
                 }*/
-                existingInputInUpdateVers.eventHandlers.addAll(oldInput.eventHandlers)
+                val uncoveredHanndlers = existingInputInUpdateVers.eventHandlers.subtract(oldInput.eventHandlers)
+                if (uncoveredHanndlers.isNotEmpty()) {
+                    val remainHandlers = uncoveredHanndlers.filter { atuamf.statementMF!!.isModifiedMethod(it) }
+                    existingInputInUpdateVers.eventHandlers.clear()
+                    existingInputInUpdateVers.eventHandlers.addAll(oldInput.eventHandlers)
+                    existingInputInUpdateVers.eventHandlers.addAll(remainHandlers)
+                }
+                
+
                 existingInputInUpdateVers.modifiedMethods.putAll(oldInput.modifiedMethods)
             }
         }
@@ -347,6 +390,19 @@ class EWTGDiff private constructor(){
         }.forEach {
             (it as Dialog).ownerActivitys.remove(replacement.old)
             it.ownerActivitys.add(replacement.new)
+        }
+        ModelHistoryInformation.INSTANCE.inputUsefulness.filter {
+            it.key.sourceWindow == replacement.old
+                    && it.key.widget == null
+        }.forEach {
+            val newInput = replacement.new.inputs.find { input->
+                input.eventType == it.key.eventType
+                        && input.widget == null
+            }
+            if (newInput != null) {
+                ModelHistoryInformation.INSTANCE.inputUsefulness.put(newInput,it.value)
+            }
+            ModelHistoryInformation.INSTANCE.inputUsefulness.remove(it.key)
         }
     }
 

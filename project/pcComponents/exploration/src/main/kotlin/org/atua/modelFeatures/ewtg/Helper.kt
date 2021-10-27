@@ -13,6 +13,8 @@
 package org.atua.modelFeatures.ewtg
 
 import org.atua.calm.StringComparison
+import org.atua.modelFeatures.dstg.AbstractAction
+import org.atua.modelFeatures.dstg.AbstractActionType
 import org.droidmate.deviceInterface.exploration.ExplorationAction
 import org.droidmate.deviceInterface.exploration.Rectangle
 import org.droidmate.deviceInterface.exploration.Swipe
@@ -1048,7 +1050,7 @@ class Helper {
             }
         }
 
-         fun getAvailableActionsForWidget(chosenWidget: Widget, currentState: State<*>,delay: Long, useCoordinateClicks:Boolean): ArrayList<ExplorationAction> {
+        fun getAvailableActionsForWidget(chosenWidget: Widget, currentState: State<*>,delay: Long, useCoordinateClicks:Boolean): ArrayList<ExplorationAction> {
              val availableActions = ArrayList(chosenWidget.availableActions(delay, useCoordinateClicks))
              availableActions.removeIf {!chosenWidget.clickable &&
                              (it.name =="Click" || it.name == "ClickEvent") }

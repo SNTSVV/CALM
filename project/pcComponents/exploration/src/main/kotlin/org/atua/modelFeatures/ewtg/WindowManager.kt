@@ -19,6 +19,7 @@ import org.atua.modelFeatures.ewtg.window.Launcher
 import org.atua.modelFeatures.ewtg.window.OutOfApp
 import org.atua.modelFeatures.ewtg.window.Window
 import org.atua.modelFeatures.inputRepo.intent.IntentFilter
+import org.droidmate.exploration.ExplorationContext
 import org.droidmate.explorationModel.config.ModelConfig
 import org.droidmate.explorationModel.interaction.Widget
 import java.io.File
@@ -37,9 +38,10 @@ class WindowManager {
                         || it.ownerActivitys.any{it is OutOfApp}))}
 
     val guiWidgetEWTGWidgetMappingByWindow = HashMap<Window, HashMap<Widget,EWTGWidget>>()
-    fun dump(config: ModelConfig, atuaMF: org.atua.modelFeatures.ATUAMF) {
+    fun dump(config: ModelConfig, atuaMF: org.atua.modelFeatures.ATUAMF,explorationContext: ExplorationContext<*,*,*>) {
         val wtgFolder = config.baseDir.resolve("EWTG")
-        Files.createDirectory(wtgFolder)
+        if (!Files.exists(wtgFolder))
+            Files.createDirectory(wtgFolder)
         File(wtgFolder.resolve("EWTG_WindowList.csv").toUri()).bufferedWriter().use { all ->
             all.write(header())
             updatedModelWindows.forEach {
@@ -56,7 +58,7 @@ class WindowManager {
         val eventsFolder = wtgFolder.resolve("WindowsEvents")
         Files.createDirectory(eventsFolder)
         updatedModelWindows.forEach {
-            it.dumpEvents(eventsFolder,atuaMF)
+            it.dumpEvents(eventsFolder,atuaMF,explorationContext)
         }
     }
     fun header(): String {

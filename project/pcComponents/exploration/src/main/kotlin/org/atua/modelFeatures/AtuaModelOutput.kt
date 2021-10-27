@@ -14,21 +14,22 @@ package org.atua.modelFeatures
 import org.atua.modelFeatures.dstg.AbstractStateManager
 import org.atua.modelFeatures.dstg.reducer.AbstractionFunction2
 import org.atua.modelFeatures.ewtg.WindowManager
+import org.droidmate.exploration.ExplorationContext
 import org.droidmate.explorationModel.config.ModelConfig
 import java.io.File
 import java.nio.file.Files
 
 class ATUAModelOutput {
     companion object {
-        fun dumpModel(config: ModelConfig, autautMF: org.atua.modelFeatures.ATUAMF) {
+        fun dumpModel(config: ModelConfig, autautMF: org.atua.modelFeatures.ATUAMF, explorationContext: ExplorationContext<*, *, *>) {
             WindowManager.instance.concludeInputsEventHandlers()
             ATUAMF.log.info("Dumping WTG...")
-            WindowManager.instance.dump(config,autautMF)
-            dumpDSTG(config, autautMF)
+            WindowManager.instance.dump(config,autautMF,explorationContext)
+            dumpDSTG(config, autautMF,explorationContext)
             produceWindowTransition(config ,autautMF)
         }
 
-        private fun dumpDSTG(config: ModelConfig, autautMF: org.atua.modelFeatures.ATUAMF) {
+        private fun dumpDSTG(config: ModelConfig, autautMF: org.atua.modelFeatures.ATUAMF, explorationContext: ExplorationContext<*,*,*>) {
             val dstgFolder = config.baseDir.resolve("DSTG")
             Files.createDirectory(dstgFolder)
             org.atua.modelFeatures.ATUAMF.log.info("Dumping abstraction function...")
@@ -37,7 +38,7 @@ class ATUAModelOutput {
             AbstractStateManager.INSTANCE.dump(dstgFolder)
             org.atua.modelFeatures.ATUAMF.log.info("Dumping abstract states transition graph...")
             File(dstgFolder.resolve("DSTG.csv").toUri()).bufferedWriter().use { all ->
-                autautMF.dstg.dump(autautMF.statementMF!!, all)
+                autautMF.dstg.dump(autautMF.statementMF!!,explorationContext,  all)
             }
         }
 

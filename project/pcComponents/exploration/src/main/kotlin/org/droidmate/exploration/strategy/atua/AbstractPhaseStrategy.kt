@@ -38,7 +38,7 @@ abstract class AbstractPhaseStrategy(
     abstract fun isTargetWindow(window: Window): Boolean
 
     abstract fun getPathsToExploreStates(currentState: State<*>, pathType: PathFindingHelper.PathType): List<TransitionPath>
-    abstract fun getPathsToTargetWindows(currentState: State<*> ,pathType: PathFindingHelper.PathType): List<TransitionPath>
+    abstract fun getPathsToTargetWindows(currentState: State<*> , pathType: PathFindingHelper.PathType): List<TransitionPath>
 
     fun needReset(currentState: State<*>): Boolean {
         val interval = 100 * scaleFactor
@@ -78,6 +78,7 @@ abstract class AbstractPhaseStrategy(
         val currentAbstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)
         if (currentAbstractState==null)
             return transitionPaths
+        val goalByAbstractState = HashMap<AbstractState, List<Input>>()
         var targetStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
             it.window == targetWindow
                     && (   pathType == PathFindingHelper.PathType.FULLTRACE
@@ -90,6 +91,13 @@ abstract class AbstractPhaseStrategy(
         if (explore) {
             targetStates.removeIf {
                 it is VirtualAbstractState || it.getUnExercisedActions(null,atuaMF).isEmpty() }
+            targetStates.forEach {
+                val inputs = ArrayList<Input>()
+                it.getUnExercisedActions(null,atuaMF).forEach { action ->
+                    inputs.addAll(it.inputMappings[action]?: emptyList())
+                }
+                goalByAbstractState.put(it,inputs)
+            }
           /*  if (targetStates.isEmpty()) {
                 targetStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
                     it.window == targetWindow
@@ -99,7 +107,6 @@ abstract class AbstractPhaseStrategy(
                 }.toHashSet()
             }*/
         }
-
         val stateByActionCount = HashMap<AbstractState,Double>()
         targetStates.forEach {
 //            val unExercisedActionsSize = it.getUnExercisedActions(null).filter { it.widgetGroup!=null }.size
@@ -113,24 +120,28 @@ abstract class AbstractPhaseStrategy(
                     stateByActionCount.put(it,1.0)
             }
         }
-        getPathToStatesBasedOnPathType(pathType, transitionPaths, stateByActionCount, currentAbstractState, currentState,true)
+        getPathToStatesBasedOnPathType(pathType, transitionPaths, stateByActionCount, currentAbstractState, currentState,true,!explore, goalByAbstractState)
         return transitionPaths
     }
 
-     fun getPathToStatesBasedOnPathType(pathType: PathFindingHelper.PathType,
-                                        transitionPaths: ArrayList<TransitionPath>,
-                                        stateByActionCount: HashMap<AbstractState, Double>,
-                                        currentAbstractState: AbstractState,
-                                        currentState: State<*>,
-                                        shortest: Boolean=true) {
-        if (pathType != PathFindingHelper.PathType.ANY)
+     fun getPathToStatesBasedOnPathType(pathType: PathFindingHelper.PathType
+                                        , transitionPaths: ArrayList<TransitionPath>
+                                        , stateByActionCount: HashMap<AbstractState, Double>
+                                        , currentAbstractState: AbstractState
+                                        , currentState: State<*>
+                                        , shortest: Boolean = true
+                                        , windowAsTarget: Boolean = false
+     , goalByAbstractState: Map<AbstractState, List<Input>>) {
+        if (pathType != PathFindingHelper.PathType.ANY) {
             getPathToStates(
-                    transitionPaths = transitionPaths,
-                    stateByScore = stateByActionCount,
-                    currentAbstractState = currentAbstractState,
-                    currentState = currentState,
-                    pathType = pathType,
-                    shortest = shortest)
+                transitionPaths = transitionPaths,
+                stateByScore = stateByActionCount,
+                currentAbstractState = currentAbstractState,
+                currentState = currentState,
+                pathType = pathType,
+                shortest = shortest, windowAsTarget = windowAsTarget, goalByAbstractState = goalByAbstractState
+            )
+        }
         else {
             getPathToStates(
                     transitionPaths = transitionPaths,
@@ -138,38 +149,58 @@ abstract class AbstractPhaseStrategy(
                     currentAbstractState = currentAbstractState,
                     currentState = currentState,
                     pathType = PathFindingHelper.PathType.NORMAL,
-                    shortest = shortest)
-            if (transitionPaths.isEmpty()) {
+                    shortest = shortest
+                , windowAsTarget = windowAsTarget,
+            goalByAbstractState = goalByAbstractState)
+            if (transitionPaths.isEmpty() &&
+                (windowAsTarget || goalByAbstractState.isNotEmpty())) {
+                getPathToStates(
+                    transitionPaths = transitionPaths,
+                    stateByScore = stateByActionCount,
+                    currentAbstractState = currentAbstractState,
+                    currentState = currentState,
+                    pathType = PathFindingHelper.PathType.WIDGET_AS_TARGET,
+                    shortest = shortest
+                    , windowAsTarget = windowAsTarget
+                ,goalByAbstractState = goalByAbstractState)
+            }
+            if (transitionPaths.isEmpty() && windowAsTarget) {
                 getPathToStates(
                         transitionPaths = transitionPaths,
                         stateByScore = stateByActionCount,
                         currentAbstractState = currentAbstractState,
                         currentState = currentState,
                         pathType = PathFindingHelper.PathType.WTG,
-                        shortest = shortest)
+                        shortest = shortest
+                    , windowAsTarget = windowAsTarget
+                , goalByAbstractState = goalByAbstractState)
             }
             if (transitionPaths.isEmpty()) {
                 getPathToStates(
-                        transitionPaths = transitionPaths,
-                        stateByScore = stateByActionCount,
-                        currentAbstractState = currentAbstractState,
-                        currentState = currentState,
-                        pathType = PathFindingHelper.PathType.PARTIAL_TRACE,
-                        shortest = shortest)
+                    transitionPaths = transitionPaths
+                    , stateByScore = stateByActionCount
+                    , currentAbstractState = currentAbstractState
+                    , currentState = currentState
+                    , pathType = PathFindingHelper.PathType.PARTIAL_TRACE
+                    , shortest = shortest
+                    , windowAsTarget = windowAsTarget
+                    , goalByAbstractState = goalByAbstractState)
             }
             if (transitionPaths.isEmpty()) {
                 getPathToStates(
-                        transitionPaths = transitionPaths,
+                    transitionPaths = transitionPaths,
                         stateByScore = stateByActionCount,
                         currentAbstractState = currentAbstractState,
                         currentState = currentState,
                         pathType = PathFindingHelper.PathType.FULLTRACE,
-                        shortest = shortest)
+                        shortest = shortest,
+                    windowAsTarget = windowAsTarget,
+                    goalByAbstractState = goalByAbstractState)
             }
         }
     }
 
-    abstract fun getCurrentTargetEvents(currentState: State<*>):  Set<AbstractAction>
+    abstract fun getCurrentTargetInputs(currentState: State<*>):  Set<AbstractAction>
 
     abstract fun hasNextAction(currentState: State<*>): Boolean
 
@@ -179,11 +210,13 @@ abstract class AbstractPhaseStrategy(
     fun getPathToStates(transitionPaths: ArrayList<TransitionPath>, stateByScore: Map<AbstractState, Double>
                         , currentAbstractState: AbstractState, currentState: State<*>
                         , shortest: Boolean=true
+                        , windowAsTarget: Boolean = false
                         , pathCountLimitation: Int = 1
-                        , pathType: PathFindingHelper.PathType) {
+                        , pathType: PathFindingHelper.PathType
+                        , goalByAbstractState: Map<AbstractState, List<Input>>) {
         val candidateStates = HashMap(stateByScore)
         while (candidateStates.isNotEmpty()) {
-            if (!shortest && transitionPaths.isNotEmpty())
+            if (!windowAsTarget && transitionPaths.isNotEmpty())
                 break
             val maxValue = candidateStates.maxBy { it.value }!!.value
             val abstractStates = candidateStates.filter { it.value == maxValue }
@@ -195,16 +228,19 @@ abstract class AbstractPhaseStrategy(
                     , shortest = true
                     , pathCountLimitation = pathCountLimitation
                     , autautMF = atuaMF
-                    , pathType = pathType)
+                    , pathType = pathType
+                    , goal = goalByAbstractState[abstractState]?: emptyList())
                 //windowStates.remove(abstractState)
                 candidateStates.remove(abstractState)
             }
-            if (shortest && transitionPaths.isNotEmpty()) {
-                val minSequenceLength = transitionPaths.map { it.path.size }.min()!!
-                transitionPaths.removeIf { it.path.size > minSequenceLength }
+            if (windowAsTarget && transitionPaths.isNotEmpty()) {
+                val minSequenceLength = transitionPaths.map { it.cost()}.min()!!
+                transitionPaths.removeIf { it.cost() > minSequenceLength }
+                if (minSequenceLength == 1)
+                    break
             }
         }
-        LoggerFactory.getLogger(this::class.simpleName).debug("Paths count: ${transitionPaths.size}")
+//        LoggerFactory.getLogger(this::class.simpleName).debug("Paths count: ${transitionPaths.size}")
     }
 
     protected fun isBlocked(abstractState: AbstractState, currentState: State<*>): Boolean {
@@ -222,7 +258,8 @@ abstract class AbstractPhaseStrategy(
                 currentAbstractState = currentAbstractState,
                 shortest = true,
                 pathCountLimitation = 1,
-                pathType = PathFindingHelper.PathType.FULLTRACE
+                pathType = PathFindingHelper.PathType.FULLTRACE,
+                goalByAbstractState = mapOf()
             )
         else if (abstractState.modelVersion == ModelVersion.BASE) {
             getPathToStates(
@@ -232,12 +269,12 @@ abstract class AbstractPhaseStrategy(
                 currentAbstractState = currentAbstractState,
                 shortest = true,
                 pathCountLimitation = 1,
-                pathType = PathFindingHelper.PathType.NORMAL
+                pathType = PathFindingHelper.PathType.NORMAL,
+                goalByAbstractState = mapOf()
             )
         }
         if (transitionPath.isNotEmpty())
             return false
         return true
     }
-
 }

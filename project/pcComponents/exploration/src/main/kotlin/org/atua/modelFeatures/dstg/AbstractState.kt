@@ -303,7 +303,6 @@ open class AbstractState(
                     && it.key.actionType != AbstractActionType.CLICK
                     && it.key.actionType != AbstractActionType.LONGCLICK
                     && it.key.actionType != AbstractActionType.SEND_INTENT
-                    && it.key.actionType != AbstractActionType.PRESS_MENU
         }.map { it.key })
         val widgetActionCounts = if (currentState != null) {
             widget_WidgetGroupMap.values.filter { !it.isUserLikeInput() }.distinct()
@@ -317,7 +316,7 @@ open class AbstractState(
                         (it.key.actionType == AbstractActionType.ITEM_CLICK && !hasClickableSubItems(it.key.attributeValuationMap!!, currentState))
                                 || (it.key.actionType == AbstractActionType.ITEM_LONGCLICK && !hasLongClickableSubItems(it.key.attributeValuationMap!!, currentState))
             }.filter { it.value == 0
-                    || (avmCardinalities.get(it.key.attributeValuationMap)==Cardinality.MANY && it.value <= 2)
+                    || (avmCardinalities.get(it.key.attributeValuationMap)==Cardinality.MANY && it.value <= 3)
                     || (it.key.isWebViewAction() && it.value <= 5)}.map { it.key }
             unexcerisedActions.addAll(actions)
         }
@@ -328,6 +327,9 @@ open class AbstractState(
                         && abstractAction.actionType == AbstractActionType.SWIPE
                         && !abstractAction.validateSwipeAction(abstractAction, currentState)
             }
+        }
+        unexcerisedActions.removeIf { abstractAction ->
+            inputMappings[abstractAction]?.any { it.isUseless==true }?:false
         }
         val itemActions = attributeValuationMaps.map { w -> w.actionCount.filter { it.key.isItemAction() } }.map { it.keys }.flatten()
         return unexcerisedActions.toList()

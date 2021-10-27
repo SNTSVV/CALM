@@ -44,7 +44,7 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
     fun dump(bufferedWriter: BufferedWriter) {
 
     }
-
+    val inputEnables = HashMap<Input, HashMap<Input, Pair<Int,Int>>>()
     fun constructFromJson(jObj: JSONObject) {
         var jMap = jObj.getJSONObject("allActivityNodes")
         jMap.keys().asSequence().forEach { key ->
@@ -59,7 +59,7 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
             log.debug("source: $source")
             val sourceNode = StaticAnalysisJSONParser.getParsedWindowOrCreateNewOne(source,this)
             if (sourceNode is Launcher) {
-                val event = LaunchAppEvent(sourceNode)
+                val event = Input.LaunchAppEvent(sourceNode)
             }
             //for each possbile transition to another window
             val transitions = jMap[key] as JSONArray
@@ -97,49 +97,17 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
                                 sourceWindow = sourceNode
 
                         )
-                        //event = StaticEvent(EventType.valueOf(action), arrayListOf(), staticWidget, sourceNode.classType, sourceNode)
-                        val windowTransition = WindowTransition(
+                        if (event != null) {
+                            val windowTransition = WindowTransition(
                                 source = sourceNode,
                                 destination = targetNode,
                                 input = event,
                                 prevWindow = null
-                        )
-                        this.add(sourceNode,targetNode,windowTransition)
-                        /*if (ewtgWidget != null && ewtgWidget!!.className.contains("Layout")) {
-                            var createItemClick = false
-                            var createItemLongClick = false
-                            *//*when (action) {
-                                "touch" -> {
-                                    createItemClick=true
-                                    createItemLongClick=true
-                                }
-                                "click" -> {
-                                    createItemClick=true
-                                }
-                                "long_click" -> {
-                                    createItemLongClick=true
-                                }
-                            }*//*
-                            if (createItemClick) {
-                                //create item click and long click
-                                val itemClick = Input.getOrCreateEvent(
-                                        eventHandlers = emptySet(),
-                                        eventTypeString = "item_click",
-                                        widget = ewtgWidget,
-                                        sourceWindow = sourceNode)
+                            )
+                            this.add(sourceNode,targetNode,windowTransition)
+                        }
+                        //event = StaticEvent(EventType.valueOf(action), arrayListOf(), staticWidget, sourceNode.classType, sourceNode)
 
-                                this.add(sourceNode, targetNode, WindowTransition(sourceNode,targetNode,itemClick,null))
-                            }
-                            if (createItemLongClick) {
-                                //create item click and long click
-                                val itemLongClick = Input.getOrCreateEvent(
-                                        eventHandlers = emptySet(),
-                                        eventTypeString = "item_long_click",
-                                        widget = ewtgWidget,
-                                        sourceWindow = sourceNode)
-                                this.add(sourceNode, targetNode, WindowTransition(sourceNode,targetNode,itemLongClick,null))
-                            }
-                        }*/
                     }
                 }
 
@@ -152,8 +120,9 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
                 val edges = this.edges(owner, o)
 
                 if (edges.isEmpty()) {
-                    val input = Input.getOrCreateInput(HashSet(),EventType.implicit_menu.toString(),null,o)
-                    this.add(owner, o, WindowTransition(owner,o,input,null))
+                    val input = Input.getOrCreateInput(HashSet(),EventType.press_menu.toString(),null,o)
+                    if (input != null)
+                        this.add(owner, o, WindowTransition(owner,o,input,null))
                 }
             }
 
@@ -175,7 +144,8 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
             if (activityNode != null) {
                 if (this.edges(activityNode, wtgNode).isEmpty()) {
                     val input = Input.getOrCreateInput(HashSet(),EventType.press_menu.toString(),null,activityNode)
-                    this.add(activityNode, wtgNode, WindowTransition(activityNode,wtgNode,input,null))
+                    if (input != null)
+                        this.add(activityNode, wtgNode, WindowTransition(activityNode,wtgNode,input,null))
                 }
             }
 
@@ -200,7 +170,7 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
         val outEdges = this.edges(wtgNode)
         if (outEdges.find { it.destination != null && it.destination!!.data is OptionsMenu && it.label.input.eventType != EventType.implicit_back_event } != null)
             return true
-        if (outEdges.find { it.destination != null && it.label.input.eventType == EventType.implicit_menu } != null)
+        if (outEdges.find { it.destination != null && it.label.input.eventType == EventType.press_menu } != null)
             return true
         return false
     }

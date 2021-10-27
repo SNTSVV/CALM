@@ -13,8 +13,13 @@
 package org.atua.modelFeatures.dstg
 
 import org.atua.calm.modelReuse.ModelVersion
+import org.atua.modelFeatures.ATUAMF
+import org.atua.modelFeatures.ewtg.Input
+import org.atua.modelFeatures.ewtg.window.Window
+import org.droidmate.exploration.ExplorationContext
 import org.droidmate.exploration.modelFeatures.graph.*
 import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF
+import org.droidmate.explorationModel.ExplorationTrace
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.BufferedWriter
@@ -27,7 +32,35 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
                                         a==b
                                       })): IGraph<AbstractState, AbstractTransition> by graph {
 
-
+    val abstractActionEnables = HashMap<Window, HashMap<AbstractAction, HashMap<AbstractAction,Pair<Int,Int>>>>()
+    fun updateAbstractActionEnability(
+        abstractTransition: AbstractTransition,
+        atua: ATUAMF
+    ) {
+        val prevAbstractState = abstractTransition.source
+        val newAbstractState = abstractTransition.dest
+        val prevWindow = prevAbstractState.window
+        abstractActionEnables.putIfAbsent(prevWindow, HashMap())
+        val abstractAction = abstractTransition.abstractAction
+        abstractActionEnables[prevWindow]!!.putIfAbsent(
+            abstractAction,
+            HashMap()
+        )
+        val enableAbstractActions =
+            abstractActionEnables[prevWindow]!![abstractAction]!!
+        val availableAbstractActions = newAbstractState.getAvailableActions()
+        availableAbstractActions.forEach {
+            enableAbstractActions.putIfAbsent(it, Pair(0, 0))
+            val total = enableAbstractActions[it]!!.first
+            val enabled = enableAbstractActions[it]!!.second
+            enableAbstractActions.put(it, Pair(total + 1, enabled + 1))
+        }
+        enableAbstractActions.keys.subtract(availableAbstractActions).forEach {
+            val total = enableAbstractActions[it]!!.first
+            val enabled = enableAbstractActions[it]!!.second
+            enableAbstractActions.put(it, Pair(total + 1, enabled))
+        }
+    }
     override fun add(source: AbstractState, destination: AbstractState?, label: AbstractTransition, updateIfExists: Boolean, weight: Double): Edge<AbstractState, AbstractTransition> {
         val edge = graph.add(source, destination, label, updateIfExists, weight)
         return edge
@@ -42,7 +75,7 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
         edge.source.data.abstractTransitions.remove(edge.label)
         return graph.remove(edge)
     }
-    fun dump(statementCoverageMF: StatementCoverageMF, bufferedWriter: BufferedWriter) {
+    fun dump(statementCoverageMF: StatementCoverageMF, explorationContext: ExplorationContext<*, *, *>, bufferedWriter: BufferedWriter) {
         bufferedWriter.write(header())
         //val fromResetState = AbstractStateManager.instance.launchAbstractStates.get(AbstractStateManager.LAUNCH_STATE.RESET_LAUNCH)!!
         //val fromResetAbstractState = AbstractStateManager.instance.getAbstractState(fromResetState)!!
@@ -50,7 +83,7 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
         this.getVertices().filter{it.data.guiStates.isNotEmpty()
                 || AbstractStateManager.INSTANCE.usefulUnseenBaseAbstractStates.contains(it.data)
         }.forEach {
-            recursiveDump(it.data,statementCoverageMF,dumpedSourceStates, bufferedWriter)
+            recursiveDump(it.data,statementCoverageMF,dumpedSourceStates,explorationContext, bufferedWriter)
         }
     }
 
@@ -58,7 +91,7 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
         return "[1]SourceState;[2]ResultingState;[3]ActionType;[4]InteractedAVM;[5]ActionExtra;[6]InteractionData;[7]GuardEnabled;[8]DependentAbstractStates;[9]EventHandlers;[10]CoveredUpdatedMethods;[11]CoveredUpdatedStatements;[12]CoveredMethods;[13]GUITransitionIDs;[14]modelVersion"
     }
 
-    fun recursiveDump(sourceAbstractState: AbstractState, statementCoverageMF: StatementCoverageMF, dumpedSourceStates: ArrayList<AbstractState> , bufferedWriter: BufferedWriter) {
+    fun recursiveDump(sourceAbstractState: AbstractState, statementCoverageMF: StatementCoverageMF, dumpedSourceStates: ArrayList<AbstractState> , explorationContext: ExplorationContext<*,*,*> ,bufferedWriter: BufferedWriter) {
         dumpedSourceStates.add(sourceAbstractState)
         val explicitEdges = this.edges(sourceAbstractState).filter { it.label.isExplicit()
                 && it.destination!=null
@@ -79,12 +112,12 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
                     "\"${getCoveredModifiedMethods(edge,statementCoverageMF)}\";" +
                     "\"${getCoveredUpdatedStatements(edge,statementCoverageMF)}\";" +
                     "\"${getCoveredMethods(edge, statementCoverageMF)}\";" +
-                    "\"${edge.interactions.map { it.actionId }.joinToString(separator = ";")}\";${edge.modelVersion}"
+                    "\"${edge.interactions.map {String.format("%s_%s",explorationContext.explorationTrace.id,it.actionId)}.joinToString(separator = ";")}\";${edge.modelVersion}"
             bufferedWriter.newLine()
             bufferedWriter.write(abstractTransitionInfo)
         }
         nextSources.forEach {
-            recursiveDump(it,statementCoverageMF,dumpedSourceStates, bufferedWriter)
+            recursiveDump(it,statementCoverageMF,dumpedSourceStates, explorationContext, bufferedWriter)
         }
     }
 

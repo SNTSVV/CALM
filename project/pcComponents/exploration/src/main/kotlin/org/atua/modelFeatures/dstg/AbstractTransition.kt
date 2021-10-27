@@ -52,6 +52,7 @@ class AbstractTransition(
 
     var guardEnabled: Boolean = false
     var activated: Boolean = true
+    var isUsefullOnce: Boolean = true
     // --------------
     init {
         source.abstractTransitions.add(this)

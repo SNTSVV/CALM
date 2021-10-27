@@ -134,7 +134,7 @@ object DefaultStrategies: Logging {
 		private val stateFrequency = HashMap<State<Widget>,Int>()
 		private val trace = Stack<State<Widget>>()
 		private val queueLength = 10
-		private val maxNoProgress = 20
+		private val maxNoProgress = 10
 		private val alpha = 0.2
 		private val beta = 0.8
 		private var currentNoProgress = 0

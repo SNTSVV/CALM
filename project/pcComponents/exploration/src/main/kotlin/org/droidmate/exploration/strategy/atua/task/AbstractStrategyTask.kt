@@ -1,6 +1,7 @@
 package org.droidmate.exploration.strategy.atua.task
 
 import kotlinx.coroutines.runBlocking
+import org.atua.calm.StringComparison
 import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractState
@@ -473,7 +474,7 @@ abstract class AbstractStrategyTask(
                     }
                     explorationAction = ActionQueue(actionList, 50)
                 } else if (data is String && data != "") {
-                    val targetChildWidgets = childWidgets.filter { it.nlpText == data }
+                    val targetChildWidgets = childWidgets.filter { it.nlpText == data || StringComparison.compareStringsLevenshtein(it.nlpText,data)>0.4 }
                     val webViewWidget = if (targetChildWidgets.isNotEmpty())
                          targetChildWidgets.random()
                     else
@@ -498,7 +499,7 @@ abstract class AbstractStrategyTask(
                     }
                     explorationAction = ActionQueue(actionList, 50)
                 } else if (data is String && data != "")  {
-                    val targetChildWidgets = childWidgets.filter { it.nlpText == data }
+                    val targetChildWidgets = childWidgets.filter { it.nlpText == data || StringComparison.compareStringsLevenshtein(it.nlpText,data)>0.4}
                     val webViewWidget = if (targetChildWidgets.isNotEmpty())
                         targetChildWidgets.random()
                     else
@@ -669,7 +670,7 @@ abstract class AbstractStrategyTask(
             currentAbstractState.increaseActionCount2(abstractAction, false)
         if (chosenWidget.className == "android.webkit.WebView") {
             if (data is String && data != "") {
-                val targetChildWidgets = candidateWidgets.filter { it.nlpText == data }
+                val targetChildWidgets = candidateWidgets.filter { it.nlpText == data || StringComparison.compareStringsLevenshtein(it.nlpText,data)>0.4 }
                 if (targetChildWidgets.isNotEmpty()) {
                     candidateWidgets.clear()
                     candidateWidgets.addAll(targetChildWidgets)
@@ -922,6 +923,24 @@ abstract class AbstractStrategyTask(
         if (currentAbstractState.window is OutOfApp)
             return false
         return false
+    }
+
+    protected fun chooseGUIWidgetFromAbstractAction(
+        randomAction: AbstractAction,
+        currentState: State<*>
+    ): Widget? {
+        var chosenWidget1:Widget? = null
+        val chosenWidgets = randomAction.attributeValuationMap!!.getGUIWidgets(currentState)
+        if (chosenWidgets.isEmpty()) {
+            chosenWidget1 = null
+        } else {
+            val candidates = runBlocking { getCandidates(chosenWidgets) }
+            chosenWidget1 = if (candidates.isEmpty())
+                chosenWidgets.random()
+            else
+                candidates.random()
+        }
+        return chosenWidget1
     }
 
     companion object {

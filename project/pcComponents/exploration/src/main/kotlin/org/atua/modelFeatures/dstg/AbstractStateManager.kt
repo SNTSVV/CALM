@@ -41,6 +41,7 @@ import java.io.File
 import java.lang.Exception
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.LocalDateTime
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
@@ -58,6 +59,7 @@ class AbstractStateManager() {
     lateinit var appName: String
     val attrValSetsFrequency = HashMap<Window, HashMap<AttributeValuationMap, Int>>()
     val ignoreImplicitDerivedTransition = HashSet<Triple<Window,AbstractAction,Window>> ()
+
     fun init(regressionTestingMF: org.atua.modelFeatures.ATUAMF, appPackageName: String) {
         this.atuaMF = regressionTestingMF
         this.appName = appPackageName
@@ -433,6 +435,13 @@ class AbstractStateManager() {
             else
                 initWindowInputForAbstractState(abstractState, input)
         }
+        abstractState.getAvailableActions().forEach {
+            if (!abstractState.inputMappings.containsKey(it)) {
+                if (!it.isLaunchOrReset() && !it.isActionQueue()) {
+                    Input.createInputFromAbstractAction(abstractState,it)
+                }
+            }
+        }
         //create implicit widget interactions from VirtualAbstractState
         if (abstractState is VirtualAbstractState) {
             return
@@ -459,17 +468,16 @@ class AbstractStateManager() {
         val explicitTransitions = notSoDifferentAbstractStates.map { similarAbstractState ->
             similarAbstractState.abstractTransitions.filter {
                 //we will not process any self edge
-                it.interactions.isNotEmpty()
+                (it.interactions.isNotEmpty() || it.modelVersion == ModelVersion.BASE)
                         && it.activated == true
                         && consideredForImplicitAbstractStateAction(it.abstractAction)
             }
-        }.flatten().sortedByDescending { it.interactions.map { it.endTimestamp }.max() }
+        }.flatten().sortedByDescending { it.interactions.map { it.endTimestamp }.max()?:LocalDateTime.MIN }
         for (transition in explicitTransitions) {
             if (consideredForImplicitAbstractStateAction(transition.abstractAction)
             ) {
                 continue
             }
-
             var ignoreTransition = false
             val retainingEWTGWidgets = transition.source.EWTGWidgetMapping
                 .map { it.value }.intersect(
@@ -493,13 +501,14 @@ class AbstractStateManager() {
             if (existingAction != null) {
                 val exisitingImplicitTransitions = abstractState.abstractTransitions.filter {
                     it.abstractAction == existingAction
-                            && it.modelVersion == ModelVersion.RUNNING
                             /*&& it.prevWindow == abstractTransition.prevWindow*/
                             && (
                             it.dependentAbstractStates.intersect(transition.dependentAbstractStates).isNotEmpty()
                                     || it.guardEnabled == false
                                     || it.dependentAbstractStates.isEmpty()
                             )
+                            && (!transition.abstractAction.isItemAction() ||
+                            it.data == transition.data )
                             /*&& (it.userInputs.intersect(abstractTransition.userInputs).isNotEmpty()
                             || it.userInputs.isEmpty() || abstractTransition.userInputs.isEmpty())*/
                             && it.isImplicit
@@ -1394,7 +1403,7 @@ class AbstractStateManager() {
         return output
     }
 
-    private fun getSimilarAbstractStates(abstractState: AbstractState, abstractTransition: AbstractTransition): List<AbstractState> {
+     fun getSimilarAbstractStates(abstractState: AbstractState, abstractTransition: AbstractTransition): List<AbstractState> {
         val similarAbstractStates = ABSTRACT_STATES.filter {
             it !is VirtualAbstractState
                     && it.guiStates.isNotEmpty()
@@ -1418,7 +1427,7 @@ class AbstractStateManager() {
                     && it.isOpeningKeyboard == abstractState.isOpeningKeyboard
                     && it.rotation == abstractState.rotation
                     && it.isOpeningMenus == abstractState.isOpeningMenus
-                    && it.guiStates.isNotEmpty()
+                    && (it.guiStates.isNotEmpty() || it.modelVersion==ModelVersion.BASE)
         }
         return similarAbstractStates
     }
@@ -1432,6 +1441,7 @@ class AbstractStateManager() {
             it.abstractTransitions.clear()
             //initAbstractInteractions(it)
         }
+        atuaMF.dstg.abstractActionEnables.remove(window)
         val oldAbstractStatesByWindow = HashMap<Window, ArrayList<AbstractState>>()
         // attrValSetsFrequency.get(window)?.clear()
         //AttributeValuationMap.allWidgetAVMHashMap.get(window)?.clear()
@@ -1580,7 +1590,6 @@ class AbstractStateManager() {
                     guiInteractionCount+=1
                     atuaMF.dstg.remove(oldAbstractEdge)
                     oldAbstractEdge.source.data.abstractTransitions.remove(oldAbstractEdge.label)
-
                     val newAbstractTransition = recomputeActionQueueAbstractTransition(oldAbstractEdge)
                     newAbstractTransitions.add(newAbstractTransition)
                 } else {
@@ -1601,7 +1610,7 @@ class AbstractStateManager() {
                                     atuaMF.dstg.remove(oldAbstractEdge)
                                 }
                                 newAbstractTransitions.add(newEdge.label)
-
+                                atuaMF.dstg.updateAbstractActionEnability(newEdge.label,atuaMF)
                             }
                         }
                     }
@@ -2106,6 +2115,13 @@ class AbstractStateManager() {
         if (p_prevWindowAbstractState!=null)
             if (currentAbstractState.window == p_prevWindowAbstractState.window && abstractTransition.abstractAction.isWidgetAction()) {
                 goBackAbstractActions.add(abstractTransition.abstractAction)
+                val inputs = abstractTransition.source.inputMappings[abstractTransition.abstractAction]
+                if (inputs!=null) {
+                    inputs.forEach {
+                        if (!Input.goBackInputs.contains(it))
+                            Input.goBackInputs.add(it)
+                    }
+                }
             }
         if (transitionId != null && currentState != null
                 && !currentAbstractState.isOpeningKeyboard
@@ -2312,7 +2328,7 @@ class AbstractStateManager() {
         addImplicitAbstractTransitionToSameWindowAbstractStates(notSoDifferentAbstractStates, processedStateCount1, abstractTransition, guaranteedAVMs)
     }
 
-    private fun getSlightlyDifferentAbstractStates(
+    fun getSlightlyDifferentAbstractStates(
         abstractState: AbstractState,
         otherSameStaticNodeAbStates: List<AbstractState>
     ): ArrayList<AbstractState> {
@@ -2348,6 +2364,7 @@ class AbstractStateManager() {
                 abstractTransition.dest
             val exisitingImplicitTransitions = it.abstractTransitions.filter {
                 it.abstractAction == abstractTransition.abstractAction
+                        && it.modelVersion == ModelVersion.RUNNING
                         && it.isImplicit
                         /*&& it.prevWindow == abstractTransition.prevWindow*/
                         && (
@@ -2355,6 +2372,9 @@ class AbstractStateManager() {
                                 || it.guardEnabled == false
                                 || it.dependentAbstractStates.isEmpty()
                         )
+
+                        && (!abstractTransition.abstractAction.isItemAction() ||
+                        it.data == abstractTransition.data )
                         /*&& (it.userInputs.intersect(abstractTransition.userInputs).isNotEmpty()
                         || it.userInputs.isEmpty() || abstractTransition.userInputs.isEmpty())*/
 

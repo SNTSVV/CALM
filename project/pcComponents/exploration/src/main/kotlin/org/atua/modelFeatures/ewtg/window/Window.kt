@@ -12,11 +12,13 @@
 
 package org.atua.modelFeatures.ewtg.window
 
+import org.atua.calm.modelReuse.ModelHistoryInformation
 import org.droidmate.deviceInterface.exploration.Rectangle
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.ewtg.EWTGWidget
 import org.atua.modelFeatures.ewtg.Input
 import org.atua.modelFeatures.ewtg.WindowManager
+import org.droidmate.exploration.ExplorationContext
 
 import java.io.File
 import java.nio.file.Path
@@ -27,9 +29,9 @@ abstract class Window(var classType: String,
                       baseModel: Boolean)
 {
     //var activityClass = ""
-    val widgets = arrayListOf<EWTGWidget>()
-    val inputs = arrayListOf<Input>()
-    val mappedStates = arrayListOf<AbstractState>()
+    val widgets = hashSetOf<EWTGWidget>()
+    val inputs = hashSetOf<Input>()
+    val mappedStates = hashSetOf<AbstractState>()
     var portraitDimension: Rectangle = Rectangle.empty()
     var landscapeDimension: Rectangle = Rectangle.empty()
     var portraitKeyboardDimension: Rectangle = Rectangle.empty()
@@ -83,15 +85,32 @@ abstract class Window(var classType: String,
                                 || (this as Dialog).dialogType == DialogType.DIALOG_FRAGMENT)))
                 && !(this is Dialog && this.ownerActivitys.all { it is OutOfApp })
     }
-    fun dumpEvents(windowsFolder: Path, atuaMF: org.atua.modelFeatures.ATUAMF) {
+
+    fun dumpEvents(windowsFolder: Path, atuaMF: org.atua.modelFeatures.ATUAMF,eContext: ExplorationContext<*,*,*>) {
         File(windowsFolder.resolve("Events_$windowId.csv").toUri()).bufferedWriter().use { all ->
             all.write(eventHeader())
             inputs.forEach {
                 all.newLine()
+                /*val currentTraceActions=it.mappingActionIds[eContext.explorationTrace.id.toString()]?.toList()?:emptyList()
+                val currentTraceTotalActionCnt = currentTraceActions.size
+                var curIncreasingCoverageActionsCnt = 0
+                currentTraceActions.forEach { actionId ->
+                    var increasingCoverage =  atuaMF.statementMF!!.actionIncreasingCoverageTracking.get(actionId)
+                    if (increasingCoverage!=null && increasingCoverage.size>0) {
+                        curIncreasingCoverageActionsCnt+=1
+                    }
+                }*/
+                val actionHistInfo = ModelHistoryInformation.INSTANCE.inputUsefulness[it]
+                /*val oldTraceActionCnt = actionHistInfo?.first?:0
+                val oldIncCovActionCnt = actionHistInfo?.second?:0*/
+                val totalActionsCnt = actionHistInfo?.first?:0
+                val increasingCoverageActionsCnt = actionHistInfo?.second?:0
                 all.write("${it.eventType};${it.widget?.widgetId};${it.sourceWindow.windowId};${it.createdAtRuntime};" +
+                        "$totalActionsCnt;$increasingCoverageActionsCnt;" +
                         "\"${it.eventHandlers.map { atuaMF.statementMF!!.getMethodName(it) }.joinToString(";")}\";" +
                         "\"${it.modifiedMethods.map { atuaMF.statementMF!!.getMethodName(it.key) }.joinToString(";")}\";" +
-                        "\"${it.coveredMethods.map { atuaMF.statementMF!!.getMethodName(it)}.joinToString(";")}\"")
+                        "\"${it.coveredMethods.filter{it.value}.keys.map { atuaMF.statementMF!!.getMethodName(it)}.joinToString(";")}\";"+
+                "${it.isUseless}")
             }
         }
     }
@@ -99,7 +118,7 @@ abstract class Window(var classType: String,
         return "[1]widgetId;[2]resourceIdName;[3]className;[4]parent;[5]xpath;[6]activity;[7]createdAtRuntime;[8]attributeValuationSetId;[9]isObsolete"
     }
     fun eventHeader(): String {
-        return "[1]eventType;[2]widgetId;[3]sourceWindowId;[4]createdAtRuntime;[5]eventHandlers;[6]modifiedMethods;[7]coveredMethods"
+        return "[1]eventType;[2]widgetId;[3]sourceWindowId;[4]createdAtRuntime;[5]totalActionsCnt;[6]increasingCovetageActionsCnt;[7]eventHandlers;[8]modifiedMethods;[9]coveredMethods;[10]isUseless"
     }
 
     abstract fun getWindowType(): String

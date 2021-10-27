@@ -1,5 +1,6 @@
 package org.droidmate.exploration.strategy.atua
 
+import org.atua.calm.modelReuse.ModelHistoryInformation
 import org.droidmate.deviceInterface.exploration.ExplorationAction
 import org.droidmate.deviceInterface.exploration.Swipe
 import org.droidmate.deviceInterface.exploration.isLaunchApp
@@ -209,8 +210,15 @@ class PhaseThreeStrategy(
         if (currentAbState==null)
             return transitionPaths
         val runtimeAbstractStates = getUnexhaustedExploredAbstractState(currentState)
+        val goalByAbstractState = HashMap<AbstractState, List<Input>>()
+        runtimeAbstractStates.forEach {
+            val inputs = ArrayList<Input>()
+            it.getUnExercisedActions(null,atuaMF).forEach { action ->
+                inputs.addAll(it.inputMappings[action]?: emptyList())
+            }
+            goalByAbstractState.put(it,inputs)
+        }
         val abstratStateCandidates = runtimeAbstractStates
-
         val stateByActionCount = HashMap<AbstractState,Double>()
         abstratStateCandidates.forEach {
             val weight =  it.computeScore(atuaMF)
@@ -221,7 +229,8 @@ class PhaseThreeStrategy(
         val stateCandidates: Map<AbstractState,Double>
         stateCandidates = stateByActionCount
 
-        getPathToStatesBasedOnPathType(pathType,transitionPaths,stateByActionCount,currentAbState,currentState,true)
+        getPathToStatesBasedOnPathType(pathType,transitionPaths,stateByActionCount,currentAbState,currentState,true,false,
+            emptyMap())
         return transitionPaths
     }
 
@@ -245,6 +254,7 @@ class PhaseThreeStrategy(
                 targetScores.put(it.first,it.second)
             }
         }*/
+        val goalByAbstractState = HashMap<AbstractState, List<Input>>()
         AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
             it.window == targetWindow
                     && it.attributeValuationMaps.isNotEmpty()
@@ -252,14 +262,15 @@ class PhaseThreeStrategy(
         }.filterNot { it is VirtualAbstractState }.filter{
             it.inputMappings.filter { it.value.contains(targetEvent) }.isNotEmpty()
         }.forEach {
+            goalByAbstractState.put(it, listOf(targetEvent!!))
             targetScores.put(it,1.0)
         }
         val transitionPaths = ArrayList<TransitionPath>()
-        getPathToStatesBasedOnPathType(pathType,transitionPaths,targetScores,currentAbState,currentState,false)
+        getPathToStatesBasedOnPathType(pathType,transitionPaths,targetScores,currentAbState,currentState,false,false,goalByAbstractState)
         return transitionPaths
     }
 
-    override fun getCurrentTargetEvents(currentState: State<*>): Set<AbstractAction> {
+    override fun getCurrentTargetInputs(currentState: State<*>): Set<AbstractAction> {
         val targetEvents = HashMap<Input,List<AbstractAction>>()
         targetEvents.clear()
 
@@ -273,27 +284,27 @@ class PhaseThreeStrategy(
                 }
             } else {
                 val availableEvents = abstractState.inputMappings.map { it.value }.flatten()
-                val targetWindowEvents = atuaMF.notFullyExercisedTargetInputs.filter {
+                val windowTargetInputs = atuaMF.notFullyExercisedTargetInputs.filter {
                     it.sourceWindow == targetWindow!!
                 }
-                val availabelTargetInputs = targetWindowEvents.filter {
-                    availableEvents.contains(it) }
-                        .associateWith { input-> allTargetInputs[input]?:0 }
-                        .let { HashMap(it) }
-                if (availabelTargetInputs.isNotEmpty()) {
-                    while (targetEvents.isEmpty() && availabelTargetInputs.isNotEmpty()) {
-                        val leastTriggerCount = availabelTargetInputs.minBy { it.value }!!.value
-                        val leastTriggerEvents = availabelTargetInputs.filter { it.value == leastTriggerCount }
-                        leastTriggerEvents.forEach { t, u ->
-                            availabelTargetInputs.remove(t)
-                            val abstractActions = atuaMF.validateEvent(t, currentState)
-                            if (abstractActions.isNotEmpty()) {
-                                targetEvents.put(t, abstractActions)
-                            }
-                        }
+                val inputScore = HashMap<Input,Double>()
+                windowTargetInputs.filter { availableEvents.contains(it) }.forEach { input ->
+                    val usefulness = ModelHistoryInformation.INSTANCE.inputUsefulness[input]
+                    val score = if (usefulness!=null) {
+                        (usefulness.second*1.0/(usefulness.first+1))*(1.0/(usefulness.first+1))
+                    } else {
+                        1.0
+                    }
+                    inputScore.put(input,score)
+                }
+                if (inputScore.isNotEmpty()) {
+                    val pb = ProbabilityDistribution<Input>(inputScore)
+                    val selectedInput = pb.getRandomVariable()
+                    val abstractActions = atuaMF.validateEvent(selectedInput, currentState)
+                    if (abstractActions.isNotEmpty()) {
+                        targetEvents.put(selectedInput, abstractActions)
                     }
                 }
-
             }
         }
         return targetEvents.map { it.value }.flatten().toSet()
@@ -1117,24 +1128,39 @@ class PhaseThreeStrategy(
         }
 
         //calculate appState score
-        appStateList .forEach {
-            var appStateScore:Double = 0.0
+        appStateList.forEach {
+            var appStateScore: Double = 0.0
             val frequency = atuaMF.abstractStateVisitCount.get(it)?:1
-            if (appStateModifiedMethodMap.containsKey(it))
-            {
-                appStateModifiedMethodMap[it]!!.forEach {
-                    if (!modifiedMethodWeights.containsKey(it))
-                        modifiedMethodWeights.put(it,1.0)
-                    val methodWeight = modifiedMethodWeights[it]!!
-                    if (modifiedMethodMissingStatements.containsKey(it))
-                    {
-                        val missingStatementNumber = modifiedMethodMissingStatements[it]!!.size
+            // an abstract state has higher score if there are more unexercised target abstract transitions
+            val unexercisedTargetAbstractActions = it.abstractTransitions.filter { t->
+                t.interactions.isNotEmpty()
+            }.map { it.abstractAction }.distinct().filter { action -> it.inputMappings.get(action)?.any { it.modifiedMethods.isNotEmpty() }?:false }
+            unexercisedTargetAbstractActions.forEach { action ->
+                val inputs = it.inputMappings.get(action)?: emptyList<Input>()
+                for (item in inputs.map { it.modifiedMethods.entries }.flatten()) {
+                    if (!modifiedMethodWeights.containsKey(item.key))
+                        modifiedMethodWeights.put(item.key, 1.0)
+                    val methodWeight = modifiedMethodWeights[item.key]!!
+                    if (modifiedMethodMissingStatements.containsKey(item.key)) {
+                        val missingStatementNumber = modifiedMethodMissingStatements[item.key]!!.size
                         appStateScore += (methodWeight * missingStatementNumber/frequency)
                     }
                 }
-                //appStateScore += 1
-                abstractStatesScores.put(it,appStateScore)
             }
+            abstractStatesScores.put(it, appStateScore)
+            /* if (appStateModifiedMethodMap.containsKey(it)) {
+                 appStateModifiedMethodMap[it]!!.forEach {
+                     if (!modifiedMethodWeights.containsKey(it))
+                         modifiedMethodWeights.put(it, 1.0)
+                     val methodWeight = modifiedMethodWeights[it]!!
+                     if (modifiedMethodMissingStatements.containsKey(it)) {
+                         val missingStatementNumber = modifiedMethodMissingStatements[it]!!.size
+                         appStateScore += (methodWeight * missingStatementNumber/frequency)
+                     }
+                 }
+                 //appStateScore += 1
+                 abstractStatesScores.put(it, appStateScore)
+             }*/
         }
 
         //calculate appState probability

@@ -50,6 +50,7 @@ import org.atua.calm.AppModelLoader
 import org.atua.calm.modelReuse.ModelVersion
 import org.atua.calm.ModelBackwardAdapter
 import org.atua.calm.ewtgdiff.AdditionSet
+import org.atua.calm.modelReuse.ModelHistoryInformation
 import org.droidmate.exploration.actions.availableActions
 import org.droidmate.exploration.actions.swipeDown
 import org.droidmate.exploration.actions.swipeLeft
@@ -62,11 +63,14 @@ import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.awt.image.BufferedImage
+import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.text.SimpleDateFormat
 import java.time.Duration
 import java.util.*
+import javax.imageio.ImageIO
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 import kotlin.collections.HashSet
@@ -222,7 +226,7 @@ class ATUAMF(
     override suspend fun onAppExplorationFinished(context: ExplorationContext<*, *, *>) {
         this.join()
         produceTargetWidgetReport(context)
-        ATUAModelOutput.dumpModel(context.model.config, this)
+        ATUAModelOutput.dumpModel(context.model.config, this,context)
     }
 
     override fun onAppExplorationStarted(context: ExplorationContext<*, *, *>) {
@@ -360,6 +364,7 @@ class ATUAMF(
                 (EWTGDiff.instance.widgetDifferentSets["AdditionSet"]!! as AdditionSet<EWTGWidget>).addedElements
             else
                 null
+
             notFullyExercisedTargetInputs.removeIf {
                 val toDelete = (it.widget != null
                         && !seenWidgets.contains(it.widget!!)
@@ -368,6 +373,14 @@ class ATUAMF(
                     backupNotFullyExercisedTargetInputs.add(it)
                 toDelete
             }
+            notFullyExercisedTargetInputs.removeIf {
+                val toDelete = (it.coveredMethods.isEmpty() && ModelHistoryInformation.INSTANCE.inputUsefulness.containsKey(it))
+                if (toDelete)
+                    backupNotFullyExercisedTargetInputs.add(it)
+                toDelete
+            }
+            val uselessInputs = notFullyExercisedTargetInputs.filter { ModelHistoryInformation.INSTANCE.inputUsefulness.containsKey(it) && ModelHistoryInformation.INSTANCE.inputUsefulness[it]?.second==0 }
+            notFullyExercisedTargetInputs.removeIf { uselessInputs.contains(it) }
             targetInputsCnt = notFullyExercisedTargetInputs.size
         }
         notFullyExercisedTargetInputs.removeIf {
@@ -778,6 +791,10 @@ class ATUAMF(
                     dest = currentAbstractState)
             if (prevWindowAbstractState!=null)
                 abstractTransition.dependentAbstractStates.add(prevWindowAbstractState)
+            if (abstractTransition.dependentAbstractStates.contains(currentAbstractState)
+                && abstractTransition.guardEnabled == false) {
+                abstractTransition.guardEnabled = true
+            }
             abstractTransition.computeGuaranteedAVMs()
             dstg.add(prevAbstractState, currentAbstractState, abstractTransition)
             lastExecutedTransition = abstractTransition
@@ -1238,6 +1255,10 @@ class ATUAMF(
         newAbstractInteraction.interactions.add(interaction)
         if (prevWindowAbstractState!=null)
             newAbstractInteraction.dependentAbstractStates.add(prevWindowAbstractState)
+        if (newAbstractInteraction.dependentAbstractStates.contains(destAbstractState)
+            && newAbstractInteraction.guardEnabled == false) {
+            newAbstractInteraction.guardEnabled = true
+        }
         newAbstractInteraction.computeGuaranteedAVMs()
         dstg.add(sourceAbstractState, destAbstractState, newAbstractInteraction)
         newAbstractInteraction.updateGuardEnableStatus()
@@ -1380,11 +1401,18 @@ class ATUAMF(
             val currentAbstractState = computeAbstractState(newState, context)
             AbstractStateManager.INSTANCE.unreachableAbstractState.remove(currentAbstractState)
             stateList.add(newState)
-
-
             stateVisitCount.putIfAbsent(newState, 0)
             stateVisitCount[newState] = stateVisitCount[newState]!! + 1
             actionCount.initWidgetActionCounterForNewState(newState)
+            val actionId = lastInteractions.last().actionId
+            val screenshotFile = eContext!!.model.config.imgDst.resolve("$actionId.jpg")
+            val windowFolder = eContext!!.model.config.baseDir.resolve("EWTG").resolve(currentAbstractState.window.toString())
+ /*           if (!Files.exists(windowFolder))
+                Files.createDirectories(windowFolder)
+            if (Files.exists(screenshotFile)) {
+                saveGUIWidgetsImage(newState,currentAbstractState,screenshotFile,windowFolder)
+            }*/
+
             var prevAbstractState = getAbstractState(prevState)
             if (prevAbstractState == null && prevState != context.model.emptyState) {
                 prevAbstractState = computeAbstractState(prevState, context)
@@ -1469,6 +1497,32 @@ class ATUAMF(
         return updated
     }
 
+    private fun saveGUIWidgetsImage(guiState: State<*>, abstractState: AbstractState, screenshotFile: Path, targetDir: Path) {
+        val derivedWidgets = Helper.getVisibleWidgetsForAbstraction(guiState)
+        val screenshot: BufferedImage = ImageIO.read(File(screenshotFile.toAbsolutePath().toString()))
+        derivedWidgets.forEach { widget ->
+            val avm = abstractState.getAttributeValuationSet(widget,guiState,this)
+            if (avm != null) {
+                val ewtgWidget = abstractState.EWTGWidgetMapping.get(avm)
+                if (ewtgWidget != null) {
+                    val widgetImg = screenshot.getSubimage(
+                        widget.visibleBounds.leftX,
+                        widget.visibleBounds.topY,
+                        widget.visibleBounds.width,
+                        widget.visibleBounds.height
+                    )
+                    val widgetImgFolder = targetDir.resolve(ewtgWidget.widgetId)
+                    if (!Files.exists(widgetImgFolder)) {
+                        Files.createDirectories(widgetImgFolder)
+                    }
+                    val widgetImgFilePath = widgetImgFolder.resolve(widget.id.toString() + ".jpg")
+                    val widgetImgFile = File(widgetImgFilePath.toAbsolutePath().toString())
+                    ImageIO.write(widgetImg, "jpg", widgetImgFile)
+                }
+            }
+        }
+    }
+
     var checkingDialog: Dialog? = null
 
     private fun updateAppModelWithLastExecutedEvent(prevState: State<*>, newState: State<*>, lastInteractions: List<Interaction<*>>): Boolean {
@@ -1488,6 +1542,7 @@ class ATUAMF(
                     prevAbstractState.shouldNotCloseKeyboard = true
                 }
             }
+            dstg.updateAbstractActionEnability(lastExecutedTransition!!,this)
         }
         val abstractInteraction = lastExecutedTransition!!
 
@@ -1512,9 +1567,9 @@ class ATUAMF(
                 val lastAppState = stateList.find { it.stateId == lastOpeningAnotherAppInteraction!!.prevState }!!
                 val lastAppAbstractState = getAbstractState(lastAppState)!!
                 val lastOpenningAnotherAppAbstractInteraction = findAbstractInteraction(lastOpeningAnotherAppInteraction)
-                updateWindowTransitionCoverage(lastAppAbstractState, lastOpenningAnotherAppAbstractInteraction!!, coverageIncreased,prevState!=newState)
+                updateWindowTransitionCoverage(lastAppAbstractState, lastOpenningAnotherAppAbstractInteraction!!,lastInteractions.last() , coverageIncreased,prevState!=newState)
             } else
-                updateWindowTransitionCoverage(prevAbstractState, abstractInteraction, coverageIncreased, prevState!=newState)
+                updateWindowTransitionCoverage(prevAbstractState, abstractInteraction,lastInteractions.last() , coverageIncreased, prevState!=newState)
         }
 
         val inputByHandlers = notFullyExercisedTargetInputs.groupBy { it.eventHandlers }
@@ -1533,12 +1588,15 @@ class ATUAMF(
         return true
     }
 
-    private fun updateWindowTransitionCoverage(prevAbstractState: AbstractState, abstractTransition: AbstractTransition, coverageIncreased: Int, stateChanged: Boolean) {
+
+
+    private fun updateWindowTransitionCoverage(prevAbstractState: AbstractState, abstractTransition: AbstractTransition, interaction: Interaction<Widget>, coverageIncreased: Int, stateChanged: Boolean) {
         val event = prevAbstractState.inputMappings[abstractTransition.abstractAction]
         if (event != null) {
             event.forEach {
+                it.exerciseCount+=1
                 if (it.eventType != EventType.resetApp) {
-                    if (it.eventType == EventType.implicit_rotate_event || it.eventType == EventType.implicit_menu || it.eventType == EventType.implicit_lifecycle_event) {
+                    if (it.eventType == EventType.implicit_rotate_event || it.eventType == EventType.press_menu || it.eventType == EventType.implicit_lifecycle_event) {
                         if (abstractTransition.modifiedMethods.isEmpty() || abstractTransition.modifiedMethods.all { it.value == false })
                             if(abstractTransition.handlers.isEmpty()  || abstractTransition.handlers.all { it.value == false })
                                 if (it.modifiedMethods.isNotEmpty() && it.modifiedMethods.all { it.value == false }) {
@@ -1547,7 +1605,11 @@ class ATUAMF(
                                     notFullyExercisedTargetInputs.remove(it)
                                 }
                     }
-                    updateInputEventHandlersAndModifiedMethods(it, abstractTransition, coverageIncreased)
+                    it.mappingActionIds.putIfAbsent(eContext!!.explorationTrace.id.toString(), ArrayList())
+                    it.mappingActionIds[eContext!!.explorationTrace.id.toString()]!!.add(interaction.actionId.toString())
+                    updateInputEnability(it, abstractTransition)
+                    updateInputEffectiveness(it, interaction)
+                    updateInputEventHandlersAndModifiedMethods(it, abstractTransition, interaction,  coverageIncreased)
                     if (it.modifiedMethods.all {statementMF!!.fullyCoveredMethods.contains(it.key)  }) {
                         if (notFullyExercisedTargetInputs.contains(it))
                             notFullyExercisedTargetInputs.remove(it)
@@ -1558,11 +1620,15 @@ class ATUAMF(
                     modifiedMethodsByWindow.entries.removeIf {
                         it.value.all { statementMF!!.fullyCoveredMethods.contains(it) }
                     }
-
+                    if (abstractTransition.methodCoverage.isEmpty() && !stateChanged) {
+                        if (it.isUseless == null)
+                            it.isUseless = true
+                    } else {
+                        it.isUseless = false
+                    }
                 }
             }
         }
-
         if (abstractTransition.modifiedMethods.isNotEmpty()) {
             var updateTargetWindow = prevAbstractState.window.isTargetWindowCandidate()
             /*if (prevAbstractState.window is Dialog) {
@@ -1580,6 +1646,51 @@ class ATUAMF(
                 }
             }
         }
+
+    }
+
+    private fun updateInputEnability(
+        input: Input,
+        abstractTransition: AbstractTransition
+    ) {
+        wtg.inputEnables.putIfAbsent(input, HashMap())
+        val enableInputs = wtg.inputEnables.get(input)!!
+        val destAbstractState = abstractTransition.dest
+        val availableInputs = destAbstractState.inputMappings.values.flatten().distinct()
+        availableInputs.forEach {
+            enableInputs.putIfAbsent(it, Pair(0, 0))
+            val total = enableInputs[it]!!.first
+            val enabled = enableInputs[it]!!.second
+            enableInputs.put(it, Pair(total + 1, enabled + 1))
+        }
+        enableInputs.keys.subtract(availableInputs).forEach {
+            val total = enableInputs[it]!!.first
+            val enabled = enableInputs[it]!!.second
+            enableInputs.put(it, Pair(total + 1, enabled))
+        }
+
+
+    }
+
+    private fun updateInputEffectiveness(
+        input: Input,
+        interaction: Interaction<Widget>
+    ) {
+        ModelHistoryInformation.INSTANCE.inputUsefulness.putIfAbsent(input, Pair(0, 0))
+//        ModelHistoryInformation.INSTANCE.inputEffectiveness.put(input, Pair(0,0))
+
+        val oldActionCnt = ModelHistoryInformation.INSTANCE.inputUsefulness[input]!!.first
+        val oldIncreasingCnt = ModelHistoryInformation.INSTANCE.inputUsefulness[input]!!.second
+
+        val newActionCnt = oldActionCnt + 1
+        var newIncreasingCnt = oldIncreasingCnt
+        if (statementMF!!.actionIncreasingCoverageTracking[interaction.actionId.toString()]!!.size > 0) {
+            newIncreasingCnt += 1
+        }
+        ModelHistoryInformation.INSTANCE.inputUsefulness.put(input, Pair(newActionCnt, newIncreasingCnt))
+
+
+
 
     }
 
@@ -1689,7 +1800,7 @@ class ATUAMF(
         }
     }
 
-    fun updateInputEventHandlersAndModifiedMethods(input: Input, abstractTransition: AbstractTransition, coverageIncreased: Int) {
+    fun updateInputEventHandlersAndModifiedMethods(input: Input, abstractTransition: AbstractTransition, interaction: Interaction<Widget>, coverageIncreased: Int) {
         val prevWindows = abstractTransition.dependentAbstractStates.map { it.window }
         //update ewtg transitions
         if (prevWindows.isNotEmpty()) {
@@ -1710,7 +1821,6 @@ class ATUAMF(
                 }
             }
         }
-
 
         // process event handlers
         abstractTransition.handlers.filter { it.value == true }.forEach {
@@ -1755,7 +1865,11 @@ class ATUAMF(
                     !input.modifiedMethods.containsKey(methodId)
                 }
         }
-        input.coveredMethods.addAll(abstractTransition.methodCoverage)
+        /*val inputCoveredMethods = input.coveredMethods.filter { it.value }.keys
+        if (input.usefullOnce && inputCoveredMethods.isNotEmpty() && inputCoveredMethods.intersect(abstractTransition.methodCoverage).size != inputCoveredMethods.size) {
+            input.usefullOnce = false
+        }*/
+        input.coveredMethods.putAll(abstractTransition.methodCoverage.associateWith { true })
         abstractTransition.modifiedMethods.forEach {
             val methodId = it.key
             if (input.modifiedMethods.containsKey(methodId)) {

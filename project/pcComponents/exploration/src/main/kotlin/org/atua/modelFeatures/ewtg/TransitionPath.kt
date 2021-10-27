@@ -12,6 +12,7 @@
 
 package org.atua.modelFeatures.ewtg
 
+import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractTransition
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.helper.PathFindingHelper
@@ -30,6 +31,19 @@ class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.Pa
         if (reducedSize<orginalSize)
             return true
         return false
+    }
+
+    fun cost(start: Int=0): Int {
+        var cost = 0
+        path.values.drop(start).forEach {
+            if (it.abstractAction.actionType == AbstractActionType.RESET_APP)
+                cost+=5
+            else if (it.abstractAction.actionType == AbstractActionType.LAUNCH_APP)
+                cost+=4
+            else
+                cost+=1
+        }
+        return cost
     }
 
 
@@ -58,5 +72,29 @@ class PathTraverser (val transitionPath: TransitionPath) {
 
     fun finalStateAchieved(): Boolean {
         return latestEdgeId == transitionPath.path!!.size-1
+    }
+
+    fun canContinue(currentAppState: AbstractState): Boolean {
+        val nextAbstractTransition = transitionPath.path[latestEdgeId!! + 1]
+        val nextAction = nextAbstractTransition?.abstractAction
+        if (nextAction == null)
+            return false
+        if (!nextAction.isWidgetAction())
+            return true
+        val targetAVM = nextAction!!.attributeValuationMap!!
+        if (currentAppState.attributeValuationMaps.contains(targetAVM)) {
+            return true
+        }
+        currentAppState.attributeValuationMaps.forEach {
+            if (it.isDerivedFrom(targetAVM))
+                return true
+        }
+        val nextInput = nextAbstractTransition!!.source.inputMappings[nextAction]
+        if (nextInput!=null) {
+            if (currentAppState.inputMappings.values.flatten().intersect(nextInput).isNotEmpty()) {
+                return true
+            }
+        }
+        return false
     }
 }

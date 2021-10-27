@@ -88,8 +88,6 @@ enum class EventType {
     implicit_home_event,
     // power
     implicit_power_event,
-    //pressMenuKey
-    implicit_menu,
     // launcher
     implicit_launch_event,
     // asynchronous operations: Activity.runOnUiThread, View.post, View.postDelayed

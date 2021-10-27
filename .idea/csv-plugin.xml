@@ -3,6 +3,1028 @@
   <component name="CsvFileAttributes">
     <option name="attributeMap">
       <map>
+        <entry key="/apks/model/bbc.mobile.news.ww/DSTG/AbstractStateList.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/DSTG/AbstractStates/AbstractState_fd2d5ab1-6887-32a3-bc34-7d53932d7009.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/DSTG/AbstractionFunction/DecisionNode_LV1.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/DSTG/AbstractionFunction/DecisionNode_LV2.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/DSTG/AbstractionFunction/DecisionNode_LV3.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/DSTG/DSTG.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/EWTG_WindowList.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=":" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_2633.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_2644.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_2687.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_2786.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_2909.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_2943.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_2955.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_2971.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_3006.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_3060.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_3128.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_3150.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_Activity-18.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_Activity-19.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_Dialog-1.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_Dialog-10.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_Dialog-14.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_Dialog-16.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_Dialog-20.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_Dialog-21.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_Dialog-23.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_Dialog-24.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_Dialog-26.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_Dialog-9.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_Launcher-0.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_OutOfApp-5.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_OutOfApp-6.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsWidget/Widgets_3006.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsWidget/Widgets_Activity-19.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsWidget/Widgets_Dialog-13.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsWidget/Widgets_Dialog-20.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/states/055baa6e-26da-2233-dabe-272d84d232ad_a23a5165-21ad-a0b4-779c-ce247fa5b12e.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/DSTG/DSTG.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_1902.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_Dialog-1.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_Dialog-12.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_Dialog-13.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_Dialog-14.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_Dialog-15.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_Dialog-16.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_Dialog-17.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_Dialog-18.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_Dialog-19.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_Dialog-20.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_Dialog-21.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_Dialog-22.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_Dialog-23.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_Dialog-25.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_Dialog-26.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_Dialog-27.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_Dialog-5.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_Dialog-7.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_Dialog-8.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_OutOfApp-14.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_OutOfApp-7.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/EWTG/WindowsEvents/Events_OutOfApp-9.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/actionCoverage.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/1d0a6288-37a1-f69c-f26c-df47959a0716_7e01dc4f-b2eb-84b9-5364-590f10e39533.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/35d58113-017d-b39b-0b37-fdd25f75c415_54dbf46a-71cf-2b77-2a3e-7129cfc73bf1.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/8a61e4ce-9755-1a32-5fc4-618df54d2aac_0543f172-7b76-c499-daa6-6e31d96ed513.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/8a61e4ce-9755-1a32-5fc4-618df54d2aac_2df039e6-384a-0a5f-0352-b6a596421ad9.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/8a61e4ce-9755-1a32-5fc4-618df54d2aac_c021c6e2-4585-fabe-9584-43a1a37e0b38.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/c9b01f45-6d92-eefb-9f12-9c04cb8aff75_40a4332c-953b-9675-1606-afebf333a6ef.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/c9b01f45-6d92-eefb-9f12-9c04cb8aff75_6db468db-9b4f-5bc3-4316-e59af9476c3d.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/d41d8cd9-8f00-3204-a980-0998ecf8427e_2e90110c-7744-3062-03f2-8dcbd53c40dc_HS.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/d41d8cd9-8f00-3204-a980-0998ecf8427e_411ac0b6-4a92-1e66-167d-3d75a88a2ee0_HS.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/DSTG/DSTG.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8291.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8318.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8374.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8378.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8409.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8413.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8426.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8442.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8448.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8486.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8489.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8492.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8495.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8499.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8504.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8519.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8550.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8570.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8573.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8576.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8606.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8612.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8629.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8731.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8735.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8742.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8754.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8764.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8825.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8838.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8848.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8851.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8860.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8876.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8891.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8957.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_8971.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_9039.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_9071.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_9077.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_9098.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_9101.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_9106.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_9129.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_9136.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_9143.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_9149.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_9170.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_9191.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_9216.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_Activity-58.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_Dialog-1.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_Dialog-10.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_Dialog-11.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_Dialog-12.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_Dialog-13.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_Dialog-14.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_Dialog-15.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_Dialog-3.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_Dialog-4.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_Dialog-5.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_Dialog-7.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_Dialog-8.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_Dialog-9.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_Launcher-0.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_OutOfApp-2.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_OutOfApp-3.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_OutOfApp-4.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_OutOfApp-5.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsEvents/Events_OutOfApp-6.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/states/b7281877-b55c-2e46-8c8a-953713543ec0_d6393e59-10a4-9481-ab9b-bb186e9ca4fb.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/states/c35f6311-59cc-b9d5-98c1-dfd0b7c4ca4f_af8d54fa-fd19-f21b-84ef-d1ba5b120295.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/apks/model/org.wikipedia/DSTG/DSTG.csv">
           <value>
             <Attribute>

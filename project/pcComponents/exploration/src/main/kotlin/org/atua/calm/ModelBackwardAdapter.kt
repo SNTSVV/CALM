@@ -28,6 +28,7 @@ import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.dstg.AttributeType
 import org.atua.modelFeatures.ewtg.EWTGWidget
 import org.atua.modelFeatures.ewtg.Helper
+import org.atua.modelFeatures.ewtg.Input
 import org.droidmate.explorationModel.interaction.State
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
@@ -134,7 +135,6 @@ class ModelBackwardAdapter {
             }*/
         }
         if(!backwardEquivalenceFound) {
-
             if (obsoleteBaseAbstractTransitions.isNotEmpty()) {
                 obsoleteBaseAbstractTransitions.forEach {
                     val expected = it.dest
@@ -249,7 +249,7 @@ class ModelBackwardAdapter {
                                         copyAsImplicit: Boolean) {
         source.abstractTransitions.filter {
             it.modelVersion == ModelVersion.BASE
-                    && !incorrectTransitions.contains(it)
+                    /*&& !incorrectTransitions.contains(it)*/
                     && it.abstractAction.isWidgetAction()
                     && it.abstractAction.actionType != AbstractActionType.SWIPE
                     && it.source != it.dest
@@ -326,6 +326,13 @@ class ModelBackwardAdapter {
             backwardEquivalentAbstractStateMapping.get(baseTransition.dest)?.firstOrNull() ?: baseTransition.dest
         if (dependendAbstractStates.contains(dest)) {
             AbstractStateManager.INSTANCE.goBackAbstractActions.add(updatedAbstractAction)
+            val inputs = updatedAbstractState.inputMappings[updatedAbstractAction]
+            if (inputs!=null) {
+                inputs.forEach {
+                    if (!Input.goBackInputs.contains(it))
+                        Input.goBackInputs.add(it)
+                }
+            }
         }
         if (copyAsImplicit && AbstractStateManager.INSTANCE.ignoreImplicitDerivedTransition.contains(Triple(updatedAbstractState.window,updatedAbstractAction,dest.window))){
             return
@@ -384,8 +391,10 @@ class ModelBackwardAdapter {
                     data = baseTransition.data
             )
             // updatedAbstractState.increaseActionCount2(updatedAbstractAction,false)
-            newAbstractTransition.guardEnabled = baseTransition.guardEnabled
             newAbstractTransition.dependentAbstractStates.addAll(dependendAbstractStates)
+            if (newAbstractTransition.dependentAbstractStates.contains(newAbstractTransition.dest)) {
+                newAbstractTransition.guardEnabled = true
+            }
             dstg.add(newAbstractTransition.source, newAbstractTransition.dest, newAbstractTransition)
             newAbstractTransition.userInputs.addAll(baseTransition.userInputs)
             baseTransition.handlers.forEach { handler, _ ->

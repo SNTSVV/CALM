@@ -1,6 +1,7 @@
 package org.droidmate.exploration.strategy.atua.task
 
 import kotlinx.coroutines.runBlocking
+import org.atua.calm.modelReuse.ModelHistoryInformation
 import org.atua.calm.modelReuse.ModelVersion
 import org.droidmate.deviceInterface.exploration.*
 import org.droidmate.exploration.actions.*
@@ -210,7 +211,7 @@ class RandomExplorationTask constructor(
         val currentAbstractState = atuaMF.getAbstractState(currentState)!!
         val unexercisedActions = currentAbstractState.getUnExercisedActions(currentState,atuaMF)
         val widgetActions = unexercisedActions.filter {
-            it.attributeValuationMap == null
+            it.attributeValuationMap != null
         }
         if (!isOutOfAppState(currentAbstractState)) {
             actionOnOutOfAppCount = 0
@@ -231,6 +232,7 @@ class RandomExplorationTask constructor(
                 } else if (!goToLockedWindowTask!!.isTaskEnd(currentState)) {
                     return goToLockedWindowTask!!.chooseAction(currentState)
                 }
+                recentGoToExploreState = true
         } else {
             if (isCameraOpening(currentState)) {
                 return dealWithCamera(currentState)
@@ -253,8 +255,14 @@ class RandomExplorationTask constructor(
                             includePressback = true,
                             includeResetApp = false,
                             isExploration = false)) {
-                        goToLockedWindowTask!!.initialize(currentState)
-                        return goToLockedWindowTask!!.chooseAction(currentState)
+                        if (goToLockedWindowTask!!.possiblePaths.any { it.cost()<=5*atuaStrategy.scaleFactor }) {
+                            recentGoToExploreState = true
+                            goToLockedWindowTask!!.initialize(currentState)
+                            return goToLockedWindowTask!!.chooseAction(currentState)
+                        } else {
+                            log.debug("Unexercised inputs are too far.")
+                            forcingEndTask = true
+                        }
                     }
                 }
             }
@@ -393,20 +401,20 @@ class RandomExplorationTask constructor(
             ExplorationTrace.widgetTargets.add(selectedWidget)
             log.info("Widget: ${selectedWidget}")
             return selectedAction
-        } else if (!isPureRandom && lastAction != null
+        }/* else if (!isPureRandom && lastAction != null
                 && lastAction!!.actionType == AbstractActionType.SWIPE
                 && lastAction!!.attributeValuationMap!=null
                 && listOf<String>("ListView","RecyclerView").any { lastAction!!.attributeValuationMap!!.getClassName().contains(it) } ) {
                 if ( prevAbstractState != currentAbstractState
                         && prevAbstractState.window == currentAbstractState.window
                         && atuaMF.abstractStateVisitCount[currentAbstractState]!! == 1
-                        /*&& isScrollToEnd
-                        && lastAction!!.extra == "SwipeTillEnd"*/
+                        *//*&& isScrollToEnd
+                        && lastAction!!.extra == "SwipeTillEnd"*//*
                         && currentAbstractState.getAvailableActions().contains(lastAction!!)) {
                 tryLastAction = 1
                 maximumAttempt += 1
                 randomAction = currentAbstractState.getAvailableActions().find { it == lastAction }
-            } /*else if (atuaMF.appPrevState!!.stateId != currentState.stateId
+            } *//*else if (atuaMF.appPrevState!!.stateId != currentState.stateId
                     && atuaMF.stateVisitCount[currentState] == 1
                     && tryLastAction < MAX_TRY_LAST_ACTION
                     && currentAbstractState.getAvailableActions().contains(lastAction!!)
@@ -414,15 +422,28 @@ class RandomExplorationTask constructor(
                 tryLastAction += 1
                 maximumAttempt += 1
                 randomAction = currentAbstractState.getAvailableActions().find { it == lastAction }
-            }*/
-        }
+            }*//*
+        }*/
         if(randomAction==null) {
             tryLastAction = 0
             //val widgetActions = currentAbstractState.getAvailableActions().filter { it.widgetGroup != null }
-
-            val priotizeActions = unexercisedActions.filterNot { widgetActions.contains(it) }
+            val priotizeActions = unexercisedActions.filter {
+                val inputs = currentAbstractState.inputMappings[it]
+                if (inputs != null) {
+                    val usefulInputs = inputs.filter {
+                        if (ModelHistoryInformation.INSTANCE.inputUsefulness.containsKey(it)) {
+                            ModelHistoryInformation.INSTANCE.inputUsefulness[it]!!.second>0
+                        } else {
+                            true
+                        }
+                    }
+                    usefulInputs.isNotEmpty()
+                } else
+                    false
+            }.filter{
+                widgetActions.contains(it) }
             if (priotizeActions.isNotEmpty()) {
-                randomAction = exerciseUnexercisedWidgetAbstractActions(unexercisedActions.filterNot { widgetActions.contains(it) }, randomAction, currentAbstractState)
+                randomAction = exerciseUnexercisedWidgetAbstractActions(priotizeActions, randomAction, currentAbstractState)
                 //randomAction = unexercisedActions.random()
             } else if (unexercisedActions.isNotEmpty()) {
                 randomAction = if (unexercisedActions.any { it.attributeValuationMap != null }) {
@@ -445,7 +466,7 @@ class RandomExplorationTask constructor(
                                 ) } }
                 if (unexercisedActionsInCurrentState.isNotEmpty()) {
                     randomAction = unexercisedActionsInCurrentState.random()
-                } else if (!isPureRandom && canGoToUnexploredStates(
+                } else if (!isPureRandom && !recentGoToExploreState && canGoToUnexploredStates(
                         currentAbstractState,
                         currentState
                     )
@@ -486,17 +507,7 @@ class RandomExplorationTask constructor(
             var chosenWidget: Widget? = null
             var isValidAction = true
             if (randomAction.attributeValuationMap != null) {
-                val chosenWidgets = randomAction.attributeValuationMap!!.getGUIWidgets(currentState)
-                if (chosenWidgets.isEmpty()) {
-                    chosenWidget = null
-                } else {
-                    val candidates = runBlocking { getCandidates(chosenWidgets) }
-                    chosenWidget = if (candidates.isEmpty())
-                        chosenWidgets.random()
-                    else
-                        candidates.random()
-                }
-
+                chosenWidget = chooseGUIWidgetFromAbstractAction(randomAction, currentState)
                 if (chosenWidget == null) {
                     log.debug("No widget found")
                     // remove action
@@ -643,11 +654,18 @@ class RandomExplorationTask constructor(
                         isExploration = true
                     )
                 ) {
-                    if (goToLockedWindowTask!!.possiblePaths.any { it.path.size<5*atuaStrategy.scaleFactor }) {
+                    if (goToLockedWindowTask!!.possiblePaths.any { it.cost()<=5*atuaStrategy.scaleFactor }) {
                         recentGoToExploreState = true
                         goToLockedWindowTask!!.initialize(currentState)
                         return true
+                    } else {
+                        log.debug("Unexercised inputs are too far.")
                     }
+                    /*if (goToLockedWindowTask!!.possiblePaths.isNotEmpty()) {
+                        recentGoToExploreState = true
+                        goToLockedWindowTask!!.initialize(currentState)
+                        return true
+                    }*/
                 }
             }
         }

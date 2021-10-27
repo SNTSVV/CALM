@@ -82,11 +82,11 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
     val recentExecutedMethods: ArrayList<String> = ArrayList()
 
 
-    val actionCoverageTracking = HashMap<Int,Set<String>>()
-    val actionIncreasingCoverageTracking = HashMap<Int,Set<String>>()
+    val actionCoverageTracking = HashMap<String,Set<String>>()
+    val actionIncreasingCoverageTracking = HashMap<String,Set<String>>()
 
-    val actionUpdatedCoverageTracking = HashMap<Int,Set<String>>()
-    val actionIncreasingUpdatedCoverageTracking = HashMap<Int,Set<String>>()
+    val actionUpdatedCoverageTracking = HashMap<String,Set<String>>()
+    val actionIncreasingUpdatedCoverageTracking = HashMap<String,Set<String>>()
 
     var prevUpdateCoverage: Int = 0
     var prevCoverage: Int = 0
@@ -196,11 +196,11 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
         }
         statementRead = true
 
-        val lastAction = context.getLastAction()
-        actionCoverageTracking.put(lastAction.actionId,recentExecutedStatements.toSet())
-        actionIncreasingCoverageTracking.put(lastAction.actionId,newExecutedStatements)
-        actionUpdatedCoverageTracking.put(lastAction.actionId,executedUpdatedStatements)
-        actionIncreasingUpdatedCoverageTracking.put(lastAction.actionId,newUpdatedExecutedStatements)
+        val lastActionId = context.getLastAction().actionId.toString()
+        actionCoverageTracking.put(lastActionId,recentExecutedStatements.toSet())
+        actionIncreasingCoverageTracking.put(lastActionId,newExecutedStatements)
+        actionUpdatedCoverageTracking.put(lastActionId,executedUpdatedStatements)
+        actionIncreasingUpdatedCoverageTracking.put(lastActionId,newUpdatedExecutedStatements)
     }
     /**
      * Fetch the statement data form the device. Afterwards, it parses the data and updates [executedStatementsMap].
@@ -557,13 +557,13 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
 
     fun dumpActionTraceWithCoverage(context: ExplorationContext<*, *, *>) {
         runBlocking {
-            val outputFile = File(context.model.config.baseDir.resolve("actionCoverage.csv").toAbsolutePath().toString()).bufferedWriter()
-            outputFile.write("ActionId;ActionType;SourceState;ResultState;Data;ExecutedStatements;NewExecutedStatements;ExecutedUpdatedStatements;NewUpdatedExecutedStatements")
+            val outputFile = File(context.model.config.baseDir.resolve("actionCoverage_${context.explorationTrace.id}.csv").toAbsolutePath().toString()).bufferedWriter()
+            outputFile.write("ActionId[0];ActionType[1];SourceState[2];ResultState[3];Data[4];CoverageHash[5];ExecutedStatements[6];NewExecutedStatements[7];ExecutedUpdatedStatements[8];NewUpdatedExecutedStatements[9]")
             outputFile.newLine()
             val actions = context.explorationTrace.P_getActions()
             actions.forEach { action ->
                 outputFile.write("${action.actionId.toString()};${action.actionType};${action.prevState};${action.resState};\"${action.data}\"")
-                outputFile.write(";${actionCoverageTracking.get(action.actionId)?.size};${actionIncreasingCoverageTracking.get(action.actionId)?.size};${actionUpdatedCoverageTracking.get(action.actionId)?.size};${actionIncreasingUpdatedCoverageTracking.get(action.actionId)?.size};")
+                outputFile.write("${actionCoverageTracking.get(action.actionId.toString())?.hashCode()} ;${actionCoverageTracking.get(action.actionId.toString())?.size};${actionIncreasingCoverageTracking.get(action.actionId.toString())?.size};${actionUpdatedCoverageTracking.get(action.actionId.toString())?.size};${actionIncreasingUpdatedCoverageTracking.get(action.actionId.toString())?.size};")
                 outputFile.newLine()
             }
             outputFile.close()
@@ -601,10 +601,11 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
         val dataJson = JSONObject()
         var prevActionId: Int = 0
         actions.forEach {
-            if (actionIncreasingUpdatedCoverageTracking.containsKey(it.actionId)
-                && actionIncreasingUpdatedCoverageTracking.get(it.actionId)!!.size>0) {
+            val actionIdStr = it.actionId.toString()
+            if (actionIncreasingUpdatedCoverageTracking.containsKey(actionIdStr)
+                && actionIncreasingUpdatedCoverageTracking.get(actionIdStr)!!.size>0) {
                 val actionJSONObject = JSONObject()
-                dataJson.put(it.actionId.toString(), actionJSONObject)
+                dataJson.put(actionIdStr, actionJSONObject)
                 actionJSONObject.put("from", it.prevState.uid)
                 actionJSONObject.put("to", it.resState.uid)
                 actionJSONObject.put("actionType", it.actionType)
@@ -642,18 +643,18 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                         Files.copy(screenshotFile, newScreenshotFile)
                     actionJSONObject.put("image", actionCoverageHTMLFolderPath.relativize(newScreenshotFile).toString())
                 }
-                actionJSONObject.put("executedStatements", actionCoverageTracking.get(it.actionId)?.size ?: 0)
+                actionJSONObject.put("executedStatements", actionCoverageTracking.get(actionIdStr)?.size ?: 0)
                 actionJSONObject.put(
                     "newExecutedStatements",
-                    actionIncreasingCoverageTracking.get(it.actionId)?.size ?: 0
+                    actionIncreasingCoverageTracking.get(actionIdStr)?.size ?: 0
                 )
                 actionJSONObject.put(
                     "executedUpdatedStatements",
-                    actionUpdatedCoverageTracking.get(it.actionId)?.size ?: 0
+                    actionUpdatedCoverageTracking.get(actionIdStr)?.size ?: 0
                 )
                 actionJSONObject.put(
                     "newExecutedUpdatedStatements",
-                    actionIncreasingUpdatedCoverageTracking.get(it.actionId)?.size ?: 0
+                    actionIncreasingUpdatedCoverageTracking.get(actionIdStr)?.size ?: 0
                 )
                 if (it.targetWidget != null) {
                     val widget = it.targetWidget!!
@@ -685,14 +686,15 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
         val content = file.readLines()
 
         actions.forEach {
-            if (actionIncreasingUpdatedCoverageTracking.containsKey(it.actionId)
-                && actionIncreasingUpdatedCoverageTracking.get(it.actionId)!!.size>0) {
+            val actionIdStr = it.actionId.toString()
+            if (actionIncreasingUpdatedCoverageTracking.containsKey(actionIdStr)
+                && actionIncreasingUpdatedCoverageTracking.get(actionIdStr)!!.size>0) {
                 val newHTMLFilePath = actionCoverageHTMLFolderPath.resolve("${it.actionId}.html")
                 if (!Files.exists(newHTMLFilePath)) {
                     Files.createFile(newHTMLFilePath)
                     val newHTMLFile = File(newHTMLFilePath.toUri())
                     content.forEach { line ->
-                        newHTMLFile.appendText(line.replace("##action_id##", it.actionId.toString()))
+                        newHTMLFile.appendText(line.replace("##action_id##", actionIdStr))
                     }
                 }
             }
@@ -718,7 +720,7 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
 
 }
 
-private suspend fun <S, W> ExplorationTrace<State<*>,Widget>.dumpWithCoverage(config:ModelConfig, actionTraceCoverage: HashMap<Int, Set<String>>, actionIncreaseCoverage: HashMap<Int, Set<String>>, actionUpdatedStmtCoverage: HashMap<Int,Set<String>>, actionIncreasingUpdatedStmtCoverage: HashMap<Int,Set<String>>) {
+private suspend fun <S, W> ExplorationTrace<State<*>,Widget>.dumpWithCoverage(config:ModelConfig, actionTraceCoverage: HashMap<String, Set<String>>, actionIncreaseCoverage: HashMap<String, Set<String>>, actionUpdatedStmtCoverage: HashMap<String,Set<String>>, actionIncreasingUpdatedStmtCoverage: HashMap<String,Set<String>>) {
     File(config.traceFile2(id.toString())).bufferedWriter().use { out ->
         out.write(StringCreator.actionHeader(config[ConfigProperties.ModelProperties.dump.sep]))
         out.write(";ExecutedStatements;NewExecutedStatements;ExecutedUpdatedStatements;NewUpdatedExecutedStatements")
@@ -727,7 +729,10 @@ private suspend fun <S, W> ExplorationTrace<State<*>,Widget>.dumpWithCoverage(co
         val actions = ArrayList(P_getActions())
         actions.forEach { action ->
             out.write(StringCreator.createActionString(action, config[ConfigProperties.ModelProperties.dump.sep]))
-            out.write(";${actionTraceCoverage.get(action.actionId)?.size};${actionIncreaseCoverage.get(action.actionId)?.size};${actionUpdatedStmtCoverage.get(action.actionId)?.size};${actionIncreasingUpdatedStmtCoverage.get(action.actionId)?.size}")
+            val actionIdStr = action.actionId.toString()
+            out.write(";${actionTraceCoverage.get(actionIdStr)?.size};${actionIncreaseCoverage.get(actionIdStr)?.size};${actionUpdatedStmtCoverage.get(
+                actionIdStr
+            )?.size};${actionIncreasingUpdatedStmtCoverage.get(actionIdStr)?.size}")
             out.newLine()
         }
     }

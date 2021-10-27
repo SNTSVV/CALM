@@ -13,6 +13,7 @@
 package org.atua.modelFeatures.ewtg
 
 import org.atua.modelFeatures.ATUAMF
+import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
@@ -34,14 +35,18 @@ open class Input{
     }
     val createdAtRuntime: Boolean
     val verifiedEventHandlers = HashSet<String>() //if an event handler appears in this set, we will not remove it from event's handlers
-    val coveredMethods = HashSet<String> ()
+    val coveredMethods = HashMap<String,Boolean> ()
     val modifiedMethods = HashMap<String,Boolean>() //method id,
     val modifiedMethodStatement = HashMap<String, Boolean>() //statement id,
     val coverage = HashMap<String,Int>() // timestampe->StatementCoverage
 
     var data: Any? = null
     var exerciseCount: Int = 0
-    constructor(eventType: EventType, eventHandlers: Set<String>, widget: EWTGWidget?,sourceWindow: Window,createdAtRuntime: Boolean=false) {
+    var usefullOnce: Boolean = false
+    var isUseless: Boolean? = null
+    var mappingActionIds = HashMap<String,ArrayList<String>>()
+
+    private constructor(eventType: EventType, eventHandlers: Set<String>, widget: EWTGWidget?,sourceWindow: Window,createdAtRuntime: Boolean=false) {
        this.eventType = eventType
        this.eventHandlers.addAll(eventHandlers)
        this.widget = widget
@@ -70,7 +75,6 @@ open class Input{
             EventType.item_selected -> AbstractActionType.ITEM_SELECTED
             EventType.enter_text -> AbstractActionType.TEXT_INSERT
             EventType.editor_action -> AbstractActionType.CLICK
-            EventType.implicit_menu -> AbstractActionType.PRESS_MENU
             EventType.implicit_rotate_event -> AbstractActionType.ROTATE_UI
             EventType.implicit_back_event -> AbstractActionType.PRESS_BACK
             EventType.press_back -> AbstractActionType.PRESS_BACK
@@ -98,6 +102,7 @@ open class Input{
 
     companion object{
         val allInputs = arrayListOf<Input>()
+        val goBackInputs = arrayListOf<Input>()
         fun isNoWidgetEvent(action: String): Boolean {
             return (action == EventType.implicit_back_event.name
                     || action == EventType.implicit_rotate_event.name
@@ -136,7 +141,7 @@ open class Input{
                 AbstractActionType.LONGCLICK-> EventType.long_click
                 AbstractActionType.SWIPE -> EventType.swipe
                 AbstractActionType.TEXT_INSERT -> EventType.enter_text
-                AbstractActionType.PRESS_MENU -> EventType.implicit_menu
+                AbstractActionType.PRESS_MENU -> EventType.press_menu
                 AbstractActionType.PRESS_BACK -> EventType.press_back
                 AbstractActionType.MINIMIZE_MAXIMIZE -> EventType.implicit_lifecycle_event
                 AbstractActionType.ROTATE_UI -> EventType.implicit_rotate_event
@@ -156,8 +161,17 @@ open class Input{
                              eventTypeString: String,
                              widget: EWTGWidget?,
                              sourceWindow: Window,
-                             createdAtRuntime: Boolean=false): Input {
-            var events = allInputs.filter { it.eventType.equals(EventType.valueOf(eventTypeString)) && it.widget == widget && it.sourceWindow == sourceWindow }
+                             createdAtRuntime: Boolean=false): Input? {
+            val refinedEventTypeString = when(eventTypeString){
+                "touch" -> "click"
+                "implicit_menu" -> "press_menu"
+                "implicit_back_event" -> "press_back"
+                else -> eventTypeString
+            }
+            val eventType = EventType.valueOf(refinedEventTypeString)
+            if (eventType == EventType.fake_action || eventType == EventType.resetApp)
+                return null
+            var events = allInputs.filter { it.eventType.equals(eventType) && it.widget == widget && it.sourceWindow == sourceWindow }
             //var event = allTargetStaticEvents.firstOrNull {it.eventTypeString.equals(eventTypeString) && (it.widget!!.equals(widget)) }
             if (events.isNotEmpty()) {
                 val event = events.first()
@@ -171,7 +185,7 @@ open class Input{
                 return events.first()
             }
             val event = Input(eventHandlers = HashSet(eventHandlers)
-                    , eventType = EventType.valueOf(eventTypeString)
+                    , eventType = eventType
                     , widget = widget, sourceWindow = sourceWindow, createdAtRuntime = createdAtRuntime)
             return event
         }
@@ -198,6 +212,8 @@ open class Input{
                         eventHandlers = HashSet(),
                         createdAtRuntime = true
                 )*/
+                if (newInput == null)
+                    return
                 newInput.data = abstractTransition.abstractAction.extra
                 newInput.eventHandlers.addAll(abstractTransition.handlers.map { it.key })
 
@@ -265,6 +281,8 @@ open class Input{
                             sourceWindow = prevAbstractState.window,
                             createdAtRuntime = true
                     )
+                    if (newInput == null)
+                        return
                     /*newInput = Input(
                             eventType = eventType,
                             widget = staticWidget,
@@ -307,9 +325,100 @@ open class Input{
                 }
             }
         }
+
+        fun createInputFromAbstractAction(abstractState: AbstractState,abstractAction: AbstractAction) {
+            val eventType = Input.getEventTypeFromActionName(abstractAction.actionType)
+            if (eventType == EventType.fake_action || eventType == EventType.resetApp || eventType == EventType.implicit_launch_event)
+                return
+            var newInput: Input?
+            if (abstractAction.attributeValuationMap == null) {
+                val exisitingInput = abstractState.window.inputs.find {
+                    it.eventType == eventType
+                }
+                if (exisitingInput!=null)
+                    newInput = exisitingInput
+                else {
+                    newInput = Input.getOrCreateInput(
+                        eventHandlers = emptySet(),
+                        eventTypeString = eventType.toString(),
+                        widget = null,
+                        sourceWindow = abstractState.window,
+                        createdAtRuntime = true
+                    )
+                    if (newInput == null)
+                        return
+                    /*newInput = Input(
+                        eventType = eventType,
+                        widget = null,
+                        sourceWindow = prevAbstractState.window,
+                        eventHandlers = HashSet(),
+                        createdAtRuntime = true
+                )*/
+                    newInput.data = abstractAction.extra
+                }
+
+                if (!abstractState.inputMappings.containsKey(abstractAction)) {
+                    abstractState.inputMappings.put(abstractAction, hashSetOf())
+                }
+                abstractState.inputMappings.get(abstractAction)!!.add(newInput)
+            } else {
+                val attributeValuationSet = abstractAction.attributeValuationMap
+                if (!abstractState.EWTGWidgetMapping.containsKey(attributeValuationSet)) {
+                    val attributeValuationSetId = if (attributeValuationSet.getResourceId().isBlank())
+                        ""
+                    else
+                        attributeValuationSet.avmId
+                    // create new static widget and add to the abstract state
+                    val staticWidget = EWTGWidget(
+                        widgetId = attributeValuationSet.avmId.toString(),
+                        resourceIdName = attributeValuationSet.getResourceId(),
+                        window = abstractState.window,
+                        className = attributeValuationSet.getClassName(),
+                        text = attributeValuationSet.getText(),
+                        contentDesc = attributeValuationSet.getContentDesc(),
+                        createdAtRuntime = true,
+                        structure = attributeValuationSetId
+                    )
+                    abstractState.EWTGWidgetMapping.put(attributeValuationSet, staticWidget)
+                }
+                if (abstractState.EWTGWidgetMapping.contains(attributeValuationSet)) {
+                    val staticWidget = abstractState.EWTGWidgetMapping[attributeValuationSet]!!
+                    val exisitingInput = abstractState.window.inputs.find {
+                        it.eventType == eventType
+                                && it.widget == staticWidget
+                    }
+                    if (exisitingInput!=null) {
+                        newInput = exisitingInput
+                    } else {
+                        newInput = Input.getOrCreateInput(
+                            eventHandlers = emptySet(),
+                            eventTypeString = eventType.toString(),
+                            widget = staticWidget,
+                            sourceWindow = abstractState.window,
+                            createdAtRuntime = true
+                        )
+                        if (newInput == null)
+                            return
+                        newInput.data = abstractAction.extra
+                    }
+
+                    if (!abstractState.inputMappings.containsKey(abstractAction)) {
+                        abstractState.inputMappings.put(abstractAction, hashSetOf())
+                    }
+                    abstractState.inputMappings.get(abstractAction)!!.add(newInput)
+                }
+            }
+        }
     }
+    class LaunchAppEvent(launcher: Window): Input(EventType.implicit_launch_event, HashSet(),null,sourceWindow = launcher)
+    class FakeEvent(sourceWindow: Window): Input(EventType.fake_action, HashSet(), null,sourceWindow)
 }
 
-class LaunchAppEvent(launcher: Window): Input(EventType.implicit_launch_event, HashSet(),null,sourceWindow = launcher)
-class FakeEvent(sourceWindow: Window): Input(EventType.fake_action, HashSet(), null,sourceWindow)
+enum class BooleanConfirm {
+    TRUE,
+    FALSE,
+    NOT_CONFIRMED
+}
+
+
 
