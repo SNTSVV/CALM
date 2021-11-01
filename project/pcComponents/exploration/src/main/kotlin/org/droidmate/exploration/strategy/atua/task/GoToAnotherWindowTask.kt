@@ -145,6 +145,11 @@ open class GoToAnotherWindowTask constructor(
                 if (pathTraverser!!.canContinue(currentAppState)) {
                     return false
                 }
+                if (pathTraverser!!.finalStateAchieved() && currentPath!!.destination.window == currentAppState.window) {
+                    val currentInputs = currentAppState.inputMappings.values.flatten().distinct()
+                    if (pathTraverser!!.transitionPath.goal.isEmpty()  || currentInputs.intersect(pathTraverser!!.transitionPath.goal).isNotEmpty())
+                        return true
+                }
                 val transitionPaths = ArrayList<TransitionPath>()
                 val finalTarget =
                     if (AbstractStateManager.INSTANCE.ABSTRACT_STATES.contains(currentPath!!.getFinalDestination()))
@@ -190,8 +195,6 @@ open class GoToAnotherWindowTask constructor(
                 }
                 actionTryCount = 0
                 expectedNextAbState = pathTraverser!!.getCurrentTransition()?.dest
-                if (pathTraverser!!.finalStateAchieved() && currentPath!!.destination.window == currentAppState.window)
-                    return true
                 if (transitionPaths.isNotEmpty()) {
                     possiblePaths.clear()
                     possiblePaths.addAll(transitionPaths)
@@ -274,7 +277,7 @@ open class GoToAnotherWindowTask constructor(
             (3 * atuaStrategy.scaleFactor).toInt()
         } else
             (3 * atuaStrategy.scaleFactor).toInt()
-        if (retryTimes < retryBudget && currentPath!!.pathType != PathFindingHelper.PathType.FULLTRACE  ) {
+        if (retryTimes < retryBudget) {
             retryTimes += 1
             identifyPossiblePaths(currentState, true)
             if (possiblePaths.isNotEmpty() ) {
@@ -285,7 +288,8 @@ open class GoToAnotherWindowTask constructor(
                 initialize(currentState)
                 return false
             }
-        } /*else if (currentPath!!.pathType != PathFindingHelper.PathType.PARTIAL_TRACE && currentPath!!.pathType != PathFindingHelper.PathType.FULLTRACE) {
+        }
+        /*else if (currentPath!!.pathType != PathFindingHelper.PathType.PARTIAL_TRACE && currentPath!!.pathType != PathFindingHelper.PathType.FULLTRACE) {
             retryTimes += 1
             initPossiblePaths(currentState, true,PathFindingHelper.PathType.PARTIAL_TRACE)
             if (possiblePaths.isNotEmpty() && possiblePaths.any { it.pathType == PathFindingHelper.PathType.PARTIAL_TRACE || it.pathType == PathFindingHelper.PathType.FULLTRACE }) {
@@ -293,7 +297,8 @@ open class GoToAnotherWindowTask constructor(
                 log.debug(" Paths is not empty")
                 return false
             }
-        } */else if (currentPath!!.pathType != PathFindingHelper.PathType.FULLTRACE && includeResetAction) {
+        } */
+        /*else if (currentPath!!.pathType != PathFindingHelper.PathType.FULLTRACE && includeResetAction) {
             retryTimes += 1
             identifyPossiblePaths(currentState, true,PathFindingHelper.PathType.FULLTRACE)
             if (possiblePaths.isNotEmpty()) {
@@ -301,7 +306,7 @@ open class GoToAnotherWindowTask constructor(
                 log.debug(" Paths is not empty")
                 return false
             }
-        }
+        }*/
         return true
     }
 
@@ -639,14 +644,14 @@ open class GoToAnotherWindowTask constructor(
                         isExploration || !isWindowAsTarget
                     )
                 )
-                if (computeNextPathType(nextPathType, includeResetAction) == PathFindingHelper.PathType.NORMAL)
+                if (computeNextPathType(nextPathType, includeResetAction) == PathFindingHelper.PathType.WIDGET_AS_TARGET)
                     break
                 nextPathType = computeNextPathType(nextPathType, includeResetAction)
             }
         } else {
             while (possiblePaths.isEmpty()) {
                 possiblePaths.addAll(atuaStrategy.phaseStrategy.getPathsToExploreStates(currentState, nextPathType))
-                if (computeNextPathType(nextPathType, includeResetAction) == PathFindingHelper.PathType.NORMAL)
+                if (computeNextPathType(nextPathType, includeResetAction) == PathFindingHelper.PathType.WIDGET_AS_TARGET)
                     break
                 nextPathType = computeNextPathType(nextPathType, includeResetAction)
             }
@@ -659,19 +664,20 @@ open class GoToAnotherWindowTask constructor(
         includeResetApp: Boolean
     ): PathFindingHelper.PathType {
         return when (pathType) {
-            PathFindingHelper.PathType.NORMAL -> PathFindingHelper.PathType.WTG
             PathFindingHelper.PathType.WIDGET_AS_TARGET -> PathFindingHelper.PathType.NORMAL
+            PathFindingHelper.PathType.NORMAL -> PathFindingHelper.PathType.WTG
             // PathFindingHelper.PathType.NORMAL -> PathFindingHelper.PathType.WTG
 //            PathFindingHelper.PathType.PARTIAL_TRACE -> PathFindingHelper.PathType.WTG
             /*PathFindingHelper.PathType.NORMAL_RESET -> PathFindingHelper.PathType.WIDGET_AS_TARGET_RESET
             PathFindingHelper.PathType.WIDGET_AS_TARGET_RESET -> PathFindingHelper.PathType.WTG
             */
-            PathFindingHelper.PathType.WTG ->
+            /*PathFindingHelper.PathType.WTG ->
                 if (useTrace && includeResetApp)
                     PathFindingHelper.PathType.FULLTRACE
                 else
                     PathFindingHelper.PathType.NORMAL
-            PathFindingHelper.PathType.FULLTRACE -> PathFindingHelper.PathType.NORMAL
+            PathFindingHelper.PathType.FULLTRACE -> PathFindingHelper.PathType.NORMAL*/
+            PathFindingHelper.PathType.WTG -> PathFindingHelper.PathType.WIDGET_AS_TARGET
             else -> PathFindingHelper.PathType.ANY
         }
     }
@@ -740,6 +746,7 @@ open class GoToAnotherWindowTask constructor(
             mainTaskFinished = true
             return randomExplorationTask.chooseAction(currentState)
         }
+        log.info("Path type: ${pathTraverser!!.transitionPath.pathType}")
         var nextAbstractState = expectedNextAbState
         val currentAbstractState = atuaMF.getAbstractState(currentState)!!
         if (currentAbstractState.isOpeningKeyboard && !expectedNextAbState!!.isOpeningKeyboard) {

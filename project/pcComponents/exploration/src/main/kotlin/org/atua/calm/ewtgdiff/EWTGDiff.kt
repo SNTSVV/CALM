@@ -13,7 +13,6 @@
 package org.atua.calm.ewtgdiff
 
 import org.atua.calm.modelReuse.ModelHistoryInformation
-import org.atua.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
@@ -95,14 +94,7 @@ class EWTGDiff private constructor(){
                 WindowManager.instance.baseModelWindows.remove(replacement.old)
             }
             val replacements = (windowDifferentSets.get("ReplacementSet")!! as ReplacementSet<Window>).replacedElements.map { Pair(it.old,it.new) }.toMap()
-            AbstractStateManager.INSTANCE.ABSTRACT_STATES.forEach {
-                it.abstractTransitions.forEach {
-                    /*if (replacements.contains(it.prevWindow)) {
-                        it.prevWindow = replacements.get(it.prevWindow)
-                    }*/
-                    // TODO check
-                }
-            }
+
 
         }
         if (windowDifferentSets.containsKey("RetainerSet")) {
@@ -152,7 +144,7 @@ class EWTGDiff private constructor(){
         if (widgetDifferentSets.containsKey("ReplacementSet")) {
             for (replacement in (widgetDifferentSets.get("ReplacementSet")!! as ReplacementSet<EWTGWidget>).replacedElements) {
                 // update avm-ewtgwidget mapping
-                updateInputs(replacement,true)
+                updateInputs(replacement,true,atuamf)
                 updateAbstractionFunction(replacement)
                 // update EWTGWidget structure
                 updateWindowHierarchy(replacement)
@@ -174,7 +166,7 @@ class EWTGDiff private constructor(){
 
         if (widgetDifferentSets.containsKey("RetainerSet")) {
             for (replacement in (widgetDifferentSets.get("RetainerSet")!! as RetainingSet<EWTGWidget>).replacedElements) {
-                updateInputs(replacement,false)
+                updateInputs(replacement,false,atuamf)
                 // update EWTGWidget structure
                 updateWindowHierarchy(replacement)
                 updateAbstractionFunction(replacement)
@@ -299,12 +291,20 @@ class EWTGDiff private constructor(){
                 if (uncoveredHanndlers.isNotEmpty()) {
                     val remainHandlers = uncoveredHanndlers.filter { atuamf.statementMF!!.isModifiedMethod(it) }
                     existingInputInUpdateVers.eventHandlers.clear()
-                    existingInputInUpdateVers.eventHandlers.addAll(oldInput.eventHandlers)
                     existingInputInUpdateVers.eventHandlers.addAll(remainHandlers)
                 }
-                
-
+                existingInputInUpdateVers.eventHandlers.addAll(oldInput.eventHandlers)
+                val beforeCnt = existingInputInUpdateVers.modifiedMethods.size
+                val reachableModifiedMethods = existingInputInUpdateVers.eventHandlers.map { handler->
+                    atuamf.modifiedMethodWithTopCallers.filter { it.value.contains(handler) }.keys
+                }.flatten().distinct()
+                val unreachableMethods = existingInputInUpdateVers.modifiedMethods.keys.subtract(reachableModifiedMethods)
+                unreachableMethods.forEach {
+                    existingInputInUpdateVers.modifiedMethods.remove(it)
+                }
                 existingInputInUpdateVers.modifiedMethods.putAll(oldInput.modifiedMethods)
+                val afterCnt = existingInputInUpdateVers.modifiedMethods.size
+                existingInputInUpdateVers.coveredMethods.putAll(oldInput.coveredMethods)
             }
         }
     }
@@ -336,9 +336,6 @@ class EWTGDiff private constructor(){
     }
 
     private fun replaceWindow(replacement: Replacement<Window>, atuamf: org.atua.modelFeatures.ATUAMF) {
-        AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.window == replacement.old }.forEach {
-            it.window = replacement.new
-        }
         val oldWindowAVMs = AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP.get(replacement.old)
         if (oldWindowAVMs!=null) {
             AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP.put(replacement.new, oldWindowAVMs)
@@ -366,7 +363,7 @@ class EWTGDiff private constructor(){
             it.window = replacement.new
         }
         replacement.old.widgets.clear()
-        replacement.old.inputs.forEach {
+        replacement.old.inputs.filter{it.widget!=null}.forEach {
             it.sourceWindow = replacement.new
             replacement.new.inputs.add(it)
         }
@@ -404,6 +401,22 @@ class EWTGDiff private constructor(){
             }
             ModelHistoryInformation.INSTANCE.inputUsefulness.remove(it.key)
         }
+        AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.window == replacement.old }.forEach {
+            it.window = replacement.new
+        }
+        AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.window == replacement.new }
+            .forEach { abstractState ->
+                abstractState.inputMappings.keys.filter { !it.isWidgetAction() }.forEach {
+                    val oldInputs = ArrayList(abstractState.inputMappings[it]!!)
+                    abstractState.inputMappings.remove(it)
+                    Input.getOrCreateInputFromAbstractAction(abstractState,it)
+                    val newInputs = abstractState.inputMappings[it]
+                    oldInputs.forEach { input ->
+
+                    }
+            }
+        }
+
     }
 
     private fun loadTransitionDifferences(jsonObject: JSONObject,atuamf: org.atua.modelFeatures.ATUAMF) {

@@ -16,7 +16,6 @@ import org.atua.modelFeatures.ewtg.window.OutOfApp
 import org.atua.modelFeatures.ewtg.window.Window
 import org.droidmate.exploration.strategy.atua.task.AbstractStrategyTask
 import org.droidmate.explorationModel.interaction.State
-import org.slf4j.LoggerFactory
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
@@ -233,11 +232,9 @@ abstract class AbstractPhaseStrategy(
                 //windowStates.remove(abstractState)
                 candidateStates.remove(abstractState)
             }
-            if (windowAsTarget && transitionPaths.isNotEmpty()) {
-                val minSequenceLength = transitionPaths.map { it.cost()}.min()!!
-                transitionPaths.removeIf { it.cost() > minSequenceLength }
-                if (minSequenceLength == 1)
-                    break
+            if ( (windowAsTarget || goalByAbstractState.any { it.value.isNotEmpty() }) && transitionPaths.isNotEmpty()) {
+                val mineffectiveness = transitionPaths.map { it.cost() / it.reachabilityScore}.min()!!
+                transitionPaths.removeIf { it.cost()/it.reachabilityScore > mineffectiveness }
             }
         }
 //        LoggerFactory.getLogger(this::class.simpleName).debug("Paths count: ${transitionPaths.size}")

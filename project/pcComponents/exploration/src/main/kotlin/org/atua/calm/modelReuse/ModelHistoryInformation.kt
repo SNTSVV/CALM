@@ -34,7 +34,7 @@ class ModelHistoryInformation {
         return result
     }
 
-    var inputUsefulness: HashMap<Input, Pair<Int,Int>> = HashMap()
+    var inputUsefulness: HashMap<Input, Pair<Int,Int>> = HashMap() // totalCnt - incCnt
     var inputEffectiveness: HashMap<Input, Pair<Int,Int>> = HashMap()
     companion object{
         val INSTANCE: ModelHistoryInformation by lazy {

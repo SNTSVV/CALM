@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 import kotlin.collections.HashSet
-import kotlin.random.Random
 
 class PhaseTwoStrategy(
         atuaTestingStrategy: ATUATestingStrategy,
@@ -387,11 +386,14 @@ class PhaseTwoStrategy(
             val windowTargetInputs = phase2TargetEvents.filter { it.key.sourceWindow == targetWindow }.keys
             val inputScore = HashMap<Input,Double>()
             windowTargetInputs.filter { availableEvents.contains(it) }.forEach { input ->
+                val notFullyCoveredMethods =
+                    input.modifiedMethods.filter { !atuaMF.statementMF!!.fullyCoveredMethods.contains(it.key) }
+                val uncoveredMethods =  input.modifiedMethods.filter { !atuaMF.statementMF!!.executedMethodsMap.contains(it.key) }
                 val usefulness = ModelHistoryInformation.INSTANCE.inputUsefulness[input]
                 val score = if (usefulness!=null) {
-                    (usefulness.second*1.0/(usefulness.first+1))*(1.0/(usefulness.first+1))
+                    (usefulness.second*1.0/(usefulness.first+1))* notFullyCoveredMethods.size
                 } else {
-                    1.0
+                    1.0* notFullyCoveredMethods.size
                 }
                 inputScore.put(input,score)
             }
@@ -830,7 +832,7 @@ class PhaseTwoStrategy(
             computeAppStatesScore()
             var leastExercise = targetWindowsCount.values.min()
             var leastTriedWindows = targetWindowsCount.filter { windowScores.containsKey(it.key) }
-                .map { Pair<Window, Int>(first = it.key, second = it.value) }.filter { it.second == leastExercise }
+                .map { Pair<Window, Int>(first = it.key, second = it.value) }/*.filter { it.second == leastExercise }*/
 
             if (leastTriedWindows.isEmpty()) {
                 leastTriedWindows = targetWindowsCount.map { Pair<Window, Int>(first = it.key, second = it.value) }
@@ -876,13 +878,18 @@ class PhaseTwoStrategy(
         appStateModifiedMethodMap.clear()
         modifiedMethodWeights.clear()
         phase2TargetEvents.clear()
-        val notUsefulOnceTargets = atuaMF.notFullyExercisedTargetInputs.filter {
-            it.eventType != EventType.resetApp && (!it.usefullOnce)
+        val usefulTargets = atuaMF.notFullyExercisedTargetInputs.filter {
+            it.eventType != EventType.resetApp
+                    && it.eventType != EventType.implicit_launch_event
+                    && ModelHistoryInformation.INSTANCE.inputUsefulness.containsKey(it)
+                    && ModelHistoryInformation.INSTANCE.inputUsefulness[it]!!.second>0
         }
         val notExercisedYetTargets = atuaMF.notFullyExercisedTargetInputs.filter {
-            it.eventType != EventType.resetApp && ( it.exerciseCount == 0)
+            it.eventType != EventType.resetApp
+                    && it.eventType != EventType.implicit_launch_event
+                    && ( it.exerciseCount == 0)
         }
-        val allTargetInputs = ArrayList(notUsefulOnceTargets.union(notExercisedYetTargets).distinct())
+        val allTargetInputs = ArrayList(usefulTargets.union(notExercisedYetTargets).distinct())
 
         val triggeredStatements = statementMF.getAllExecutedStatements()
         statementMF.getAllModifiedMethodsId().forEach {
@@ -1009,12 +1016,23 @@ class PhaseTwoStrategy(
             /*windowTargetInputs.forEach {
                 modifiedMethods.addAll(it.modifiedMethods.map { it.key })
             }*/
+            var inputEffectiveness = 0.0
             val usefulTargetInputs = windowTargetInputs.filter {
                 !ModelHistoryInformation.INSTANCE.inputUsefulness.containsKey(it)
                         || ModelHistoryInformation.INSTANCE.inputUsefulness[it]!!.second>1
             }
-            usefulTargetInputs.forEach {
-                modifiedMethods.addAll(it.modifiedMethods.map { it.key })
+            usefulTargetInputs.forEach { input ->
+                modifiedMethods.addAll(input.modifiedMethods.map { it -> it.key })
+                val notFullyCoveredMethods =
+                    input.modifiedMethods.filter { !atuaMF.statementMF!!.fullyCoveredMethods.contains(it.key) }
+                val uncoveredMethods =  input.modifiedMethods.filter { !atuaMF.statementMF!!.executedMethodsMap.contains(it.key) }
+                val usefulness = ModelHistoryInformation.INSTANCE.inputUsefulness[input]
+                val score = if (usefulness!=null) {
+                    (usefulness.second*1.0/(usefulness.first+1))* notFullyCoveredMethods.size
+                } else {
+                    notFullyCoveredMethods.size*1.0
+                }
+                inputEffectiveness+=score
             }
 /*            if (atuaMF.windowHandlersHashMap.containsKey(n)) {
                 atuaMF.windowHandlersHashMap[n]!!.forEach { handler ->
@@ -1028,6 +1046,7 @@ class PhaseTwoStrategy(
                 val missingStatementsNumber = modifiedMethodMissingStatements[it]?.size ?: 0
                 weight += (methodWeight * missingStatementsNumber)
             }
+            weight+=inputEffectiveness
             if (weight > 0.0) {
                 windowScores.put(n, weight)
                 staticNodeTotalScore += weight

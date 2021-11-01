@@ -139,6 +139,7 @@ class PhaseOneStrategy(
         if (atuaMF.lastUpdatedStatementCoverage == 1.0) {
             return false
         }
+        phaseTargetInputs.removeIf { (it.exerciseCount>0 && !it.eventType.isItemEvent) || it.exerciseCount>3 }
         if (atuaMF.appPrevState!!.isRequestRuntimePermissionDialogBox
             && atuaTestingStrategy.eContext.getLastActionType() != "ResetApp"
         ) {
@@ -150,6 +151,7 @@ class PhaseOneStrategy(
         } else {
             recentTargetEvent = null
         }
+        updateUnreachableWindows(currentState)
         updateBudgetForWindow(currentState)
         if (!AbstractStateManager.INSTANCE.ABSTRACT_STATES.any {
                 it.guiStates.isNotEmpty()
@@ -157,10 +159,9 @@ class PhaseOneStrategy(
             })
             return true
         if (episodeCountDown == 0) {
-            updateReachedWindows(currentState)
             updateTargetWindows()
             updateOutOfBudgetWindows()
-            updateUnreachableWindows(currentState)
+
             episodeCountDown = 5
         }
         if (forceEnd)
@@ -176,6 +177,9 @@ class PhaseOneStrategy(
         ) {
             return false
         }
+        reachedWindow
+        if (windowRandomExplorationBudget.keys.subtract(outofbudgetWindows.union(fullyCoveredWindows).union(unreachableWindows)).isEmpty())
+            return false
         if (delayCheckingBlockStates > 0) {
             delayCheckingBlockStates--
             return true
@@ -186,21 +190,8 @@ class PhaseOneStrategy(
                 log.debug("No available abstract states to explore.")
             }
         }
-        /*val toExploreWindows = targetWindowTryCount.filterNot { flaggedWindows.contains(it.key) || fullyCoveredWindows.contains(it.key) || unreachableWindows.contains(it.key)}
-        if (toExploreWindows.isEmpty()) {
-
-            return true
-        } else  {
-           return false
-        }*/
     }
 
-    private fun updateReachedWindows(currentState: State<*>) {
-        val currentAppState = atuaMF.getAbstractState(currentState)!!
-        if (!reachedWindow.contains(currentAppState.window)) {
-            reachedWindow.add(currentAppState.window)
-        }
-    }
 
     private fun updateUnreachableWindows(currentState: State<*>) {
         val currentAppState = atuaMF.getAbstractState(currentState)!!
@@ -367,36 +358,37 @@ class PhaseOneStrategy(
         }
         targetWindowTryCount.keys.filterNot { fullyCoveredWindows.contains(it) }.forEach { window ->
             var coverCriteriaCount = 0
+            if (phaseTargetInputs.filter { input -> input.sourceWindow == window }.isEmpty()) {
+                coverCriteriaCount++
+            }
             if (atuaMF.modifiedMethodsByWindow[window]!!.all { atuaMF.statementMF!!.executedMethodsMap.contains(it) }
             ) {
-                if (phaseTargetInputs.filter { input -> input.sourceWindow == window }.isEmpty()) {
-                    coverCriteriaCount++
-                } else {
-                    val windowTargetHandlers = atuaMF.allTargetHandlers.intersect(
-                        atuaMF.windowHandlersHashMap[window] ?: emptyList()
-                    )
-                    val untriggeredHandlers =
-                        windowTargetHandlers.subtract(atuaMF.statementMF!!.executedMethodsMap.keys)
-                    // debug
-                    val windowTargetHandlerNames = windowTargetHandlers.map { atuaMF.statementMF!!.getMethodName(it) }
-                    val untriggeredTargetHandlerNames =
-                        untriggeredHandlers.map { atuaMF.statementMF!!.getMethodName(it) }
-                    if (untriggeredHandlers.isEmpty()) {
-                        // all target hidden handlers are triggered
-                        coverCriteriaCount++
-                    }
-                }
+                coverCriteriaCount++
             }
-            if (coverCriteriaCount >= 1) {
+            val windowTargetHandlers = atuaMF.allTargetHandlers.intersect(
+                atuaMF.windowHandlersHashMap[window] ?: emptyList()
+            )
+            val untriggeredHandlers =
+                windowTargetHandlers.subtract(atuaMF.statementMF!!.executedMethodsMap.keys)
+            if (untriggeredHandlers.isEmpty()) {
+                // all target hidden handlers are triggered
+                coverCriteriaCount++
+            }
+            if (coverCriteriaCount >= 2) {
                 if (!fullyCoveredWindows.contains(window)) {
                     fullyCoveredWindows.add(window)
                 }
-            }
-            val abstractStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it !is VirtualAbstractState
-                    && it.window == window
-                    && it.guiStates.isNotEmpty() }
-            if (abstractStates.isNotEmpty() && abstractStates.all { it.getUnExercisedActions(null,atuaMF).isEmpty() }) {
-                fullyCoveredWindows.add(window)
+            } else {
+                val abstractStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
+                    it !is VirtualAbstractState
+                            && it.window == window
+                            && it.guiStates.isNotEmpty()
+                }
+                if (abstractStates.isNotEmpty() && abstractStates.all {
+                        it.getUnExercisedActions(null, atuaMF).isEmpty()
+                    }) {
+                    fullyCoveredWindows.add(window)
+                }
             }
         }
     }

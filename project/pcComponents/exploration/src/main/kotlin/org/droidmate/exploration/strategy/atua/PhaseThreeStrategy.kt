@@ -13,6 +13,7 @@ import org.atua.modelFeatures.dstg.AbstractTransition
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
 import org.atua.modelFeatures.dstg.VirtualAbstractState
+import org.atua.modelFeatures.ewtg.EventType
 import org.atua.modelFeatures.helper.ProbabilityDistribution
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.Input
@@ -859,25 +860,29 @@ class PhaseThreeStrategy(
     }
 
     private fun computeTargetEventScores() {
-        targetModifiedMethods.clear()
-        targetModifiedMethods.addAll(windowModifiedMethodMap[targetWindow!!]!!)
         targetInputScores.clear()
         allTargetInputs.filter {
             it.key.sourceWindow == targetWindow
-        }.forEach {
+        }.forEach { it1->
             var score: Double = 0.0
-            it.key.modifiedMethods.filter { it.value }.forEach {
-                val method = it.key
+            it1.key.modifiedMethods.filter { it.value }.forEach {it2->
+                val method = it2.key
                 if (modifiedMethodMissingStatements.containsKey(method)) {
                     val totalStmt = statementMF.getMethodStatements(method).size
                     val missingStmt = modifiedMethodMissingStatements[method]!!.size
                     val coveredStmt = totalStmt - missingStmt
                     score += (modifiedMethodWeights[method]!! * coveredStmt)
                 }
-
+                val usefulness = ModelHistoryInformation.INSTANCE.inputUsefulness[it1.key]
+                val usefullScore = if (usefulness!=null) {
+                    (usefulness.second*1.0/(usefulness.first+1))
+                } else {
+                    1.0
+                }
+                score *=usefullScore
             }
             if (score > 0.0)
-                targetInputScores.put(it.key, score)
+                targetInputScores.put(it1.key, score)
         }
 
        /*if (targetEventScores.isEmpty()) {
@@ -889,7 +894,7 @@ class PhaseThreeStrategy(
 
     private fun selectLeastTriedTargetWindow(maxTry: Int, numTried: Int, currentState: State<*>): Boolean {
         var leastExercise = targetWindowsCount.values.min()
-        var leastTriedWindows = targetWindowsCount.filter { windowScores.containsKey(it.key) }.map { Pair<Window, Int>(first = it.key, second = it.value) }.filter { it.second == leastExercise }
+        var leastTriedWindows = targetWindowsCount.filter { windowScores.containsKey(it.key) }.map { Pair<Window, Int>(first = it.key, second = it.value) }
 
         /*if (leastTriedWindows.isEmpty()) {
             leastTriedWindows = targetWindowsCount.map { Pair<Window, Int>(first = it.key, second = it.value) }.filter { it.second == leastExercise }
@@ -945,7 +950,6 @@ class PhaseThreeStrategy(
         val windowTargetEvents = getWindowAvailableTargetInputs()
         if (windowTargetEvents.isEmpty()) {
             targetEvent = null
-
         } else {
             val leastExerciseEventsCount = windowTargetEvents
                     .minBy { it.value }?.value ?: emptyMap<Input, Int>()
@@ -1071,7 +1075,18 @@ class PhaseThreeStrategy(
         modifiedMethodTriggerCount.clear()
         appStateModifiedMethodMap.clear()
         modifiedMethodWeights.clear()
-        val allTargetInputs = ArrayList(atuaMF.notFullyExercisedTargetInputs)
+        val usefulTargets = atuaMF.notFullyExercisedTargetInputs.filter {
+            it.eventType != EventType.resetApp
+                    && it.eventType != EventType.implicit_launch_event
+                    && ModelHistoryInformation.INSTANCE.inputUsefulness.containsKey(it)
+                    && ModelHistoryInformation.INSTANCE.inputUsefulness[it]!!.second>0
+        }
+        val notExercisedYetTargets = atuaMF.notFullyExercisedTargetInputs.filter {
+            it.eventType != EventType.resetApp
+                    && it.eventType != EventType.implicit_launch_event
+                    && ( it.exerciseCount == 0)
+        }
+        val allTargetInputs = ArrayList(usefulTargets.union(notExercisedYetTargets).distinct())
 
         val triggeredStatements = statementMF.getAllExecutedStatements()
         statementMF.getAllModifiedMethodsId().forEach {
@@ -1184,26 +1199,29 @@ class PhaseThreeStrategy(
         targetWindowsCount.forEach { n, _ ->
             var weight: Double = 0.0
             val modifiedMethods = HashSet<String>()
-/*            appStateModifiedMethodMap.filter { it.key.staticNode == n}.map { it.value }.forEach {
-                it.forEach {
-                    if (!modifiedMethods.contains(it))
-                    {
-                        modifiedMethods.add(it)
-                    }
-                }
-            }*/
-            allTargetInputs.filter { it.sourceWindow == n }. forEach {
+            val windowTargetInputs = allTargetInputs.filter { it.sourceWindow == n }
+            /*windowTargetInputs.forEach {
                 modifiedMethods.addAll(it.modifiedMethods.map { it.key })
-
+            }*/
+            var inputEffectiveness = 0.0
+            val usefulTargetInputs = windowTargetInputs.filter {
+                !ModelHistoryInformation.INSTANCE.inputUsefulness.containsKey(it)
+                        || ModelHistoryInformation.INSTANCE.inputUsefulness[it]!!.second>1
             }
-
-            if (atuaMF.windowHandlersHashMap.containsKey(n)) {
-                atuaMF.windowHandlersHashMap[n]!!.forEach { handler ->
-                    val methods = atuaMF.modifiedMethodWithTopCallers.filter { it.value.contains(handler) }.map { it.key }
-                    modifiedMethods.addAll(methods)
+            usefulTargetInputs.forEach { input ->
+                modifiedMethods.addAll(input.modifiedMethods.map { it -> it.key })
+                val notFullyCoveredMethods =
+                    input.modifiedMethods.filter { !atuaMF.statementMF!!.fullyCoveredMethods.contains(it.key) }
+                val uncoveredMethods =  input.modifiedMethods.filter { !atuaMF.statementMF!!.executedMethodsMap.contains(it.key) }
+                val usefulness = ModelHistoryInformation.INSTANCE.inputUsefulness[input]
+                val score = if (usefulness!=null) {
+                    (usefulness.second*1.0/(usefulness.first+1))* uncoveredMethods.size* notFullyCoveredMethods.size
+                } else {
+                    uncoveredMethods.size*notFullyCoveredMethods.size*1.0
                 }
+                inputEffectiveness+=score
             }
-            windowModifiedMethodMap.put(n,modifiedMethods)
+            weight+=inputEffectiveness
             modifiedMethods.filter { modifiedMethodWeights.containsKey(it) }. forEach {
                 val methodWeight = modifiedMethodWeights[it]!!
                 val missingStatementsNumber = modifiedMethodMissingStatements[it]?.size?:0

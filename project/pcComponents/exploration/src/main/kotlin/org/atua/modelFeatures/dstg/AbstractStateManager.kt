@@ -438,7 +438,7 @@ class AbstractStateManager() {
         abstractState.getAvailableActions().forEach {
             if (!abstractState.inputMappings.containsKey(it)) {
                 if (!it.isLaunchOrReset() && !it.isActionQueue()) {
-                    Input.createInputFromAbstractAction(abstractState,it)
+                    Input.getOrCreateInputFromAbstractAction(abstractState,it)
                 }
             }
         }
@@ -512,6 +512,7 @@ class AbstractStateManager() {
                             /*&& (it.userInputs.intersect(abstractTransition.userInputs).isNotEmpty()
                             || it.userInputs.isEmpty() || abstractTransition.userInputs.isEmpty())*/
                             && it.isImplicit
+                            && it.dest == transition.dest
                 }
                 if (exisitingImplicitTransitions.isNotEmpty())
                     continue
@@ -2362,11 +2363,11 @@ class AbstractStateManager() {
                 it
             else
                 abstractTransition.dest
-            val exisitingImplicitTransitions = it.abstractTransitions.filter {
+            /*val exisitingImplicitTransitions = it.abstractTransitions.filter {
                 it.abstractAction == abstractTransition.abstractAction
                         && it.modelVersion == ModelVersion.RUNNING
                         && it.isImplicit
-                        /*&& it.prevWindow == abstractTransition.prevWindow*/
+                        *//*&& it.prevWindow == abstractTransition.prevWindow*//*
                         && (
                         it.dependentAbstractStates.intersect(abstractTransition.dependentAbstractStates).isNotEmpty()
                                 || it.guardEnabled == false
@@ -2375,8 +2376,8 @@ class AbstractStateManager() {
 
                         && (!abstractTransition.abstractAction.isItemAction() ||
                         it.data == abstractTransition.data )
-                        /*&& (it.userInputs.intersect(abstractTransition.userInputs).isNotEmpty()
-                        || it.userInputs.isEmpty() || abstractTransition.userInputs.isEmpty())*/
+                        *//*&& (it.userInputs.intersect(abstractTransition.userInputs).isNotEmpty()
+                        || it.userInputs.isEmpty() || abstractTransition.userInputs.isEmpty())*//*
 
             }
             exisitingImplicitTransitions.forEach { abTransition ->
@@ -2385,7 +2386,7 @@ class AbstractStateManager() {
                     atuaMF.dstg.remove(edge)
                 }
                 it.abstractTransitions.remove(abTransition)
-            }
+            }*/
             var exisitingAbstractTransition: AbstractTransition?
             exisitingAbstractTransition = it.abstractTransitions.find {
                 it.abstractAction == abstractTransition.abstractAction

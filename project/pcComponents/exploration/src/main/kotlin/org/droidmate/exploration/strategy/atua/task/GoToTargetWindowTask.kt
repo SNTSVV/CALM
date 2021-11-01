@@ -27,7 +27,7 @@ class GoToTargetWindowTask (
         while (possiblePaths.isEmpty()) {
             possiblePaths.addAll(atuaStrategy.phaseStrategy.getPathsToTargetWindows(currentState,pathType = nextPathType))
             nextPathType = computeNextPathType(nextPathType,includeResetAction)
-            if (nextPathType ==PathFindingHelper.PathType.NORMAL)
+            if (nextPathType ==PathFindingHelper.PathType.WIDGET_AS_TARGET)
                 break
         }
         if (possiblePaths.isEmpty() && destWindow!=null) {

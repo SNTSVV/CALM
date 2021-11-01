@@ -293,7 +293,13 @@ class ATUAMF(
         val targetHandlers = modifiedMethodWithTopCallers.values.flatten().distinct()
 
         /*untriggeredTargetHiddenHandlers.addAll(targetHandlers)*/
-
+        val topCallerToModifiedMethods = HashMap<String,HashSet<String>>()
+        for (entry in modifiedMethodWithTopCallers.entries) {
+            entry.value.forEach {
+                topCallerToModifiedMethods.putIfAbsent(it, HashSet())
+                topCallerToModifiedMethods[it]!!.add(entry.key)
+            }
+        }
         WindowManager.instance.updatedModelWindows.filter { it.inputs.any { it.modifiedMethods.isNotEmpty() } }.forEach {
             if (it !is OutOfApp) {
                 modifiedMethodsByWindow.putIfAbsent(it, HashSet())
@@ -305,8 +311,11 @@ class ATUAMF(
                         notFullyExercisedTargetInputs.add(it)
                     }
                 }
+                targetHandlers.intersect(windowHandlersHashMap[it]?: emptyList()).forEach {
+                    val modifiedMethods = topCallerToModifiedMethods[it]?: HashSet()
+                    allUpdatedMethods.addAll(modifiedMethods)
+                }
             }
-
         }
 
         var targetInputsCnt = notFullyExercisedTargetInputs.size
@@ -327,11 +336,11 @@ class ATUAMF(
             }
         }
         if (reuseBaseModel) {
-            WindowManager.instance.updatedModelWindows.forEach {
-                it.inputs.filter{it.eventHandlers.isNotEmpty()}.forEach {input->
-                    val modifiedMethods = modifiedMethodWithTopCallers.filter { it.value.intersect(input.eventHandlers).isNotEmpty() }.keys
-                    modifiedMethods.forEach {
-                        input.modifiedMethods.put(it,false)
+            AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.modelVersion == ModelVersion.BASE  }. forEach {abSt ->
+                abSt.abstractTransitions.filter {!it.isImplicit}.forEach{
+                    val inputs = abSt.inputMappings[it.abstractAction]
+                    inputs?.forEach {  input->
+                        updateInputReachability(input,it)
                     }
                 }
             }
@@ -791,7 +800,7 @@ class ATUAMF(
                     dest = currentAbstractState)
             if (prevWindowAbstractState!=null)
                 abstractTransition.dependentAbstractStates.add(prevWindowAbstractState)
-            if (abstractTransition.dependentAbstractStates.contains(currentAbstractState)
+            if (abstractTransition.dependentAbstractStates.map {it.window }.contains(currentAbstractState.window)
                 && abstractTransition.guardEnabled == false) {
                 abstractTransition.guardEnabled = true
             }
@@ -980,8 +989,28 @@ class ATUAMF(
                     //Record new AbstractInteraction
                     createNewAbstractTransition(webViewActionType, interaction, prevState, prevAbstractState, avm, interactionData, currentAbstractState, prevWindowAbstractState)
                 }
+                val exisitingImplicitTransitions = prevAbstractState.abstractTransitions.filter {
+                    it.abstractAction == lastExecutedTransition!!.abstractAction
+                            /*&& it.prevWindow == abstractTransition.prevWindow*/
+                            && (
+                            it.dependentAbstractStates.intersect(lastExecutedTransition!!.dependentAbstractStates).isNotEmpty()
+                                    || it.guardEnabled == false
+                                    || it.dependentAbstractStates.isEmpty()
+                            )
+                            /*&& (it.userInputs.intersect(abstractTransition.userInputs).isNotEmpty()
+                            || it.userInputs.isEmpty() || abstractTransition.userInputs.isEmpty())*/
+                            && it.isImplicit
+                }
+                exisitingImplicitTransitions.forEach { abTransition ->
+                    val edge = dstg.edge(abTransition.source,abTransition.dest,abTransition)
+                    if (edge != null) {
+                        dstg.remove(edge)
+                    }
+                    prevAbstractState.abstractTransitions.remove(abTransition)
+                }
             }
         }
+
     }
 
     private fun deriveWidgetInteraction(prevAbstractState: AbstractState, actionType: AbstractActionType, widgetGroup: AttributeValuationMap?, actionData: Any?, currentAbstractState: AbstractState, interaction: Interaction<Widget>, interactionData: Any?, prevWindowAbstractState: AbstractState?, prevState: State<*>) {
@@ -1003,6 +1032,25 @@ class ATUAMF(
             //Or the abstractInteraction is implicit
             //Record new AbstractInteraction
             createNewAbstractTransition(actionType, interaction, prevState, prevAbstractState, widgetGroup, interactionData, currentAbstractState,prevWindowAbstractState)
+        }
+        val exisitingImplicitTransitions = prevAbstractState.abstractTransitions.filter {
+            it.abstractAction == lastExecutedTransition!!.abstractAction
+                    /*&& it.prevWindow == abstractTransition.prevWindow*/
+                    && (
+                    it.dependentAbstractStates.intersect(lastExecutedTransition!!.dependentAbstractStates).isNotEmpty()
+                            || it.guardEnabled == false
+                            || it.dependentAbstractStates.isEmpty()
+                    )
+                    /*&& (it.userInputs.intersect(abstractTransition.userInputs).isNotEmpty()
+                    || it.userInputs.isEmpty() || abstractTransition.userInputs.isEmpty())*/
+                    && it.isImplicit
+        }
+        exisitingImplicitTransitions.forEach { abTransition ->
+            val edge = dstg.edge(abTransition.source,abTransition.dest,abTransition)
+            if (edge != null) {
+                dstg.remove(edge)
+            }
+            prevAbstractState.abstractTransitions.remove(abTransition)
         }
     }
 
@@ -1255,7 +1303,7 @@ class ATUAMF(
         newAbstractInteraction.interactions.add(interaction)
         if (prevWindowAbstractState!=null)
             newAbstractInteraction.dependentAbstractStates.add(prevWindowAbstractState)
-        if (newAbstractInteraction.dependentAbstractStates.contains(destAbstractState)
+        if (newAbstractInteraction.dependentAbstractStates.map { it.window }.contains(destAbstractState.window)
             && newAbstractInteraction.guardEnabled == false) {
             newAbstractInteraction.guardEnabled = true
         }
@@ -1567,9 +1615,9 @@ class ATUAMF(
                 val lastAppState = stateList.find { it.stateId == lastOpeningAnotherAppInteraction!!.prevState }!!
                 val lastAppAbstractState = getAbstractState(lastAppState)!!
                 val lastOpenningAnotherAppAbstractInteraction = findAbstractInteraction(lastOpeningAnotherAppInteraction)
-                updateWindowTransitionCoverage(lastAppAbstractState, lastOpenningAnotherAppAbstractInteraction!!,lastInteractions.last() , coverageIncreased,prevState!=newState)
+                updateInputCoverage(lastAppAbstractState, lastOpenningAnotherAppAbstractInteraction!!,lastInteractions.last() , coverageIncreased,prevState!=newState)
             } else
-                updateWindowTransitionCoverage(prevAbstractState, abstractInteraction,lastInteractions.last() , coverageIncreased, prevState!=newState)
+                updateInputCoverage(prevAbstractState, abstractInteraction,lastInteractions.last() , coverageIncreased, prevState!=newState)
         }
 
         val inputByHandlers = notFullyExercisedTargetInputs.groupBy { it.eventHandlers }
@@ -1590,7 +1638,7 @@ class ATUAMF(
 
 
 
-    private fun updateWindowTransitionCoverage(prevAbstractState: AbstractState, abstractTransition: AbstractTransition, interaction: Interaction<Widget>, coverageIncreased: Int, stateChanged: Boolean) {
+    private fun updateInputCoverage(prevAbstractState: AbstractState, abstractTransition: AbstractTransition, interaction: Interaction<Widget>, coverageIncreased: Int, stateChanged: Boolean) {
         val event = prevAbstractState.inputMappings[abstractTransition.abstractAction]
         if (event != null) {
             event.forEach {
@@ -1607,7 +1655,7 @@ class ATUAMF(
                     }
                     it.mappingActionIds.putIfAbsent(eContext!!.explorationTrace.id.toString(), ArrayList())
                     it.mappingActionIds[eContext!!.explorationTrace.id.toString()]!!.add(interaction.actionId.toString())
-                    updateInputEnability(it, abstractTransition)
+                    updateInputReachability(it, abstractTransition)
                     updateInputEffectiveness(it, interaction)
                     updateInputEventHandlersAndModifiedMethods(it, abstractTransition, interaction,  coverageIncreased)
                     if (it.modifiedMethods.all {statementMF!!.fullyCoveredMethods.contains(it.key)  }) {
@@ -1649,21 +1697,26 @@ class ATUAMF(
 
     }
 
-    private fun updateInputEnability(
+    private fun updateInputReachability(
         input: Input,
         abstractTransition: AbstractTransition
     ) {
         wtg.inputEnables.putIfAbsent(input, HashMap())
         val enableInputs = wtg.inputEnables.get(input)!!
+        val sourceAbstractState = abstractTransition.source
+        val srcAvailableInputs = sourceAbstractState.inputMappings.values.flatten().distinct()
         val destAbstractState = abstractTransition.dest
-        val availableInputs = destAbstractState.inputMappings.values.flatten().distinct()
-        availableInputs.forEach {
+        val destAvailableInputs = destAbstractState.inputMappings.values.flatten().distinct()
+        /*if (abstractTransition.dependentAbstractStates.map { it.window }.contains(abstractTransition.dest.window)) {
+            val prevAvailableInputs =
+        }*/
+        destAvailableInputs.subtract(srcAvailableInputs).forEach {
             enableInputs.putIfAbsent(it, Pair(0, 0))
             val total = enableInputs[it]!!.first
             val enabled = enableInputs[it]!!.second
             enableInputs.put(it, Pair(total + 1, enabled + 1))
         }
-        enableInputs.keys.subtract(availableInputs).forEach {
+        enableInputs.keys.subtract(destAvailableInputs).forEach {
             val total = enableInputs[it]!!.first
             val enabled = enableInputs[it]!!.second
             enableInputs.put(it, Pair(total + 1, enabled))
@@ -1684,14 +1737,15 @@ class ATUAMF(
 
         val newActionCnt = oldActionCnt + 1
         var newIncreasingCnt = oldIncreasingCnt
-        if (statementMF!!.actionIncreasingCoverageTracking[interaction.actionId.toString()]!!.size > 0) {
-            newIncreasingCnt += 1
+        if (oldActionCnt == 0 // this is the first time this input is exercised
+            || input.exerciseCount>1 // or the input need to be exercised more than twice in current execution
+         ) {
+            if (statementMF!!.actionIncreasingCoverageTracking[interaction.actionId.toString()]!!.size > 0
+                 ) {
+                newIncreasingCnt += 1
+            }
         }
         ModelHistoryInformation.INSTANCE.inputUsefulness.put(input, Pair(newActionCnt, newIncreasingCnt))
-
-
-
-
     }
 
     private fun updateTargetWindow(toUpdateWindow: Window, abstractTransition: AbstractTransition, prevAbstractState: AbstractState) {
@@ -1891,13 +1945,13 @@ class ATUAMF(
             input.modifiedMethodStatement[it.key] = it.value
             newCoveredStatements.add(it.key)
         }
-        val modifiedMethodsReachableByHandlers = modifiedMethodWithTopCallers.filter { it.value.intersect(input.verifiedEventHandlers).isNotEmpty() }.keys
-        modifiedMethodsReachableByHandlers.forEach {
-            input.modifiedMethods.putIfAbsent(it,false)
+        if (input.modifiedMethods.isEmpty()) {
+            if (notFullyExercisedTargetInputs.contains(input))
+                notFullyExercisedTargetInputs.remove(input)
         }
-        if (!input.modifiedMethods.all {statementMF!!.fullyCoveredMethods.contains(it.key)  }) {
+        else if (!input.modifiedMethods.all {statementMF!!.fullyCoveredMethods.contains(it.key)  }) {
             if (!notFullyExercisedTargetInputs.contains(input)) {
-                val handlerMethods = input.verifiedEventHandlers.map { statementMF!!.getMethodName(it) }
+//                val handlerMethods = input.verifiedEventHandlers.map { statementMF!!.getMethodName(it) }
                 notFullyExercisedTargetInputs.add(input)
                 modifiedMethodsByWindow.putIfAbsent(input.sourceWindow, HashSet())
                 modifiedMethodsByWindow[input.sourceWindow]!!.addAll(input.modifiedMethods.keys)
@@ -1907,13 +1961,13 @@ class ATUAMF(
             log.debug("New $coverageIncreased updated statements covered by event: $input.")
             //log.debug(newCoveredStatements.toString())
         }
-        input.coverage[dateFormater.format(System.currentTimeMillis())] = input.modifiedMethodStatement.filterValues { it == true }.size
+        // input.coverage[dateFormater.format(System.currentTimeMillis())] = input.modifiedMethodStatement.filterValues { it == true }.size
         removeUnreachableModifiedMethods(input)
     }
 
     private fun removeUnreachableModifiedMethods(input: Input) {
         val toRemovedModifiedMethods = ArrayList<String>()
-        input.modifiedMethods.forEach {
+        input.modifiedMethods.filter { !input.coveredMethods.containsKey(it.key) && it.value == false}.forEach {
             val methodName = it.key
             if (modifiedMethodWithTopCallers.containsKey(methodName)) {
                 val handlers = modifiedMethodWithTopCallers[methodName]!!
@@ -1922,9 +1976,9 @@ class ATUAMF(
                 }
             }
         }
-//        toRemovedModifiedMethods.forEach {
-//            input.modifiedMethods.remove(it)
-//        }
+        toRemovedModifiedMethods.forEach {
+            input.modifiedMethods.remove(it)
+        }
     }
 
 

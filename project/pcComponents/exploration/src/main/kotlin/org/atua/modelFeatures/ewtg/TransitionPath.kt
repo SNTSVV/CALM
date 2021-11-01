@@ -20,7 +20,8 @@ import kotlin.collections.HashMap
 
 class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.PathType, val destination: AbstractState) {
     val path: HashMap<Int, AbstractTransition> = HashMap()
-
+    var reachabilityScore: Double = 1.0
+    val goal = ArrayList<Input>()
     fun getFinalDestination(): AbstractState{
         return destination
     }

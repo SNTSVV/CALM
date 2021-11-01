@@ -107,8 +107,8 @@ abstract class Window(var classType: String,
                 val increasingCoverageActionsCnt = actionHistInfo?.second?:0
                 all.write("${it.eventType};${it.widget?.widgetId};${it.sourceWindow.windowId};${it.createdAtRuntime};" +
                         "$totalActionsCnt;$increasingCoverageActionsCnt;" +
-                        "\"${it.eventHandlers.map { atuaMF.statementMF!!.getMethodName(it) }.joinToString(";")}\";" +
-                        "\"${it.modifiedMethods.map { atuaMF.statementMF!!.getMethodName(it.key) }.joinToString(";")}\";" +
+                        "\"${it.verifiedEventHandlers.map { atuaMF.statementMF!!.getMethodName(it) }.joinToString(";")}\";" +
+                        "\"${it.modifiedMethods.filter { it.value == true }.map { atuaMF.statementMF!!.getMethodName(it.key) }.joinToString(";")}\";" +
                         "\"${it.coveredMethods.filter{it.value}.keys.map { atuaMF.statementMF!!.getMethodName(it)}.joinToString(";")}\";"+
                 "${it.isUseless}")
             }

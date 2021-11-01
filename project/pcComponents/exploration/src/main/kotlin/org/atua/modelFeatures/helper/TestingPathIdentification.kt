@@ -30,6 +30,9 @@ import org.atua.modelFeatures.ewtg.window.Window
 import org.droidmate.exploration.modelFeatures.graph.Edge
 import org.droidmate.explorationModel.interaction.State
 import java.util.*
+import kotlin.math.log
+import kotlin.math.log2
+import kotlin.math.pow
 
 class PathFindingHelper {
     companion object {
@@ -643,7 +646,7 @@ class PathFindingHelper {
                         traversedEdges,
                         pathTracking
                     )
-                    if (fullGraph.cost() <= 10 && fullGraph.path.size <= 5) {
+                    if (fullGraph.cost() <= 10) {
                         if (!isDisablePath(fullGraph, pathType)) {
                             var reachPb: Double = 1.0
                             var prevTransition: AbstractTransition? = null
@@ -678,13 +681,17 @@ class PathFindingHelper {
                                                     prevTransition
                                                 )
                                                 reachPb *= reachability
-                                                if (reachPb >= 0.5) {
+                                                if (reachPb > 0.0) {
                                                     allPaths.add(fullGraph)
+                                                    fullGraph.reachabilityScore = reachPb
+                                                    fullGraph.goal.addAll(goal)
                                                 }
                                             }
                                         } else {
-                                            if (reachPb >= 0.5) {
-                                                allPaths.add(fullGraph)
+                                            allPaths.add(fullGraph)
+                                            if (reachPb > 0.0) {
+                                                fullGraph.reachabilityScore = reachPb
+                                                fullGraph.goal.addAll(goal)
                                             }
                                         }
                                     } else {
@@ -693,7 +700,7 @@ class PathFindingHelper {
 //                                registerTransitionPath(root, nextState, fullGraph)
                                 }
                             }
-                            if( (pathType != PathType.WIDGET_AS_TARGET && pathType != PathType.WTG) || reachPb >= 0.5) {
+                            if( (pathType != PathType.WIDGET_AS_TARGET && pathType != PathType.WTG) || reachPb > 0.0) {
                                 val nextAbstateStack = if (transition.abstractAction.isLaunchOrReset()) {
                                     Stack<Window>().also { it.add(Launcher.getOrCreateNode()) }
                                 } else {
@@ -726,7 +733,13 @@ class PathFindingHelper {
                 if (prevTransition1 != null) {
                     val prevAction = prevTransition1!!.abstractAction
                     val prevWindow = prevTransition1!!.source.window
-                    if (atuaMF.dstg.abstractActionEnables.containsKey(prevWindow)
+                    if (t.abstractAction.isLaunchOrReset() || t.abstractAction.actionType == AbstractActionType.PRESS_BACK
+                        || AbstractStateManager.INSTANCE.goBackAbstractActions.contains(t.abstractAction)) {
+                        reachPb1 *= 1.0
+                    } else if (t.interactions.isNotEmpty() && t.activated) {
+                        reachPb1 *= 1.0
+                    }
+                    else if (atuaMF.dstg.abstractActionEnables.containsKey(prevWindow)
                         && atuaMF.dstg.abstractActionEnables[prevWindow]!!.containsKey(
                             prevAction
                         )
@@ -772,10 +785,10 @@ class PathFindingHelper {
         ): Double {
             var reachability1 = 0.0
             if (inputs != null && prevInputs2 != null) {
-                if (!prevInputs2.any { atuaMF.wtg.inputEnables.containsKey(it) }
-                    && prevTransition!!.modelVersion == ModelVersion.BASE) {
+                if (!prevInputs2.any { atuaMF.wtg.inputEnables.containsKey(it)} ){
                     reachability1 = 1.0
-                } else {
+                }
+                else {
                     var added = false
                     prevInputs2.forEach { prevInput ->
                         val inputEnables = atuaMF.wtg.inputEnables[prevInput]

@@ -562,7 +562,7 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
             outputFile.newLine()
             val actions = context.explorationTrace.P_getActions()
             actions.forEach { action ->
-                outputFile.write("${action.actionId.toString()};${action.actionType};${action.prevState};${action.resState};\"${action.data}\"")
+                outputFile.write("${action.actionId.toString()};${action.actionType};${action.prevState};${action.resState};\"${action.data}\";")
                 outputFile.write("${actionCoverageTracking.get(action.actionId.toString())?.hashCode()} ;${actionCoverageTracking.get(action.actionId.toString())?.size};${actionIncreasingCoverageTracking.get(action.actionId.toString())?.size};${actionUpdatedCoverageTracking.get(action.actionId.toString())?.size};${actionIncreasingUpdatedCoverageTracking.get(action.actionId.toString())?.size};")
                 outputFile.newLine()
             }

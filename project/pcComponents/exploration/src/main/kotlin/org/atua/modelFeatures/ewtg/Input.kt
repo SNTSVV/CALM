@@ -326,9 +326,9 @@ open class Input{
             }
         }
 
-        fun createInputFromAbstractAction(abstractState: AbstractState,abstractAction: AbstractAction) {
+        fun getOrCreateInputFromAbstractAction(abstractState: AbstractState, abstractAction: AbstractAction) {
             val eventType = Input.getEventTypeFromActionName(abstractAction.actionType)
-            if (eventType == EventType.fake_action || eventType == EventType.resetApp || eventType == EventType.implicit_launch_event)
+            if (eventType == EventType.fake_action || eventType == EventType.resetApp)
                 return
             var newInput: Input?
             if (abstractAction.attributeValuationMap == null) {
