@@ -1322,17 +1322,18 @@ class PhaseOneStrategy(
         if (candidates.isEmpty() && !considerContainingTargetWindowsOnly) {
             candidates = targetWindowTryCount.filter { isCandidateWindow(it) }.map { it.key }
         }
-        var candidate: Pair<Window,Int>? = null
+        var candidate: Pair<Window,Double>? = null
         candidates.forEach { window ->
             targetWindow = window
             val paths = getPathsToTargetWindows(currentState,PathFindingHelper.PathType.ANY)
             if (paths.isNotEmpty() &&
                 (!considerContainingTargetWindowsOnly || paths.any { isTargetAbstractState(it.destination,false) })) {
                 if (candidate == null) {
-                    candidate = Pair(window, paths.minBy { it.cost() }!!.cost())
+                    candidate = Pair(window, paths.minBy { it.cost()/it.reachabilityScore  }!!.let { it.cost()*it.reachabilityScore })
                 }
                 else {
-                    val minPathLength = paths.minBy { it.cost() }!!.cost()
+                    val minPath = paths.minBy { it.cost()/it.reachabilityScore }!!
+                    val minPathLength = minPath.cost()/minPath.reachabilityScore
                     if (minPathLength < candidate!!.second) {
                         candidate = Pair(window,minPathLength)
                     } else if (minPathLength == candidate!!.second) {
@@ -1395,7 +1396,7 @@ class PhaseOneStrategy(
             it.getUnExercisedActions(null,atuaMF).forEach { action ->
                 inputs.addAll(it.inputMappings[action]?: emptyList())
             }
-            goalByAbstractState.put(it,inputs)
+            goalByAbstractState.put(it,inputs.distinct())
         }
         val abstratStateCandidates = runtimeAbstractStates
         val stateByActionCount = HashMap<AbstractState, Double>()

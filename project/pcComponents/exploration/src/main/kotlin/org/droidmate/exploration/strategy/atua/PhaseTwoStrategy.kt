@@ -363,7 +363,7 @@ class PhaseTwoStrategy(
             it.getUnExercisedActions(null,atuaMF).forEach { action ->
                 inputs.addAll(it.inputMappings[action]?: emptyList())
             }
-            goalByAbstractState.put(it,inputs)
+            goalByAbstractState.put(it,inputs.distinct())
         }
         abstratStateCandidates.forEach {
             val weight = it.computeScore(atuaMF)
@@ -372,7 +372,7 @@ class PhaseTwoStrategy(
             }
         }
         getPathToStatesBasedOnPathType(pathType, transitionPaths, stateByActionCount, currentAbstractState, currentState,true,false,
-            emptyMap())
+            goalByAbstractState)
         return transitionPaths
     }
     override fun getCurrentTargetInputs(currentState: State<*>): Set<AbstractAction> {

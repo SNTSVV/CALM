@@ -142,7 +142,7 @@ class ATUAMF(
     private val stateVisitCount = HashMap<State<*>, Int>()
     var appPrevState: State<*>? = null
     var windowStack: Stack<Window> = Stack()
-    private var abstractStateStack: Stack<Pair<AbstractState,State<*>?>> = Stack()
+    private var abstractStateStack: Stack<AbstractState> = Stack()
     val stateList: ArrayList<State<*>> = ArrayList()
 
 
@@ -542,6 +542,7 @@ class ATUAMF(
                     fromLaunch = true
                     windowStack.clear()
                     windowStack.push(Launcher.getOrCreateNode())
+                    abstractStateStack.push(AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.isHomeScreen}!!)
 //                abstractStateStack.push(Pair(AbstractStateManager.instance.ABSTRACT_STATES.find { it.window is Launcher}!!,stateList.findLast { it.isHomeScreen } ))
                 } else {
                     fromLaunch = false
@@ -552,6 +553,7 @@ class ATUAMF(
                 if (prevState == context.model.emptyState) {
                     if (windowStack.isEmpty()) {
                         windowStack.push(Launcher.getOrCreateNode())
+                        abstractStateStack.push(AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.isHomeScreen}!!)
 //                    abstractStateStack.push(Pair(AbstractStateManager.instance.ABSTRACT_STATES.find { it.window is Launcher}!!,stateList.findLast { it.isHomeScreen } ))
                     }
                 } else {
@@ -594,6 +596,7 @@ class ATUAMF(
                 }
                 if (windowStack.isEmpty()) {
                     windowStack.push(Launcher.getOrCreateNode())
+                    abstractStateStack.push(AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.isHomeScreen}!!)
 //                abstractStateStack.push(Pair(AbstractStateManager.instance.ABSTRACT_STATES.find { it.window is Launcher}!!,stateList.findLast { it.isHomeScreen } ))
                 }
                 if (newState != context.model.emptyState) {
@@ -653,31 +656,42 @@ class ATUAMF(
     private fun updateWindowStack(prevAbstractState: AbstractState?, prevState: State<*>, currentAbstractState: AbstractState, currentState: State<*>, isLaunch: Boolean) {
         if (isLaunch) {
             windowStack.clear()
-//            abstractStateStack.clear()
+            abstractStateStack.clear()
             windowStack.push(Launcher.getOrCreateNode())
-//            abstractStateStack.push(Pair(AbstractStateManager.instance.ABSTRACT_STATES.find { it.window is Launcher }!!,stateList.findLast { it.isHomeScreen }))
             val homeScreenState = stateList.findLast { it.isHomeScreen }
             if (homeScreenState != null) {
                 stateList.add(homeScreenState)
+                abstractStateStack.push(getAbstractState(homeScreenState)!!)
                 prevWindowStateMapping.put(currentState,homeScreenState)
             }
         } else if (prevAbstractState != null) {
             if (windowStack.contains(currentAbstractState.window) && windowStack.size > 1) {
                 // Return to the prev window
                 // Pop the window
-//                abstractStateStack.pop()
+                abstractStateStack.pop()
                 while (windowStack.pop() != currentAbstractState.window) {
-//                    abstractStateStack.pop()
+                    abstractStateStack.pop()
                 }
-
             } else {
                 if (currentAbstractState.window is Launcher) {
                     windowStack.clear()
-//                    abstractStateStack.clear()
+                    abstractStateStack.clear()
                 } else if (currentAbstractState.window != prevAbstractState.window) {
                     if (prevAbstractState.window is Activity || prevAbstractState.window is OutOfApp) {
-                        windowStack.push(prevAbstractState.window)
-//                        abstractStateStack.push(Pair(prevAbstractState,prevState))
+                        if (WindowManager.instance.launchActivities.contains(currentAbstractState.window)) {
+                            // remove all windows are not kind of launch activity
+                            while (!WindowManager.instance.launchActivities.contains(windowStack.peek()) && windowStack.peek() !is Launcher) {
+                                windowStack.pop()
+                                abstractStateStack.pop()
+                            }
+                            if (WindowManager.instance.launchActivities.contains(prevAbstractState.window)){
+                                windowStack.push(prevAbstractState.window)
+                                abstractStateStack.push(prevAbstractState)
+                            }
+                        } else {
+                            windowStack.push(prevAbstractState.window)
+                            abstractStateStack.push(prevAbstractState)
+                        }
                         prevWindowStateMapping.put(currentState,prevState)
                     }
                 }/* else if (currentAbstractState.isOpeningKeyboard || currentAbstractState.isOpeningMenus) {
@@ -735,8 +749,9 @@ class ATUAMF(
             }
             if (i==1)
             {
-                prevWindowStateMapping[currentState] = stateList.findLast { it.isHomeScreen }!!
-                interactionPrevWindowStateMapping[lastInteraction] = stateList.findLast { it.isHomeScreen }!!
+                val lastHomeScreen = stateList.findLast { it.isHomeScreen }!!
+                prevWindowStateMapping[currentState] = lastHomeScreen
+                interactionPrevWindowStateMapping[lastInteraction] = lastHomeScreen
             }
         }
     }
@@ -1707,16 +1722,23 @@ class ATUAMF(
         val srcAvailableInputs = sourceAbstractState.inputMappings.values.flatten().distinct()
         val destAbstractState = abstractTransition.dest
         val destAvailableInputs = destAbstractState.inputMappings.values.flatten().distinct()
-        /*if (abstractTransition.dependentAbstractStates.map { it.window }.contains(abstractTransition.dest.window)) {
-            val prevAvailableInputs =
-        }*/
-        destAvailableInputs.subtract(srcAvailableInputs).forEach {
+        val diffInputs = ArrayList<Input>()
+        if (abstractTransition.guardEnabled) {
+            val beforeInputs = abstractTransition.dependentAbstractStates.map {  it.inputMappings.values.flatten()}.flatten().distinct()
+            destAvailableInputs.subtract(beforeInputs).also {
+                diffInputs.addAll(it)
+            }
+        } else {
+            diffInputs.addAll(destAvailableInputs.subtract(srcAvailableInputs))
+        }
+        diffInputs.forEach {
             enableInputs.putIfAbsent(it, Pair(0, 0))
             val total = enableInputs[it]!!.first
             val enabled = enableInputs[it]!!.second
             enableInputs.put(it, Pair(total + 1, enabled + 1))
         }
-        enableInputs.keys.subtract(destAvailableInputs).forEach {
+        val unreachedInputs = enableInputs.keys.subtract(diffInputs)
+        unreachedInputs.forEach {
             val total = enableInputs[it]!!.first
             val enabled = enableInputs[it]!!.second
             enableInputs.put(it, Pair(total + 1, enabled))
@@ -2555,8 +2577,8 @@ class ATUAMF(
         }
     }
 
-    fun getAbstractStateStack(): List<AbstractState> {
-        return abstractStateStack.toList().map { it.first }.reversed()
+    fun getAbstractStateStack(): Stack<AbstractState> {
+        return abstractStateStack
     }
 
     fun getKeyboardClosedAbstractState(keyboardopenState: State<*>,tracing: Pair<Int, Int>): AbstractState? {

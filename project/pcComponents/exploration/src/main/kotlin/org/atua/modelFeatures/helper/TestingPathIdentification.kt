@@ -30,9 +30,6 @@ import org.atua.modelFeatures.ewtg.window.Window
 import org.droidmate.exploration.modelFeatures.graph.Edge
 import org.droidmate.explorationModel.interaction.State
 import java.util.*
-import kotlin.math.log
-import kotlin.math.log2
-import kotlin.math.pow
 
 class PathFindingHelper {
     companion object {
@@ -239,7 +236,7 @@ class PathFindingHelper {
             autautMF: org.atua.modelFeatures.ATUAMF, currentState: State<*>, root: AbstractState,
             prevEdgeIds: List<Int>,
             finalTarget: AbstractState, allPaths: ArrayList<TransitionPath>,
-            traversedEdges: HashMap<Int, Pair<AbstractTransition, Stack<Window>>>,
+            traversedEdges: HashMap<Int, Pair<AbstractTransition, Stack<AbstractState>>>,
             pathTracking: HashMap<Int, Int>,
             depth: Int,
             includeWTG: Boolean,
@@ -263,11 +260,11 @@ class PathFindingHelper {
             if (prevEdgeIds.isEmpty()) {
                 if (depth == 0) {
                     val source = root
-                    val windowStack = autautMF.windowStack.clone() as Stack<Window>
+                    val windowStack = autautMF.getAbstractStateStack().clone() as Stack<AbstractState>
                     getNextTraversingNodes(
                         atuaMF = autautMF,
                         includeImplicitBackEvent = includeImplicitBackEvent,
-                        windowStack = windowStack,
+                        abstractStateStack = windowStack,
                         graph = graph,
                         source = source,
                         prevEdgeId = null,
@@ -306,7 +303,7 @@ class PathFindingHelper {
                     getNextTraversingNodes(
                         atuaMF = autautMF,
                         includeImplicitBackEvent = includeImplicitBackEvent,
-                        windowStack = windowStack,
+                        abstractStateStack = windowStack,
                         graph = graph,
                         source = source,
                         prevEdgeId = traversing,
@@ -381,10 +378,11 @@ class PathFindingHelper {
         }
 
         private fun getNextTraversingNodes(
-            atuaMF: org.atua.modelFeatures.ATUAMF, windowStack: Stack<Window>, graph: DSTG, source: AbstractState,
+            atuaMF: org.atua.modelFeatures.ATUAMF,
+            abstractStateStack: Stack<AbstractState>, graph: DSTG, source: AbstractState,
             prevEdgeId: Int?,
             depth: Int,
-            traversedEdges: HashMap<Int, Pair<AbstractTransition, Stack<Window>>>,
+            traversedEdges: HashMap<Int, Pair<AbstractTransition, Stack<AbstractState>>>,
             pathTracking: HashMap<Int, Int>,
             finalTarget: AbstractState, root: AbstractState,
             allPaths: ArrayList<TransitionPath>,
@@ -410,34 +408,29 @@ class PathFindingHelper {
                 traverseEdgeId = pathTracking[traverseEdgeId]
             }
             val considerGuardedTransitions =
-                if (prevAbstractTransitions.isEmpty() || prevAbstractTransitions.all { it.isExplicit() }) {
-                    false
+                if (prevAbstractTransitions.isEmpty() || prevAbstractTransitions.all { it.isExplicit() || it.guardEnabled }) {
+                    true
                 } else {
-                    val implicitATs = prevAbstractTransitions.filter { it.isImplicit }
-                    if (implicitATs.all { it.abstractAction.isLaunchOrReset() })
-                        false
-                    else
+                    if (prevAbstractTransitions.last().abstractAction.isLaunchOrReset())
                         true
+                    else
+                        false
                 }
-            val prevAbstractTransition = if (prevEdgeId != null) {
-                traversedEdges.get(prevEdgeId)
-            } else
-                null
-            val ancestorAbstractStates = ArrayList<AbstractState>()
-            var ancestorEdgeId = prevEdgeId
-            var startedWithLaunchOrResetAction = IsCurrentPathStartingWithLaunchOrReset(
+            val ancestorAbstractStates = abstractStateStack
+//            var ancestorEdgeId = prevEdgeId
+            /*var startedWithLaunchOrResetAction = IsCurrentPathStartingWithLaunchOrReset(
                 ancestorEdgeId,
                 traversedEdges,
                 ancestorAbstractStates,
                 pathTracking
-            )
-            if (!startedWithLaunchOrResetAction) {
+            )*/
+           /* if (!startedWithLaunchOrResetAction) {
                 currentAbstractStateStack.forEach { abstractState ->
                     if (!ancestorAbstractStates.any { it.window == abstractState.window }) {
                         ancestorAbstractStates.add(abstractState)
                     }
                 }
-            }
+            }*/
 
             val edgesFromSource = originaEdges.filter {
                 it.destination != null
@@ -462,68 +455,7 @@ class PathFindingHelper {
             }
 
             val filteredTransitions = ArrayList<Edge<AbstractState, AbstractTransition>>()
-         /*   forwardTransitions.forEach { at ->
-                if (at.label.interactions.isNotEmpty()) {
-                    filteredTransitions.add(at)
-                } else if (!at.label.abstractAction.isWidgetAction()) {
-                    filteredTransitions.add(at)
-                } else {
-                    if (prevAbstractTransition == null || prevAbstractTransition.first.fromWTG) {
-                        filteredTransitions.add(at)
-                    } else if (atuaMF.dstg.abstractActionEnables.containsKey(prevAbstractTransition.first.source.window)
-                        && atuaMF.dstg.abstractActionEnables[prevAbstractTransition.first.source.window]!!.containsKey(
-                            prevAbstractTransition.first.abstractAction
-                        )
-                    ) {
-                        val enabledAbstractActions =
-                            atuaMF.dstg.abstractActionEnables[prevAbstractTransition.first.source.window]!!.get(
-                                prevAbstractTransition.first.abstractAction
-                            )!!
-                        if (enabledAbstractActions.containsKey(at.label.abstractAction)) {
-                            val reliability =
-                                enabledAbstractActions[at.label.abstractAction]!!.second * 1.0 / enabledAbstractActions[at.label.abstractAction]!!.first
-                            if (reliability >= 0.5) {
-                                filteredTransitions.add(at)
-                            }
-                        }
-                    } else {
-                        val inputs = at.label.source.inputMappings[at.label.abstractAction]
-                        val reachability = getInputReachability(
-                            inputs = inputs,
-                            prevInputs2 = prevInputs,
-                            prevTransition = prevAbstractTransition.first,
-                            atuaMF = atuaMF
-                        )
-                        if (reachability >= 0.5) {
-                            filteredTransitions.add(at)
-                        }
-                    }
-
-                }
-            }*/
             filteredTransitions.addAll(forwardTransitions)
-            /*if (pathType != PathType.FULLTRACE) {
-                filteredTransitions.addAll(forwardTransitions.filter { it.label.activated == true })
-            } else {
-
-            }*/
-
-/*            // remove LaunchApp or ResetApp if it is necessary
-            forwardTransitions.groupBy { it.destination }.forEach { t, u ->
-                val nonLaunchOrResetTransitions = u.filter {!it.label.abstractAction.isLaunchOrReset() }
-                if (nonLaunchOrResetTransitions.isNotEmpty()) {
-                    filteredTransitions.addAll(nonLaunchOrResetTransitions)
-                } else {
-                    val launchTransitions = u.filter {it.label.abstractAction.actionType == AbstractActionType.LAUNCH_APP }
-                    if (launchTransitions.isNotEmpty())
-                        filteredTransitions.addAll(launchTransitions)
-                    else {
-                        filteredTransitions.addAll(u)
-                    }
-                }
-            }*/
-
-
             val possibleTransitions = ArrayList<Edge<AbstractState, AbstractTransition>>()
 
             if (pathType == PathType.PARTIAL_TRACE || pathType == PathType.FULLTRACE) {
@@ -583,48 +515,46 @@ class PathFindingHelper {
                             }
                             val implicitTransitions =
                                 u.filter { (it.label.interactions.isEmpty() || !it.label.activated) && it.source != it.destination }
-                            if (explicitTransitions.isEmpty()) {
+                            if (explicitTransitions.isEmpty() && considerGuardedTransitions) {
                                 if (includeImplicitInteraction == true) {
-                                    if (prevAbstractTransition == null)
-                                        selectedTransition.addAll(implicitTransitions)
-                                    else if (considerGuardedTransitions) {
-                                        /*val reliableTransitions = implicitTransitions
+                                    if (!considerGuardedTransitions) {
+                                        val notGuared = implicitTransitions.filter { !it.label.guardEnabled }
+                                        selectedTransition.addAll(notGuared)
+                                    }
+                                    else {
+                                        val reliableTransitions = implicitTransitions
                                             .filter {
-                                                depth > 0
-                                                        && it.label.dependentAbstractStates.contains(it.label.dest)
-                                                        && it.label.abstractAction.actionType != AbstractActionType.PRESS_BACK
+                                                it.label.guardEnabled &&
+                                                        it.label.dependentAbstractStates.intersect(ancestorAbstractStates)
+                                                            .isNotEmpty()
                                             }
-                                        if (reliableTransitions.isNotEmpty())                                             selectedTransition.addAll(reliableTransitions)
+                                        if (reliableTransitions.isNotEmpty())   {
+                                            selectedTransition.addAll(reliableTransitions)
                                         } else {
-
-                                        }*/
-                                        val unguardedATs = implicitTransitions.filter { !it.label.guardEnabled }
-                                        selectedTransition.addAll(unguardedATs)
-                                    } else {
-                                        selectedTransition.addAll(implicitTransitions)
+                                            val unguardedATs = implicitTransitions.filter { !it.label.guardEnabled }
+                                            selectedTransition.addAll(unguardedATs)
+                                        }
                                     }
                                 } else if (includeWTG)
                                     selectedTransition.addAll(implicitTransitions.filter { it.label.fromWTG })
                             }
                             if (explicitTransitions.isNotEmpty()) {
-                                if (prevAbstractTransition == null)
-                                    selectedTransition.addAll(explicitTransitions)
-                                else if (considerGuardedTransitions) {
-                                    explicitTransitions.filter {
-                                        it.source != it.destination && (it.label.dependentAbstractStates.isEmpty() || !it.label.guardEnabled ||
+                                if (!considerGuardedTransitions) {
+                                    val notGuared = explicitTransitions.filter { !it.label.guardEnabled }
+                                    selectedTransition.addAll(notGuared)
+                                }
+                                else {
+                                    val reliables = explicitTransitions.filter {
+                                        it.label.dependentAbstractStates.isEmpty() || !it.label.guardEnabled ||
                                                 it.label.dependentAbstractStates.intersect(ancestorAbstractStates)
-                                                    .isNotEmpty())
-                                    }.let {
-                                        if (it.isNotEmpty())
-                                            selectedTransition.addAll(it)
+                                                    .isNotEmpty()
                                     }
-                                } else {
-                                    selectedTransition.addAll(explicitTransitions)
+                                    if (reliables.isNotEmpty())
+                                        selectedTransition.addAll(reliables)
                                 }
                             }
                         }
                     }
-
             }
 
             selectedTransition.forEach {
@@ -702,9 +632,9 @@ class PathFindingHelper {
                             }
                             if( (pathType != PathType.WIDGET_AS_TARGET && pathType != PathType.WTG) || reachPb > 0.0) {
                                 val nextAbstateStack = if (transition.abstractAction.isLaunchOrReset()) {
-                                    Stack<Window>().also { it.add(Launcher.getOrCreateNode()) }
+                                    Stack<AbstractState>().also { it.add(AbstractStateManager.INSTANCE.ABSTRACT_STATES.find{it.isHomeScreen}!!) }
                                 } else {
-                                    createWindowStackForNext(windowStack, source, nextState)
+                                    createAbstractStackForNext(abstractStateStack, source, nextState)
                                 }
                                 val key = if (traversedEdges.isEmpty())
                                     0
@@ -734,7 +664,8 @@ class PathFindingHelper {
                     val prevAction = prevTransition1!!.abstractAction
                     val prevWindow = prevTransition1!!.source.window
                     if (t.abstractAction.isLaunchOrReset() || t.abstractAction.actionType == AbstractActionType.PRESS_BACK
-                        || AbstractStateManager.INSTANCE.goBackAbstractActions.contains(t.abstractAction)) {
+                        || AbstractStateManager.INSTANCE.goBackAbstractActions.contains(t.abstractAction)
+                        || t.guardEnabled) {
                         reachPb1 *= 1.0
                     } else if (t.interactions.isNotEmpty() && t.activated) {
                         reachPb1 *= 1.0
@@ -822,8 +753,8 @@ class PathFindingHelper {
 
         private fun IsCurrentPathStartingWithLaunchOrReset(
             ancestorEdgeId: Int?,
-            traversedEdges: HashMap<Int, Pair<AbstractTransition, Stack<Window>>>,
-            ancestorAbstractStates: ArrayList<AbstractState>,
+            traversedEdges: HashMap<Int, Pair<AbstractTransition, Stack<AbstractState>>>,
+            ancestorAbstractStates: Stack<AbstractState>,
             pathTracking: HashMap<Int, Int>
         ): Boolean {
             var ancestorEdgeId1 = ancestorEdgeId
@@ -877,7 +808,7 @@ class PathFindingHelper {
             edge: Edge<AbstractState, AbstractTransition>,
             depth: Int,
             targetTraces: List<Int>,
-            traversedEdges: HashMap<Int, Pair<AbstractTransition, Stack<Window>>>,
+            traversedEdges: HashMap<Int, Pair<AbstractTransition, Stack<AbstractState>>>,
             prevEdgeId: Int?,
             pathTracking: HashMap<Int, Int>,
             pathType: PathType
@@ -1075,30 +1006,31 @@ class PathFindingHelper {
             includeLaunch: Boolean,
             depth: Int
         ): Boolean {
+            return it.label.abstractAction.actionType != AbstractActionType.LAUNCH_APP
             if (includeLaunch && depth == 0) {
                 return true
             } else
                 return it.label.abstractAction.actionType != AbstractActionType.LAUNCH_APP
         }
 
-        private fun createWindowStackForNext(
-            windowStack: Stack<Window>,
+        private fun createAbstractStackForNext(
+            AbstractStateStack: Stack<AbstractState>,
             prevState: AbstractState,
             nextState: AbstractState
-        ): Stack<Window> {
-            val newWindowStack = windowStack.clone() as Stack<Window>
-            if (newWindowStack.contains(nextState.window) && newWindowStack.size > 1) {
+        ): Stack<AbstractState> {
+            val newWindowStack = AbstractStateStack.clone() as Stack<AbstractState>
+            if (newWindowStack.map { it.window }.contains(nextState.window) && newWindowStack.size > 1) {
                 // Return to the prev window
                 // Pop the window
-                while (newWindowStack.pop() != nextState.window) {
+                while (newWindowStack.pop().window != nextState.window) {
                 }
             } else {
                 if (nextState.window != prevState.window) {
                     if (prevState.window !is Dialog && prevState.window !is OptionsMenu) {
-                        newWindowStack.push(prevState.window)
+                        newWindowStack.push(prevState)
                     }
                 } else if (nextState.isOpeningKeyboard) {
-                    newWindowStack.push(nextState.window)
+                    newWindowStack.push(nextState)
                 }
             }
             return newWindowStack
@@ -1129,7 +1061,7 @@ class PathFindingHelper {
             lastTransition: AbstractTransition,
             prevEdgeId: Int?,
             startingNode: AbstractState,
-            traversedEdges: HashMap<Int, Pair<AbstractTransition, Stack<Window>>>,
+            traversedEdges: HashMap<Int, Pair<AbstractTransition, Stack<AbstractState>>>,
             pathTracking: HashMap<Int, Int>
         ): TransitionPath {
             val fullPath = TransitionPath(startingNode, pathType, destination)

@@ -38,9 +38,9 @@ class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.Pa
         var cost = 0
         path.values.drop(start).forEach {
             if (it.abstractAction.actionType == AbstractActionType.RESET_APP)
-                cost+=5
+                cost+=8
             else if (it.abstractAction.actionType == AbstractActionType.LAUNCH_APP)
-                cost+=4
+                cost+=6
             else
                 cost+=1
         }
@@ -79,6 +79,9 @@ class PathTraverser (val transitionPath: TransitionPath) {
         val nextAbstractTransition = transitionPath.path[latestEdgeId!! + 1]
         val nextAction = nextAbstractTransition?.abstractAction
         if (nextAction == null)
+            return false
+
+        if (nextAbstractTransition!!.guardEnabled)
             return false
         if (!nextAction.isWidgetAction())
             return true

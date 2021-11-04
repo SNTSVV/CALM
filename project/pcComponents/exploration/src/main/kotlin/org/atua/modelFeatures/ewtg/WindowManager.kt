@@ -32,6 +32,7 @@ class WindowManager {
     val userlikedWidgets = ArrayList<EWTGWidget>()
     val intentFilter = HashMap<Window, ArrayList<IntentFilter>>()
     val dialogClasses = HashMap<DialogType, ArrayList<String>>()
+    val launchActivities = ArrayList<Window>()
     val allMeaningWindows
         get()= updatedModelWindows.filter { it !is FakeWindow && it !is Launcher && it !is OutOfApp &&
                 !(it is Dialog && (it.isGrantedRuntimeDialog

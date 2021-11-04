@@ -499,7 +499,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                     else 0}.count { it > 0 }>1) {
                 isUsefullOnce = false
             }*/
-            val guardEnabled = data[6].toBoolean()
+            var guardEnabled = data[6].toBoolean()
             val dependentAbstractStateIds = splitCSVLineToField(data[7])
             val dependentAbstractStates = ArrayList<AbstractState>()
             dependentAbstractStateIds.forEach { dependentAbstractStateId ->
@@ -517,6 +517,10 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             }
             if (dependentAbstractStates.isEmpty()) {
                 dependentAbstractStates.add(AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.window is Launcher }!!)
+            } else {
+                if (dependentAbstractStates.map { it.window }.contains(destState!!.window)) {
+                    guardEnabled = true
+                }
             }
             val handlers = splitCSVLineToField(data[8])
             val handlerIds = handlers.map { atuaMF.statementMF!!.getMethodId(it) }.filter { it != null }

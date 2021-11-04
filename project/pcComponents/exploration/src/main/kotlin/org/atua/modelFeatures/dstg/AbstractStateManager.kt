@@ -485,8 +485,6 @@ class AbstractStateManager() {
             if (ignoreImplicitDerivedTransition.any { it.first == transition.source.window
                         && it.second == transition.abstractAction && it.third == transition.dest.window})
                 ignoreTransition = true
-            if (goBackAbstractActions.contains(transition.abstractAction))
-                ignoreTransition = true
             if (ignoreTransition)
                 continue
             val dest = if (transition.dest == transition.source)
@@ -2044,7 +2042,10 @@ class AbstractStateManager() {
         if (condition.isNotEmpty())
             if (!newEdge1.label.userInputs.contains(condition))
                 newEdge1.label.userInputs.add(condition)
-        newAbstractionTransition1.guardEnabled = oldAbstractEdge.label.guardEnabled
+        if (newAbstractionTransition1.dependentAbstractStates.map {it.window }.contains(newAbstractionTransition1.dest.window)
+            && newAbstractionTransition1.guardEnabled == false) {
+            newAbstractionTransition1.guardEnabled = true
+        }
         newAbstractionTransition1.activated = oldAbstractEdge.label.activated
         return Pair(newAbstractionTransition1, newEdge1)
     }
@@ -2085,7 +2086,10 @@ class AbstractStateManager() {
         if (condition.isNotEmpty())
             if (!newEdge1.label.userInputs.contains(condition))
                 newEdge1.label.userInputs.add(condition)
-        newAbstractionTransition!!.guardEnabled = oldAbstractEdge.label.guardEnabled
+        if (newAbstractionTransition.dependentAbstractStates.map {it.window }.contains(newAbstractionTransition.dest.window)
+            && newAbstractionTransition.guardEnabled == false) {
+            newAbstractionTransition.guardEnabled = true
+        }
         newAbstractionTransition.activated = oldAbstractEdge.label.activated
         return Pair(newAbstractionTransition, newEdge1)
     }
@@ -2184,8 +2188,6 @@ class AbstractStateManager() {
         }
         if (ignoreImplicitDerivedTransition.any { it.first == prevAbstractState.window
                     && it.second == abstractTransition.abstractAction && it.third == currentAbstractState.window})
-            return
-        if (goBackAbstractActions.contains(abstractTransition.abstractAction))
             return
         //do not add implicit transition if this is Launch/Reset/Swipe
         if (addImplicitAbstractTransitionToOtherStates && consideredForImplicitAbstractStateAction(abstractTransition.abstractAction)) {
@@ -2706,6 +2708,7 @@ class AbstractStateManager() {
                 )
                 // TODO check
                 backAbstractInteraction.dependentAbstractStates.add(backAbstractState)
+                backAbstractInteraction.guardEnabled = true
                 atuaMF.dstg.add(currentAbstractState, backAbstractState, backAbstractInteraction)
                 // add edge condition
                 addedCount1 += 1
@@ -2713,6 +2716,7 @@ class AbstractStateManager() {
                 if (!existingAT.dependentAbstractStates.contains(backAbstractState)) {
                     existingAT.dependentAbstractStates.add(backAbstractState)
                 }
+                existingAT.guardEnabled = true
             }
         }
     }

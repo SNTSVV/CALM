@@ -392,9 +392,7 @@ class ModelBackwardAdapter {
             )
             // updatedAbstractState.increaseActionCount2(updatedAbstractAction,false)
             newAbstractTransition.dependentAbstractStates.addAll(dependendAbstractStates)
-            if (newAbstractTransition.dependentAbstractStates.contains(newAbstractTransition.dest)) {
-                newAbstractTransition.guardEnabled = true
-            }
+            newAbstractTransition.guardEnabled = baseTransition.guardEnabled
             dstg.add(newAbstractTransition.source, newAbstractTransition.dest, newAbstractTransition)
             newAbstractTransition.userInputs.addAll(baseTransition.userInputs)
             baseTransition.handlers.forEach { handler, _ ->

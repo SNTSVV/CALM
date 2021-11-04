@@ -18,6 +18,7 @@ import org.atua.modelFeatures.ewtg.*
 import org.atua.modelFeatures.ewtg.window.Activity
 import org.atua.modelFeatures.ewtg.window.Dialog
 import org.atua.modelFeatures.ewtg.window.DialogType
+import org.atua.modelFeatures.ewtg.window.Launcher
 import org.atua.modelFeatures.ewtg.window.OptionsMenu
 import org.atua.modelFeatures.ewtg.window.OutOfApp
 import org.atua.modelFeatures.ewtg.window.Window
@@ -45,6 +46,11 @@ class StaticAnalysisJSONParser() {
                 readDialogs(jObj)
                 org.atua.modelFeatures.ATUAMF.log.debug("Reading Window Transition Graph")
                 atuaMF.wtg.constructFromJson(jObj)
+                atuaMF.wtg.edges(Launcher.getOrCreateNode()).forEach {
+                    val destWindow = it.label.destination
+                    if (!WindowManager.instance.launchActivities.contains(destWindow))
+                        WindowManager.instance.launchActivities.add(destWindow)
+                }
                 readActivityAlias(jObj,atuaMF.activityAlias)
                 readWindowWidgets(jObj,atuaMF.allEventHandlers,
                         atuaMF.wtg, atuaMF.statementMF!!)

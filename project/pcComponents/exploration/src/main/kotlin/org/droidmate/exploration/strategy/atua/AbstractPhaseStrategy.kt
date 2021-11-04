@@ -95,7 +95,7 @@ abstract class AbstractPhaseStrategy(
                 it.getUnExercisedActions(null,atuaMF).forEach { action ->
                     inputs.addAll(it.inputMappings[action]?: emptyList())
                 }
-                goalByAbstractState.put(it,inputs)
+                goalByAbstractState.put(it,inputs.distinct())
             }
           /*  if (targetStates.isEmpty()) {
                 targetStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
