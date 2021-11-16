@@ -132,7 +132,7 @@ class PrepareContextTask constructor(
                 if (endActions.isNotEmpty()) {
                     val randomAction = endActions.random()
                     val widget = if (randomAction.isWidgetAction()) {
-                        randomAction.attributeValuationMap!!.getGUIWidgets(currentState).random()
+                        randomAction.attributeValuationMap!!.getGUIWidgets(currentState,currentAbstractState.window).random()
                     } else
                         null
                     return chooseActionWithName(randomAction.actionType,randomAction.extra,widget,currentState,randomAction)?:ExplorationAction.pressBack()
@@ -295,7 +295,7 @@ class PrepareContextTask constructor(
         val currentAbstractState = atuaMF.getAbstractState(currentState)!!
         val userlikeInputAVMs = currentAbstractState.EWTGWidgetMapping.filter { it.value.isUserLikeInput }
         val userlikeInputWidgets = userlikeInputAVMs.map {
-            it.key.getGUIWidgets(currentState)
+            it.key.getGUIWidgets(currentState,currentAbstractState.window)
         }.flatten()
         return userlikeInputWidgets
     }

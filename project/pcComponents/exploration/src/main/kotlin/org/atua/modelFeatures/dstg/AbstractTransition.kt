@@ -24,7 +24,7 @@ import kotlin.collections.HashMap
 import kotlin.collections.HashSet
 
 class AbstractTransition(
-        val abstractAction: AbstractAction,
+        var  abstractAction: AbstractAction,
         val interactions: HashSet<Interaction<*>> = HashSet(),
         var isImplicit: Boolean/*,
         var prevWindow: Window?*/,
@@ -143,12 +143,14 @@ class AbstractTransition(
     }
 
     fun updateGuardEnableStatus() {
-        val input = source.inputMappings.get(abstractAction)
-        if (input != null) {
-            if (AbstractStateManager.INSTANCE.guardedTransitions.contains(Pair(source.window, input.first()))) {
+        val inputs = source.getInputsByAbstractAction(abstractAction)
+        inputs.forEach { input ->
+            if (AbstractStateManager.INSTANCE.guardedTransitions.contains(Pair(source.window, input))) {
                 guardEnabled = true
             }
         }
+
+
     }
 
     companion object{

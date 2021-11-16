@@ -131,7 +131,7 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
             if (abstractStates.isNotEmpty()) {
                 val targetInputs = atuaMF.notFullyExercisedTargetInputs.filter {it.sourceWindow == window && it.eventType!=EventType.implicit_launch_event
                         && it.eventType != EventType.resetApp}
-                val realisticInputs = abstractStates.map { it.inputMappings.values }.flatten().flatten().distinct()
+                val realisticInputs = abstractStates.map { it.getAvailableInputs() }.flatten().distinct()
                 val realisticTargetInputs = targetInputs.intersect(realisticInputs)
                 if (realisticTargetInputs.isNotEmpty()) {
                     return true

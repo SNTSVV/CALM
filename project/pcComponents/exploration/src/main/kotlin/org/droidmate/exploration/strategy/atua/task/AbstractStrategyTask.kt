@@ -462,7 +462,7 @@ abstract class AbstractStrategyTask(
             val actionList: ArrayList<ExplorationAction> = ArrayList<ExplorationAction>()
             if (childWidgets.isEmpty()) {
                 if (abstractAction != null) {
-                    abstractAction.attributeValuationMap!!.actionCount.remove(abstractAction)
+                    abstractAction.attributeValuationMap!!.removeAction(abstractAction)
                 }
                 return null
             }
@@ -521,7 +521,7 @@ abstract class AbstractStrategyTask(
                 return swipeAction
             } else {
                 if (abstractAction != null) {
-                    abstractAction.attributeValuationMap!!.actionCount.remove(abstractAction)
+                    abstractAction.attributeValuationMap!!.removeAction(abstractAction)
                 }
                 return null
             }
@@ -660,9 +660,9 @@ abstract class AbstractStrategyTask(
         var explorationAction: ExplorationAction? = null
         var candidateWidgets = ArrayList(getChildWidgets(currentState, chosenWidget,action))
         if (candidateWidgets.isEmpty()) {
-            if (abstractAction != null) {
-                abstractAction.attributeValuationMap!!.actionCount.remove(abstractAction)
-            }
+            /*if (abstractAction != null) {
+                abstractAction.attributeValuationMap!!.removeAction(abstractAction)
+            }*/
             return null
         }
         val currentAbstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)!!
@@ -930,7 +930,7 @@ abstract class AbstractStrategyTask(
         currentState: State<*>
     ): Widget? {
         var chosenWidget1:Widget? = null
-        val chosenWidgets = randomAction.attributeValuationMap!!.getGUIWidgets(currentState)
+        val chosenWidgets = randomAction.attributeValuationMap!!.getGUIWidgets(currentState,randomAction.window)
         if (chosenWidgets.isEmpty()) {
             chosenWidget1 = null
         } else {

@@ -133,7 +133,7 @@ class RandomExplorationTask constructor(
     }
 
     fun setMaxiumAttempt(currentState: State<*>, minAttempt: Int) {
-        val actionBasedAttempt = (atuaMF.getAbstractState(currentState)?.getUnExercisedActions(currentState,atuaMF)?.size
+        val actionBasedAttempt = (atuaMF.getAbstractState(currentState)?.getUnExercisedActions(currentState,atuaMF,false)?.size
                 ?: 1)
         maximumAttempt = max(actionBasedAttempt, minAttempt)
     }
@@ -209,7 +209,7 @@ class RandomExplorationTask constructor(
     override fun chooseAction(currentState: State<*>): ExplorationAction? {
         executedCount++
         val currentAbstractState = atuaMF.getAbstractState(currentState)!!
-        val unexercisedActions = currentAbstractState.getUnExercisedActions(currentState,atuaMF)
+        val unexercisedActions = currentAbstractState.getUnExercisedActions(currentState,atuaMF,false)
         val widgetActions = unexercisedActions.filter {
             it.attributeValuationMap != null
         }
@@ -428,18 +428,15 @@ class RandomExplorationTask constructor(
             tryLastAction = 0
             //val widgetActions = currentAbstractState.getAvailableActions().filter { it.widgetGroup != null }
             val priotizeActions = unexercisedActions.filter {
-                val inputs = currentAbstractState.inputMappings[it]
-                if (inputs != null) {
-                    val usefulInputs = inputs.filter {
-                        if (ModelHistoryInformation.INSTANCE.inputUsefulness.containsKey(it)) {
-                            ModelHistoryInformation.INSTANCE.inputUsefulness[it]!!.second>0
-                        } else {
-                            true
-                        }
+                val inputs = currentAbstractState.getInputsByAbstractAction(it)
+                val usefulInputs = inputs.filter {
+                    if (ModelHistoryInformation.INSTANCE.inputUsefulness.containsKey(it)) {
+                        ModelHistoryInformation.INSTANCE.inputUsefulness[it]!!.second>0
+                    } else {
+                        true
                     }
-                    usefulInputs.isNotEmpty()
-                } else
-                    false
+                }
+                usefulInputs.isNotEmpty()
             }.filter{
                 widgetActions.contains(it) }
             if (priotizeActions.isNotEmpty()) {
@@ -511,7 +508,7 @@ class RandomExplorationTask constructor(
                 if (chosenWidget == null) {
                     log.debug("No widget found")
                     // remove action
-                    randomAction.attributeValuationMap!!.actionCount.remove(randomAction)
+                    randomAction.attributeValuationMap!!.removeAction(randomAction)
                     isValidAction = false
                 } else {
                     log.info(" widget: $chosenWidget")
@@ -533,9 +530,9 @@ class RandomExplorationTask constructor(
                 } else {
                     // this action should be removed from this abstract state
                     if (randomAction.attributeValuationMap == null) {
-                        currentAbstractState.actionCount.remove(randomAction)
+                        currentAbstractState.removeAction(randomAction)
                     } else {
-                        randomAction.attributeValuationMap!!.actionCount.remove(randomAction)
+                        randomAction.attributeValuationMap!!.removeAction(randomAction)
                     }
                     return chooseAction(currentState)
                 }
@@ -635,7 +632,7 @@ class RandomExplorationTask constructor(
                         && it !is VirtualAbstractState
                         && it.guiStates.isNotEmpty()
                         && it.attributeValuationMaps.isNotEmpty()
-                        && it.getUnExercisedActions(null, atuaMF)
+                        && it.getUnExercisedActions(null, atuaMF,false)
                     .filter { it.isWidgetAction() && !it.attributeValuationMap!!.getClassName().contains("WebView") }
                     .isNotEmpty()
             }.toHashSet()
@@ -651,16 +648,18 @@ class RandomExplorationTask constructor(
                         destWindow = currentAbstractState.window,
                         includePressback = true,
                         includeResetApp = true,
-                        isExploration = true
+                        isExploration = true,
+                        maxCost = 5*atuaStrategy.scaleFactor
                     )
                 ) {
+                    recentGoToExploreState = true
+                    goToLockedWindowTask!!.initialize(currentState)
+                    return true
+                    /*if (goToLockedWindowTask!!.possiblePaths)
                     if (goToLockedWindowTask!!.possiblePaths.any { it.cost()<=5*atuaStrategy.scaleFactor }) {
-                        recentGoToExploreState = true
-                        goToLockedWindowTask!!.initialize(currentState)
-                        return true
                     } else {
                         log.debug("Unexercised inputs are too far.")
-                    }
+                    }*/
                     /*if (goToLockedWindowTask!!.possiblePaths.isNotEmpty()) {
                         recentGoToExploreState = true
                         goToLockedWindowTask!!.initialize(currentState)
@@ -695,7 +694,6 @@ class RandomExplorationTask constructor(
             candidateActions.forEach { abstractAction ->
                 var actionScore = abstractAction.getScore()
                 val widgetGroup = abstractAction.attributeValuationMap!!
-                val actionCount = abstractAction.attributeValuationMap!!.actionCount.get(abstractAction)?:0
                 /*var witnessInThePast = currentAbstractState.abstractTransitions.any {
                     it.abstractAction == abstractAction && (
                             it.interactions.isNotEmpty()

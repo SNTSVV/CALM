@@ -22,7 +22,6 @@ import org.atua.modelFeatures.dstg.AbstractTransition
 import org.atua.modelFeatures.dstg.AttributeType
 import org.atua.modelFeatures.dstg.AttributeValuationMap
 import org.atua.modelFeatures.dstg.Cardinality
-import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.modelFeatures.dstg.reducer.AbstractionFunction2
 import org.atua.modelFeatures.dstg.reducer.DecisionNode2
 import org.atua.modelFeatures.ewtg.EWTGWidget
@@ -47,7 +46,6 @@ import java.io.FileReader
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
-import kotlin.collections.HashMap
 import kotlin.streams.toList
 
 class AppModelLoader {
@@ -72,7 +70,7 @@ class AppModelLoader {
             } else {
                 WindowManager.instance.baseModelWindows
             }
-            windowList.forEach {
+            /*windowList.forEach {
                 if (!AbstractStateManager.INSTANCE.ABSTRACT_STATES.any {
                         it is VirtualAbstractState
                                 && it.window == it
@@ -80,14 +78,14 @@ class AppModelLoader {
                     val virtualAbstractState = VirtualAbstractState(it.classType, it, it is Launcher)
                     AbstractStateManager.INSTANCE.ABSTRACT_STATES.add(virtualAbstractState)
                 }
-            }
+            }*/
             val dstgFolderPath: Path = getDSTGFolderPath(modelPath)
             log.info("Loading DSTG")
             loadDSTG(dstgFolderPath, autAutMF)
         }
 
-        val guiActionIncreasingCoverage = HashMap<Int,Int>()
-        val guiActionCoverage = HashMap<Int,Int>()
+        val guiActionIncreasingCoverage = HashMap<Int, Int>()
+        val guiActionCoverage = HashMap<Int, Int>()
         private fun loadActionCoverageSummary(actionCoveragePath: Path) {
             val lines: List<String>
             if (Files.exists(actionCoveragePath)) {
@@ -99,8 +97,8 @@ class AppModelLoader {
                     val actionId = data[0].toInt()
                     val coverage = data[5].toInt()
                     val increasingCoverage = data[6].toInt()
-                    guiActionIncreasingCoverage.put(actionId,increasingCoverage)
-                    guiActionCoverage.put(actionId,coverage)
+                    guiActionIncreasingCoverage.put(actionId, increasingCoverage)
+                    guiActionCoverage.put(actionId, coverage)
                 }
             }
         }
@@ -223,12 +221,15 @@ class AppModelLoader {
                         createNewInput(data, widget, window, createdAtRuntime)
                     } else
                         existingEvent
-                    if (event!=null) {
+                    if (event != null) {
                         updateHandlerAndModifiedMethods(event, data, window, autautMF)
                         if (!ModelHistoryInformation.INSTANCE.inputUsefulness.containsKey(event)) {
                             val totalActionCnt = data[4].toInt()
                             val increasingActionCnt = data[5].toInt()
-                            ModelHistoryInformation.INSTANCE.inputUsefulness.put(event,Pair(totalActionCnt,increasingActionCnt))
+                            ModelHistoryInformation.INSTANCE.inputUsefulness.put(
+                                event,
+                                Pair(totalActionCnt, increasingActionCnt)
+                            )
                         }
                         /*val isUseless = data[9]
                         if (isUseless!= "null") {
@@ -269,7 +270,7 @@ class AppModelLoader {
             val coveredMethodsId = coveredMethods.map { autMF.statementMF!!.getMethodId(it) }
             coveredMethodsId.forEach { methodId ->
                 if (methodId.isNotBlank()) {
-                    event.coveredMethods.put(methodId,false)
+                    event.coveredMethods.put(methodId, false)
                     if (autMF.statementMF!!.isModifiedMethod(methodId)) {
                         event.modifiedMethods.putIfAbsent(methodId, false)
                     }
@@ -545,6 +546,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                 newAbstractTransition.isUsefullOnce = isUsefullOnce
                 newAbstractTransition.guardEnabled = guardEnabled
                 newAbstractTransition.dependentAbstractStates.addAll(dependentAbstractStates)
+                // atuaMF.dstg.updateAbstractActionEnability(newAbstractTransition,atuaMF)
                 newAbstractTransition.computeGuaranteedAVMs()
                 handlerIds.forEach {
                     newAbstractTransition.handlers.put(it, false)
@@ -570,18 +572,20 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             abstractState: AbstractState
         ): AbstractAction {
             if (interactedAVSId == "") {
-                val abstractAction = AbstractAction(
+                val abstractAction = AbstractAction.getOrCreateAbstractAction(
                     actionType = actionType,
                     attributeValuationMap = null,
-                    extra = actionData
+                    extra = actionData,
+                    window = abstractState.window
                 )
                 return abstractAction
             }
             val avs = abstractState.attributeValuationMaps.firstOrNull() { it.avmId == interactedAVSId }
-            val abstractAction = AbstractAction(
+            val abstractAction = AbstractAction.getOrCreateAbstractAction(
                 actionType = actionType,
                 attributeValuationMap = avs,
-                extra = actionData
+                extra = actionData,
+                window = abstractState.window
             )
             return abstractAction
         }
@@ -589,14 +593,15 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
         private fun createWindowTransitionFromAbstractInteraction(
             abstractTransition: AbstractTransition,
             atuaMF: org.atua.modelFeatures.ATUAMF
-        ){
+        ) {
             val eventType = Input.getEventTypeFromActionName(abstractTransition.abstractAction.actionType)
             if (eventType == EventType.fake_action || eventType == EventType.resetApp || eventType == EventType.implicit_launch_event)
                 return
-            val inputs = if (abstractTransition.source.inputMappings.containsKey(abstractTransition.abstractAction))
-                abstractTransition.source.inputMappings.get(abstractTransition.abstractAction)!!
-            else
-                createNewInput(abstractTransition, atuaMF)
+            val inputs =
+                if (abstractTransition.source.isAbstractActionMappedWithInputs(abstractTransition.abstractAction))
+                    abstractTransition.source.getInputsByAbstractAction(abstractTransition.abstractAction)
+                else
+                    createNewInput(abstractTransition, atuaMF)
             val prevWindows = abstractTransition.dependentAbstractStates.map { it.window }
             /*val guiActionsCnt = oldGuiActionIds.size
             val increasingCoverageCnt = oldGuiActionIds.map {
@@ -649,25 +654,31 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             val destAbstractState = abstractTransition.dest
             if (abstractTransition.abstractAction.attributeValuationMap == null) {
                 var newInput =
-                    Input.getOrCreateInput(emptySet(), eventType.toString(), null, sourceAbstractState.window, true)
+                    Input.getOrCreateInput(
+                        eventHandlers = emptySet(),
+                        eventTypeString = eventType.toString(),
+                        widget = null,
+                        sourceWindow = sourceAbstractState.window,
+                        createdAtRuntime = true,
+                        modelVersion = ModelVersion.BASE
+                    )
                 if (newInput == null) {
                     return result
                 }
                 result.add(newInput)
                 newInput.data = abstractTransition.abstractAction.extra
                 newInput.eventHandlers.addAll(abstractTransition.handlers.map { it.key })
-                sourceAbstractState.inputMappings.putIfAbsent(abstractTransition.abstractAction, hashSetOf())
-                sourceAbstractState.inputMappings.get(abstractTransition.abstractAction)!!.add(newInput)
+                sourceAbstractState.associateAbstractActionWithInputs(abstractTransition.abstractAction, newInput)
                 AbstractStateManager.INSTANCE.ABSTRACT_STATES.filterNot { it == sourceAbstractState }
                     .filter { it.window == sourceAbstractState.window }.forEach {
-                    val similarAbstractAction =
-                        it.getAvailableActions().find { it == abstractTransition.abstractAction }
-                    if (similarAbstractAction != null) {
-                        it.inputMappings.put(similarAbstractAction, hashSetOf(newInput!!))
+                        val similarAbstractAction =
+                            it.getAvailableActions().find { it == abstractTransition.abstractAction }
+                        if (similarAbstractAction != null) {
+                            it.associateAbstractActionWithInputs(similarAbstractAction, newInput)
+                        }
                     }
-                }
             } else {
-                val attributeValuationSet = abstractTransition.abstractAction.attributeValuationMap
+                val attributeValuationSet = abstractTransition.abstractAction.attributeValuationMap!!
                 if (!sourceAbstractState.EWTGWidgetMapping.containsKey(attributeValuationSet)) {
                     val attributeValuationSetId = if (attributeValuationSet.getResourceId().isBlank())
                         ""
@@ -688,36 +699,37 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                     sourceAbstractState.EWTGWidgetMapping.put(attributeValuationSet, ewtgWidget)
                     AbstractStateManager.INSTANCE.ABSTRACT_STATES.filterNot { it == sourceAbstractState }
                         .filter { it.window == sourceAbstractState.window }.forEach {
-                        val similarWidget = it.attributeValuationMaps.find { it == attributeValuationSet }
-                        if (similarWidget != null) {
-                            it.EWTGWidgetMapping.put(similarWidget, ewtgWidget)
+                            val similarWidget = it.attributeValuationMaps.find { it == attributeValuationSet }
+                            if (similarWidget != null) {
+                                it.EWTGWidgetMapping.put(similarWidget, ewtgWidget)
+                            }
                         }
-                    }
                 }
                 if (sourceAbstractState.EWTGWidgetMapping.contains(attributeValuationSet)) {
                     val staticWidget = sourceAbstractState.EWTGWidgetMapping[attributeValuationSet]!!
                     atuaMF.allTargetStaticWidgets.add(staticWidget)
                     val newInput = Input.getOrCreateInput(
-                        emptySet(), eventType.toString(),
-                        staticWidget, sourceAbstractState.window, true
+                        eventHandlers = emptySet(),
+                        eventTypeString = eventType.toString(),
+                        widget = staticWidget,
+                        sourceWindow = sourceAbstractState.window,
+                        createdAtRuntime = true,
+                        modelVersion = ModelVersion.BASE
                     )
                     if (newInput == null)
                         return result
                     result.add(newInput)
                     newInput.data = abstractTransition.abstractAction.extra
                     newInput.eventHandlers.addAll(abstractTransition.handlers.map { it.key })
-                    if (!sourceAbstractState.inputMappings.containsKey(abstractTransition.abstractAction)) {
-                        sourceAbstractState.inputMappings.put(abstractTransition.abstractAction, hashSetOf())
-                    }
-                    sourceAbstractState.inputMappings.get(abstractTransition.abstractAction)!!.add(newInput)
+                    sourceAbstractState.associateAbstractActionWithInputs(abstractTransition.abstractAction, newInput)
                     AbstractStateManager.INSTANCE.ABSTRACT_STATES.filterNot { it == sourceAbstractState }
                         .filter { it.window == sourceAbstractState.window }.forEach {
-                        val similarAbstractAction =
-                            it.getAvailableActions().find { it == abstractTransition.abstractAction }
-                        if (similarAbstractAction != null) {
-                            it.inputMappings.put(similarAbstractAction, hashSetOf(newInput))
+                            val similarAbstractAction =
+                                it.getAvailableActions().find { it == abstractTransition.abstractAction }
+                            if (similarAbstractAction != null) {
+                                it.associateAbstractActionWithInputs(similarAbstractAction, newInput)
+                            }
                         }
-                    }
                 }
             }
             return result
@@ -812,7 +824,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             }
             if (window is Dialog) {
                 val activity = windowList.find { it.classType == abstractState.activity }
-                if (activity!=null) {
+                if (activity != null) {
                     window.ownerActivitys.add(activity)
                 }
             }
@@ -990,15 +1002,13 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
         }
 
 
-
-
         private fun createNewInput(
             data: List<String>,
             widget: EWTGWidget?,
             window: Window,
             createdAtRuntime: Boolean
         ): Input? {
-            val eventTypeString = when(data[0]) {
+            val eventTypeString = when (data[0]) {
                 "touch" -> "click"
                 "implicit_menu" -> "press_menu"
                 "implicit_back_event" -> "press_back"
@@ -1013,12 +1023,12 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                 eventTypeString = eventType.toString(),
                 widget = widget,
                 sourceWindow = window,
-                createdAtRuntime = createdAtRuntime
+                createdAtRuntime = createdAtRuntime,
+                modelVersion = ModelVersion.BASE
             )
             return input
 
         }
-
 
 
         fun splitCSVLineToField(line: String): List<String> {

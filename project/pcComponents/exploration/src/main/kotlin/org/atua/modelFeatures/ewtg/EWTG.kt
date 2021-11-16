@@ -12,6 +12,7 @@
 
 package org.atua.modelFeatures.ewtg
 
+import org.atua.calm.modelReuse.ModelVersion
 import org.droidmate.exploration.modelFeatures.graph.*
 import org.atua.modelFeatures.*
 import org.atua.modelFeatures.ewtg.window.Activity
@@ -94,7 +95,8 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
                                 eventTypeString = action,
                                 eventHandlers = emptySet(),
                                 widget = ewtgWidget,
-                                sourceWindow = sourceNode
+                                sourceWindow = sourceNode,
+                                modelVersion = ModelVersion.RUNNING
 
                         )
                         if (event != null) {
@@ -120,7 +122,13 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
                 val edges = this.edges(owner, o)
 
                 if (edges.isEmpty()) {
-                    val input = Input.getOrCreateInput(HashSet(),EventType.press_menu.toString(),null,o)
+                    val input = Input.getOrCreateInput(
+                        eventHandlers =  HashSet(),
+                        eventTypeString =  EventType.press_menu.toString(),
+                        widget =  null,
+                        sourceWindow = o,
+                        createdAtRuntime = false,
+                        modelVersion = ModelVersion.RUNNING)
                     if (input != null)
                         this.add(owner, o, WindowTransition(owner,o,input,null))
                 }
@@ -143,7 +151,13 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
             val activityNode = WindowManager.instance.updatedModelWindows.find { it.classType == wtgNode.classType && it is Activity }
             if (activityNode != null) {
                 if (this.edges(activityNode, wtgNode).isEmpty()) {
-                    val input = Input.getOrCreateInput(HashSet(),EventType.press_menu.toString(),null,activityNode)
+                    val input = Input.getOrCreateInput(
+                        eventHandlers =  HashSet(),
+                        eventTypeString =  EventType.press_menu.toString(),
+                        widget =  null,
+                        sourceWindow =  activityNode,
+                        createdAtRuntime = false,
+                        modelVersion = ModelVersion.RUNNING)
                     if (input != null)
                         this.add(activityNode, wtgNode, WindowTransition(activityNode,wtgNode,input,null))
                 }

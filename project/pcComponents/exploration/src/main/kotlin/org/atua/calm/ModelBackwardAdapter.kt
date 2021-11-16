@@ -227,9 +227,9 @@ class ModelBackwardAdapter {
         backwardEquivalentAbstractStateMapping.putIfAbsent(observedAbstractState, HashSet())
         backwardEquivalentAbstractStateMapping[observedAbstractState]!!.add(expected)
         copyAbstractTransitions(observedAbstractState, expected, atuamf, matchedAVMs2,false)
-        otherSimilarAbstractStates.filter { it!=expected }.forEach {
+        /*otherSimilarAbstractStates.filter { it!=expected }.forEach {
             copyAbstractTransitions(observedAbstractState,it,atuamf,matchedAVMs2,true)
-        }
+        }*/
 
         /*AbstractStateManager.INSTANCE.ABSTRACT_STATES.remove(expected)*/
     }
@@ -269,10 +269,11 @@ class ModelBackwardAdapter {
                 if (destAVMs!=null) {
                     destAVMs.forEach {destAVM->
                         if (isActionValidOnAVM(sourceTransition.abstractAction.actionType,destAVM)) {
-                            val destAbstractAction = AbstractAction(
+                            val destAbstractAction = AbstractAction.getOrCreateAbstractAction(
                                 actionType = sourceTransition.abstractAction.actionType,
                                 attributeValuationMap = destAVM,
-                                extra = sourceTransition.abstractAction.extra
+                                extra = sourceTransition.abstractAction.extra,
+                                window = source.window
                             )
                             copyAbstractTransitionFromBase(
                                 sourceTransition,
@@ -326,12 +327,10 @@ class ModelBackwardAdapter {
             backwardEquivalentAbstractStateMapping.get(baseTransition.dest)?.firstOrNull() ?: baseTransition.dest
         if (dependendAbstractStates.contains(dest)) {
             AbstractStateManager.INSTANCE.goBackAbstractActions.add(updatedAbstractAction)
-            val inputs = updatedAbstractState.inputMappings[updatedAbstractAction]
-            if (inputs!=null) {
-                inputs.forEach {
-                    if (!Input.goBackInputs.contains(it))
-                        Input.goBackInputs.add(it)
-                }
+            val inputs = updatedAbstractState.getInputsByAbstractAction(updatedAbstractAction)
+            inputs.forEach {
+                if (!Input.goBackInputs.contains(it))
+                    Input.goBackInputs.add(it)
             }
         }
         if (copyAsImplicit && AbstractStateManager.INSTANCE.ignoreImplicitDerivedTransition.contains(Triple(updatedAbstractState.window,updatedAbstractAction,dest.window))){
@@ -395,20 +394,20 @@ class ModelBackwardAdapter {
             newAbstractTransition.guardEnabled = baseTransition.guardEnabled
             dstg.add(newAbstractTransition.source, newAbstractTransition.dest, newAbstractTransition)
             newAbstractTransition.userInputs.addAll(baseTransition.userInputs)
+            if (newAbstractTransition.source != newAbstractTransition.dest)
+                atuamf.dstg.updateAbstractActionEnability(newAbstractTransition,atuamf)
             baseTransition.handlers.forEach { handler, _ ->
                 newAbstractTransition.handlers.putIfAbsent(handler, false)
             }
             val possiblyCoveredUpdatedMethods = baseTransition.methodCoverage.filter { atuamf.statementMF!!.isModifiedMethod(it) }
             newAbstractTransition.modifiedMethods.putAll(possiblyCoveredUpdatedMethods.associateWith { false })
-            val inputs = updatedAbstractState.inputMappings.get(updatedAbstractAction)
-            if (inputs!=null) {
-                inputs.forEach { it ->
-                    it.modifiedMethods.putAll(possiblyCoveredUpdatedMethods.associateWith { false })
-                    if (it.modifiedMethods.isNotEmpty()
-                        && !it.modifiedMethods.all { atuamf.statementMF!!.fullyCoveredMethods.contains(it.key) }
-                        && !atuamf.notFullyExercisedTargetInputs.contains(it)) {
-                        atuamf.notFullyExercisedTargetInputs.add(it)
-                    }
+            val inputs = updatedAbstractState.getInputsByAbstractAction(updatedAbstractAction)
+            inputs.forEach { it ->
+                it.modifiedMethods.putAll(possiblyCoveredUpdatedMethods.associateWith { false })
+                if (it.modifiedMethods.isNotEmpty()
+                    && !it.modifiedMethods.all { atuamf.statementMF!!.fullyCoveredMethods.contains(it.key) }
+                    && !atuamf.notFullyExercisedTargetInputs.contains(it)) {
+                    atuamf.notFullyExercisedTargetInputs.add(it)
                 }
             }
             backwardEquivalentAbstractTransitionMapping.put(newAbstractTransition, HashSet())
@@ -419,15 +418,13 @@ class ModelBackwardAdapter {
             existingAbstractTransition.dependentAbstractStates.addAll(dependendAbstractStates)
             val possiblyCoveredUpdatedMethods = baseTransition.methodCoverage.filter { atuamf.statementMF!!.isModifiedMethod(it) }
             existingAbstractTransition.modifiedMethods.putAll(possiblyCoveredUpdatedMethods.associateWith { false })
-            val inputs = updatedAbstractState.inputMappings.get(updatedAbstractAction)
-            if (inputs!=null) {
-                inputs.forEach { it ->
-                    it.modifiedMethods.putAll(possiblyCoveredUpdatedMethods.associateWith { false })
-                    if (it.modifiedMethods.isNotEmpty()
-                        && !it.modifiedMethods.all { atuamf.statementMF!!.fullyCoveredMethods.contains(it.key) }
-                        && !atuamf.notFullyExercisedTargetInputs.contains(it)) {
-                        atuamf.notFullyExercisedTargetInputs.add(it)
-                    }
+            val inputs = updatedAbstractState.getInputsByAbstractAction(updatedAbstractAction)
+            inputs.forEach { it ->
+                it.modifiedMethods.putAll(possiblyCoveredUpdatedMethods.associateWith { false })
+                if (it.modifiedMethods.isNotEmpty()
+                    && !it.modifiedMethods.all { atuamf.statementMF!!.fullyCoveredMethods.contains(it.key) }
+                    && !atuamf.notFullyExercisedTargetInputs.contains(it)) {
+                    atuamf.notFullyExercisedTargetInputs.add(it)
                 }
             }
             backwardEquivalentAbstractTransitionMapping.putIfAbsent(existingAbstractTransition, HashSet())

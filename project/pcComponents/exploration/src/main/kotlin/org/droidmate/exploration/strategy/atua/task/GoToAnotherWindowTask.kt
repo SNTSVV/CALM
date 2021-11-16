@@ -7,14 +7,15 @@ import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
 import org.atua.modelFeatures.dstg.AbstractTransition
 import org.atua.modelFeatures.dstg.AttributeValuationMap
+import org.atua.modelFeatures.dstg.UncertainAbstractState
 import org.atua.modelFeatures.dstg.VirtualAbstractState
-import org.atua.modelFeatures.ewtg.EWTGWidget
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.PathTraverser
 import org.atua.modelFeatures.ewtg.TransitionPath
 import org.atua.modelFeatures.ewtg.WindowManager
 import org.atua.modelFeatures.ewtg.window.Window
 import org.atua.modelFeatures.helper.PathFindingHelper
+import org.atua.modelFeatures.helper.ProbabilityBasedPathFinder
 import org.droidmate.deviceInterface.exploration.ActionType
 import org.droidmate.deviceInterface.exploration.ExplorationAction
 import org.droidmate.deviceInterface.exploration.GlobalAction
@@ -37,6 +38,8 @@ open class GoToAnotherWindowTask constructor(
     delay: Long, useCoordinateClicks: Boolean
 ) : AbstractStrategyTask(atuaTestingStrategy, autautMF, delay, useCoordinateClicks) {
 
+    private val DEFAULT_MAX_COST: Double = 10.0
+    protected var maxCost: Double = DEFAULT_MAX_COST
     private var tryOpenNavigationBar: Boolean = false
     private var tryScroll: Boolean = false
     protected var mainTaskFinished: Boolean = false
@@ -118,14 +121,13 @@ open class GoToAnotherWindowTask constructor(
 
         if (pathTraverser!!.finalStateAchieved()) {
             if (currentAppState == currentPath!!.getFinalDestination()) {
-
                 return true
             }
         }
         //if currentNode is expectedNextNode
         if (isExploration) {
             if (destWindow==null || currentAppState.window == destWindow) {
-                if (currentAppState.getUnExercisedActions(currentState, atuaMF).filter{it.isWidgetAction()}.isNotEmpty()) {
+                if (currentAppState.getUnExercisedActions(currentState, atuaMF,false).filter{it.isWidgetAction()}.isNotEmpty()) {
                     return true
                 }
             }
@@ -139,11 +141,16 @@ open class GoToAnotherWindowTask constructor(
                 val abstractStateStacks = atuaMF.getAbstractStateStack()
                 log.debug("Fail to reach $expectedNextAbState")
                 addIncorrectPath(currentAppState)
+                if (pathTraverser!!.transitionPath.goal.isNotEmpty()) {
+                    val goal = pathTraverser!!.transitionPath.goal
+                    if (currentAppState.getAvailableInputs().intersect(goal).isNotEmpty())
+                        return true
+                }
                 val nextAbstractTransition = pathTraverser!!.transitionPath.path[pathTraverser!!.latestEdgeId!! + 1]
                 val pathType = pathTraverser!!.transitionPath.pathType
                 if (nextAbstractTransition==null) {
                     if (pathTraverser!!.finalStateAchieved() && currentPath!!.destination.window == currentAppState.window) {
-                        val currentInputs = currentAppState.inputMappings.values.flatten().distinct()
+                        val currentInputs = currentAppState.getAvailableInputs()
                         if (pathTraverser!!.transitionPath.goal.isEmpty() || currentInputs.intersect(pathTraverser!!.transitionPath.goal)
                                 .isNotEmpty()
                         ) {
@@ -157,33 +164,34 @@ open class GoToAnotherWindowTask constructor(
                     }
                 }
                 val transitionPaths = ArrayList<TransitionPath>()
-                val finalTarget =
+                val finalTarget = if (currentPath!!.getFinalDestination() !is UncertainAbstractState) {
                     if (AbstractStateManager.INSTANCE.ABSTRACT_STATES.contains(currentPath!!.getFinalDestination()))
                         currentPath!!.getFinalDestination()
                     else
-                        AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.hashCode == currentPath!!.getFinalDestination().hashCode }
-                if (currentPath!!.getFinalDestination() !is VirtualAbstractState) {
-                    if (finalTarget != null)
-                        PathFindingHelper.findPathToTargetComponent(
-                            currentState = currentState,
-                            root = currentAppState,
-                            finalTarget = finalTarget,
-                            allPaths = transitionPaths,
-                            shortest = true,
-                            pathCountLimitation = 1,
-                            autautMF = atuaMF,
-                            pathType = currentPath!!.pathType,
-                            goal = pathTraverser!!.transitionPath.goal
-                        )
-                }
-                val minCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!! + 1)/currentPath!!.reachabilityScore
-                transitionPaths.removeIf { it.cost()/it.reachabilityScore > minCost }
+                        AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.hashCode == currentPath!!.getFinalDestination().hashCode } }
+                else
+                    AbstractStateManager.INSTANCE.getVirtualAbstractState(currentPath!!.getFinalDestination().window)
+                val minCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!! + 1)
+                if (finalTarget != null)
+                    ProbabilityBasedPathFinder.findPathToTargetComponent(
+                        currentState = currentState,
+                        root = currentAppState,
+                        finalTargets = listOf(finalTarget),
+                        foundPaths = transitionPaths,
+                        shortest = true,
+                        pathCountLimitation = 1,
+                        autautMF = atuaMF,
+                        pathType = currentPath!!.pathType,
+                        goalsByTarget = mapOf(Pair(finalTarget, pathTraverser!!.transitionPath.goal)),
+                        windowAsTarget = (finalTarget is VirtualAbstractState && pathTraverser!!.transitionPath.goal.isEmpty() ),
+                        maxCost = minCost
+                    )
                 // Try another path if current state is not target node
                 if (lastAbstractAction.isWebViewAction()
                     && lastAbstractAction.actionType!=AbstractActionType.SWIPE && transitionPaths.isEmpty() &&
                     (pathType ==PathFindingHelper.PathType.WIDGET_AS_TARGET || pathType ==PathFindingHelper.PathType.WTG)
                 ) {
-                    if (actionTryCount < maxActionTryCount && lastAbstractAction.attributeValuationMap!!.getGUIWidgets(currentState).isNotEmpty()) {
+                    if (actionTryCount < maxActionTryCount && lastAbstractAction.attributeValuationMap!!.getGUIWidgets(currentState,currentAppState.window).isNotEmpty()) {
                         pathTraverser!!.latestEdgeId = pathTraverser!!.latestEdgeId!!-1
                         actionTryCount++
                         return false
@@ -192,7 +200,7 @@ open class GoToAnotherWindowTask constructor(
                 if (lastAbstractAction.isWidgetAction()
                     && lastAbstractAction.actionType == AbstractActionType.SWIPE
                     && prevAppState != currentAppState && transitionPaths.isEmpty()) {
-                    if (actionTryCount < maxActionTryCount && lastAbstractAction.attributeValuationMap!!.getGUIWidgets(currentState).isNotEmpty()) {
+                    if (actionTryCount < maxActionTryCount && lastAbstractAction.attributeValuationMap!!.getGUIWidgets(currentState,currentAppState.window).isNotEmpty()) {
                         log.info("Retry Swipe action on ${lastAbstractAction.attributeValuationMap!!}")
                         pathTraverser!!.latestEdgeId = pathTraverser!!.latestEdgeId!!-1
                         actionTryCount++
@@ -231,6 +239,11 @@ open class GoToAnotherWindowTask constructor(
                 if (pathTraverser!!.finalStateAchieved()) {
                     return true
                 }
+                if (pathTraverser!!.transitionPath.goal.isNotEmpty()) {
+                    val goal = pathTraverser!!.transitionPath.goal
+                    if (currentAppState.getAvailableInputs().intersect(goal).isNotEmpty())
+                        return true
+                }
                 if (expectedNextAbState is VirtualAbstractState) {
                     return reroutePath(currentState, currentAppState,true)
                 }
@@ -250,27 +263,30 @@ open class GoToAnotherWindowTask constructor(
         log.debug("Reidentify paths to the destination.")
         val transitionPaths = ArrayList<TransitionPath>()
         if (continueMode ) {
-            val finalTarget =
+            val finalTarget = if (currentPath!!.getFinalDestination() !is UncertainAbstractState) {
                 if (AbstractStateManager.INSTANCE.ABSTRACT_STATES.contains(currentPath!!.getFinalDestination()))
                     currentPath!!.getFinalDestination()
                 else
-                    AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.hashCode == currentPath!!.getFinalDestination().hashCode }
-            if (currentPath!!.getFinalDestination() !is VirtualAbstractState) {
-                if (finalTarget != null)
-                    PathFindingHelper.findPathToTargetComponent(
-                        currentState = currentState,
-                        root = currentAppState,
-                        finalTarget = finalTarget,
-                        allPaths = transitionPaths,
-                        shortest = true,
-                        pathCountLimitation = 1,
-                        autautMF = atuaMF,
-                        pathType = currentPath!!.pathType,
-                        goal = emptyList()
-                    )
-            }
+                    AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.hashCode == currentPath!!.getFinalDestination().hashCode } }
+            else
+                AbstractStateManager.INSTANCE.getVirtualAbstractState(currentPath!!.getFinalDestination().window)
             val minCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!! + 1)
-            if (transitionPaths.isNotEmpty() && transitionPaths.any { it.cost() <= minCost }) {
+            if (finalTarget != null)
+                ProbabilityBasedPathFinder.findPathToTargetComponent(
+                    currentState = currentState,
+                    root = currentAppState,
+                    finalTargets = listOf(finalTarget),
+                    foundPaths = transitionPaths,
+                    shortest = true,
+                    pathCountLimitation = 1,
+                    autautMF = atuaMF,
+                    pathType = currentPath!!.pathType,
+                    goalsByTarget = mapOf(Pair(finalTarget,currentPath!!.goal)),
+                    windowAsTarget = (currentPath!!.destination is VirtualAbstractState && currentPath!!.goal.isEmpty()),
+                    maxCost = minCost
+                )
+
+            if (transitionPaths.isNotEmpty()) {
                 possiblePaths.clear()
                 possiblePaths.addAll(transitionPaths)
                 initialize(currentState)
@@ -317,9 +333,9 @@ open class GoToAnotherWindowTask constructor(
 
     fun isReachExpectedState(currentState: State<*>): Boolean {
         var reached = false
-        val currentAbState = atuaMF.getAbstractState(currentState)!!
+        val currentAppState = atuaMF.getAbstractState(currentState)!!
         var expectedAbstractState = pathTraverser!!.getCurrentTransition()!!.dest
-        if (expectedAbstractState.hashCode == currentAbState.hashCode)
+        if (expectedAbstractState.hashCode == currentAppState.hashCode)
             return true
         if (pathTraverser!!.finalStateAchieved() && expectedAbstractState.isRequestRuntimePermissionDialogBox)
             return true
@@ -327,7 +343,11 @@ open class GoToAnotherWindowTask constructor(
             pathTraverser!!.next()
             expectedAbstractState = pathTraverser!!.getCurrentTransition()!!.dest
         }
-        if (expectedAbstractState == currentAbState || expectedAbstractState.hashCode == currentAbState.hashCode)
+        if (pathTraverser!!.getCurrentTransition()!!.abstractAction.actionType == AbstractActionType.WAIT) {
+            pathTraverser!!.next()
+            expectedAbstractState = pathTraverser!!.getCurrentTransition()!!.dest
+        }
+        if (expectedAbstractState == currentAppState || expectedAbstractState.hashCode == currentAppState.hashCode)
             return true
         /*if (expectedAbstractState.modelVersion != ModelVersion.BASE
             && !AbstractStateManager.INSTANCE.ABSTRACT_STATES.contains(expectedAbstractState)
@@ -345,27 +365,37 @@ open class GoToAnotherWindowTask constructor(
         }*/
         if (pathTraverser!!.finalStateAchieved()) {
             if (expectedAbstractState is VirtualAbstractState
-                && expectedAbstractState.window == currentAbState.window
+                && expectedAbstractState.window == currentAppState.window
             ) {
                 return true
+            }
+            if (expectedAbstractState is UncertainAbstractState
+                && expectedAbstractState.window == currentAppState.window) {
+                val currentInputs = currentAppState.getAvailableInputs()
+                if (pathTraverser!!.transitionPath.goal.isEmpty() || currentInputs.intersect(pathTraverser!!.transitionPath.goal)
+                        .isNotEmpty()
+                ) {
+                    return true
+                }
+            }
+            return false
+        }
+        if (expectedAbstractState is UncertainAbstractState) {
+            if (pathTraverser!!.transitionPath.goal.isNotEmpty()) {
+                val goal = pathTraverser!!.transitionPath.goal
+                if (currentAppState.getAvailableInputs().intersect(goal).isNotEmpty())
+                    return true
             }
         }
         val pathType = pathTraverser!!.transitionPath.pathType
         if (pathType==PathFindingHelper.PathType.WIDGET_AS_TARGET
             || pathType == PathFindingHelper.PathType.WTG) {
             val nextAbstractTransition = pathTraverser!!.transitionPath.path[pathTraverser!!.latestEdgeId!! + 1]
-            if (nextAbstractTransition==null) {
-                if (pathTraverser!!.finalStateAchieved() && currentPath!!.destination.window == currentAbState.window) {
-                    val currentInputs = currentAbState.inputMappings.values.flatten().distinct()
-                    if (pathTraverser!!.transitionPath.goal.isEmpty() || currentInputs.intersect(pathTraverser!!.transitionPath.goal)
-                            .isNotEmpty()
-                    ) {
+            if (nextAbstractTransition != null) {
+                if (nextAbstractTransition.source.window == currentAppState.window) {
+                    if (pathTraverser!!.canContinue(currentAppState)) {
                         return true
                     }
-                }
-            } else if (nextAbstractTransition.source.window == currentAbState.window) {
-                if (pathTraverser!!.canContinue(currentAbState)) {
-                    return true
                 }
             }
         }
@@ -377,11 +407,11 @@ open class GoToAnotherWindowTask constructor(
                 break
             val expectedAbstractState1 = currentTransition.dest
 
-            if (expectedAbstractState1!!.window != currentAbState!!.window) {
+            if (expectedAbstractState1!!.window != currentAppState!!.window) {
                 tmpPathTraverser.next()
                 continue
             }
-            if (expectedAbstractState1.hashCode == currentAbState.hashCode) {
+            if (expectedAbstractState1.hashCode == currentAppState.hashCode) {
                 reached = true
                 break
             }
@@ -421,17 +451,17 @@ open class GoToAnotherWindowTask constructor(
             }*/
 
             if (expectedAbstractState1 !is VirtualAbstractState) {
-                if (expectedAbstractState1.isOpeningMenus != currentAbState.isOpeningMenus) {
+                if (expectedAbstractState1.isOpeningMenus != currentAppState.isOpeningMenus) {
                     break
                 }
-                if (expectedAbstractState1.rotation != currentAbState.rotation) {
+                if (expectedAbstractState1.rotation != currentAppState.rotation) {
                     break
                 }
-                if (expectedAbstractState1.isOpeningKeyboard != currentAbState.isOpeningKeyboard) {
+                if (expectedAbstractState1.isOpeningKeyboard != currentAppState.isOpeningKeyboard) {
                     break
                 }
             } else {
-                if (expectedAbstractState.window == currentAbState.window) {
+                if (expectedAbstractState.window == currentAppState.window) {
                     reached = true
                     break
                 }
@@ -592,6 +622,7 @@ open class GoToAnotherWindowTask constructor(
         isExploration = false
         useTrace = true
         saveBudget = false
+        maxCost = DEFAULT_MAX_COST
     }
 
     var useTrace: Boolean = true
@@ -614,7 +645,8 @@ open class GoToAnotherWindowTask constructor(
         isWindowAsTarget: Boolean = false,
         includePressback: Boolean = true,
         includeResetApp: Boolean = false,
-        isExploration: Boolean = true
+        isExploration: Boolean = true,
+        maxCost: Double = DEFAULT_MAX_COST
     ): Boolean {
         log.info("Checking if there is any path to $destWindow")
         reset()
@@ -624,6 +656,7 @@ open class GoToAnotherWindowTask constructor(
         this.useInputTargetWindow = true
         this.includeResetAction = includeResetApp
         this.isExploration = isExploration
+        this.maxCost = maxCost
         identifyPossiblePaths(currentState)
         if (possiblePaths.size > 0) {
             return true
@@ -660,10 +693,11 @@ open class GoToAnotherWindowTask constructor(
             while (possiblePaths.isEmpty()) {
                 possiblePaths.addAll(
                     atuaStrategy.phaseStrategy.getPathsToWindowToExplore(
-                        currentState,
-                        destWindow!!,
-                        nextPathType,
-                        isExploration || !isWindowAsTarget
+                        currentState =  currentState,
+                        targetWindow =  destWindow!!,
+                        pathType =  nextPathType,
+                        explore =  isExploration || !isWindowAsTarget,
+                        maxCost = maxCost
                     )
                 )
                 if (computeNextPathType(nextPathType, includeResetAction) == PathFindingHelper.PathType.WIDGET_AS_TARGET)
@@ -672,7 +706,7 @@ open class GoToAnotherWindowTask constructor(
             }
         } else {
             while (possiblePaths.isEmpty()) {
-                possiblePaths.addAll(atuaStrategy.phaseStrategy.getPathsToExploreStates(currentState, nextPathType))
+                possiblePaths.addAll(atuaStrategy.phaseStrategy.getPathsToExploreStates(currentState, nextPathType,maxCost))
                 if (computeNextPathType(nextPathType, includeResetAction) == PathFindingHelper.PathType.WIDGET_AS_TARGET)
                     break
                 nextPathType = computeNextPathType(nextPathType, includeResetAction)
@@ -686,8 +720,7 @@ open class GoToAnotherWindowTask constructor(
         includeResetApp: Boolean
     ): PathFindingHelper.PathType {
         return when (pathType) {
-            PathFindingHelper.PathType.WIDGET_AS_TARGET -> PathFindingHelper.PathType.NORMAL
-            PathFindingHelper.PathType.NORMAL -> PathFindingHelper.PathType.WTG
+            PathFindingHelper.PathType.WIDGET_AS_TARGET -> PathFindingHelper.PathType.WTG
             // PathFindingHelper.PathType.NORMAL -> PathFindingHelper.PathType.WTG
 //            PathFindingHelper.PathType.PARTIAL_TRACE -> PathFindingHelper.PathType.WTG
             /*PathFindingHelper.PathType.NORMAL_RESET -> PathFindingHelper.PathType.WIDGET_AS_TARGET_RESET
@@ -711,32 +744,28 @@ open class GoToAnotherWindowTask constructor(
         } else {
             val guiWidgets: List<Widget> = getGUIWidgetsByAVM(widgetGroup, currentState)
             if (guiWidgets.isEmpty()) {
-                val inputs = nextTransition.source.inputMappings[nextTransition.abstractAction]
-                if (inputs != null) {
-                    val guiWidgets = ArrayList<Widget>()
-                        inputs.forEach { input ->
-                            val ewtgWidget = input.widget
-                            if (ewtgWidget != null) {
-                                val ewtgWidgetByGUiWidget = WindowManager.instance.guiWidgetEWTGWidgetMappingByWindow[nextTransition.source.window]!!
-                                val possibleGuiWidgets = ewtgWidgetByGUiWidget.filter { it.value == ewtgWidget }.keys
-                                guiWidgets.addAll(possibleGuiWidgets)
-                            }
-                        }
-                    when (nextTransition.abstractAction.actionType) {
-                        AbstractActionType.CLICK -> guiWidgets.removeIf { !it.clickable }
-                        AbstractActionType.LONGCLICK -> guiWidgets.removeIf { !it.longClickable }
-                        AbstractActionType.SWIPE -> guiWidgets.removeIf {
-                            !Helper.isScrollableWidget(it)
-                        }
-                        AbstractActionType.ITEM_CLICK -> guiWidgets.removeIf { !it.hasClickableDescendant }
-                        AbstractActionType.ITEM_LONGCLICK -> guiWidgets.removeIf {  !Helper.haveLongClickableChild(currentState.widgets,it)}
-                        AbstractActionType.ITEM_SELECTED -> guiWidgets.removeIf { !it.clickable }
-                        AbstractActionType.TEXT_INSERT -> guiWidgets.removeIf { !it.isInputField }
+                val inputs = nextTransition.source.getInputsByAbstractAction(nextTransition.abstractAction)
+                val guiWidgets = ArrayList<Widget>()
+                inputs.forEach { input ->
+                    val ewtgWidget = input.widget
+                    if (ewtgWidget != null) {
+                        val ewtgWidgetByGUiWidget = WindowManager.instance.guiWidgetEWTGWidgetMappingByWindow[nextTransition.source.window]!!
+                        val possibleGuiWidgets = ewtgWidgetByGUiWidget.filter { it.value == ewtgWidget }.keys
+                        guiWidgets.addAll(possibleGuiWidgets)
                     }
-                    return guiWidgets
-                } else {
-                    return emptyList()
                 }
+                when (nextTransition.abstractAction.actionType) {
+                    AbstractActionType.CLICK -> guiWidgets.removeIf { !it.clickable }
+                    AbstractActionType.LONGCLICK -> guiWidgets.removeIf { !it.longClickable }
+                    AbstractActionType.SWIPE -> guiWidgets.removeIf {
+                        !Helper.isScrollableWidget(it)
+                    }
+                    AbstractActionType.ITEM_CLICK -> guiWidgets.removeIf { !it.hasClickableDescendant }
+                    AbstractActionType.ITEM_LONGCLICK -> guiWidgets.removeIf {  !Helper.haveLongClickableChild(currentState.widgets,it)}
+                    AbstractActionType.ITEM_SELECTED -> guiWidgets.removeIf { !it.clickable }
+                    AbstractActionType.TEXT_INSERT -> guiWidgets.removeIf { !it.isInputField }
+                }
+                return guiWidgets
             } else
                 return guiWidgets
         }
@@ -908,7 +937,7 @@ open class GoToAnotherWindowTask constructor(
                 } else {
                     currentEdge!!.abstractAction.extra
                 }
-                atuaStrategy.phaseStrategy.registerTriggeredEvents(currentEdge!!.abstractAction,currentState)
+                atuaStrategy.phaseStrategy.registerTriggeredInputs(currentEdge!!.abstractAction,currentState)
                 log.info("Widget: $chosenWidget")
                 return chooseActionWithName(
                     actionName,
@@ -977,13 +1006,13 @@ open class GoToAnotherWindowTask constructor(
                 else
                     isIgnored = true
                 if (isIgnored) {
-                    AbstractStateManager.INSTANCE.ignoreImplicitDerivedTransition.add(
+                   /* AbstractStateManager.INSTANCE.ignoreImplicitDerivedTransition.add(
                         Triple(
                             lastTransition.source.window,
                             lastTransition.abstractAction,
                             lastTransition.dest.window
                         )
-                    )
+                    )*/
                     val abstractManager = AbstractStateManager.INSTANCE
                     val otherSameWindowAbStates = abstractManager.getSimilarAbstractStates(lastTransition.source, lastTransition)
                     otherSameWindowAbStates.forEach {

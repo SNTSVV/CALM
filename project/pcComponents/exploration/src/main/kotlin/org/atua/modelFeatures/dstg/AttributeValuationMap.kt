@@ -30,9 +30,8 @@ class AttributeValuationMap {
     var avmId: String
     val localAttributes: HashMap<AttributeType, String> = HashMap()
     var parentAttributeValuationMapId: String = ""
-    var window: Window
     var exerciseCount: Int = 0
-    val actionCount = HashMap<AbstractAction, Int>()
+    private val actionCount = HashMap<AbstractAction, Int>()
     var captured = false
     var hashCode: Int = 0
     var timestamp: String = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
@@ -41,13 +40,13 @@ class AttributeValuationMap {
         this.avmId = avmId
         this.localAttributes.putAll(localAttributes)
         this.parentAttributeValuationMapId = parentAVMId
-        this.window = window
         if (!ALL_ATTRIBUTE_VALUATION_MAP.containsKey(window)) {
             ALL_ATTRIBUTE_VALUATION_MAP.put(window, HashMap())
         }
         ALL_ATTRIBUTE_VALUATION_MAP[window]!!.put(avmId,this)
-        hashCode = this.fullAttributeValuationMap().hashCode()
+        hashCode = this.fullAttributeValuationMap(window).hashCode()
         maxId++
+        initActions(window)
     }
 
     constructor(attributePath: AttributePath, window: Window) {
@@ -92,7 +91,6 @@ class AttributeValuationMap {
                 parentAttributeValuationMapId = newParentAttributeValuationSet.avmId
             }*/
         }
-        this.window = window
         //TODO
 /*        if (attributePath.childAttributePathIds.isNotEmpty()) {
             attributePath.childAttributePathIds.map { AttributePath.getAttributePathById(it,activity) }.forEach {
@@ -104,12 +102,12 @@ class AttributeValuationMap {
 
         ALL_ATTRIBUTE_VALUATION_MAP[window]!!.put(avmId,this)
         attributePath_AttributeValuationMap[window]!!.put(attributePath,this)
-        hashCode = this.fullAttributeValuationMap().hashCode()
-
+        hashCode = this.fullAttributeValuationMap(window).hashCode()
+        initActions(window)
     }
 
-    fun computeHashCode() {
-        hashCode = this.fullAttributeValuationMap().hashCode()
+    fun computeHashCode(window: Window) {
+        hashCode = this.fullAttributeValuationMap(window).hashCode()
     }
 
     fun isWebView(): Boolean {
@@ -118,26 +116,30 @@ class AttributeValuationMap {
         }
         return false
     }
-    fun initActions() {
+
+    fun initActions(window: Window) {
         /*if (!AbstractStateManager.instance.activity_attrValSetsMap.containsKey(activity))
             AbstractStateManager.instance.activity_attrValSetsMap.put(activity, ArrayList())*/
         if (isClickable() ) {
             if (getClassName().equals("android.webkit.WebView")) {
-                val itemAbstractAction = AbstractAction(
+                val itemAbstractAction = AbstractAction.getOrCreateAbstractAction(
                         actionType = AbstractActionType.ITEM_CLICK,
-                        attributeValuationMap = this
+                        attributeValuationMap = this,
+                        window = window
                 )
                 actionCount.putIfAbsent(itemAbstractAction,0)
-                val itemLongClickAbstractAction = AbstractAction(
+                val itemLongClickAbstractAction = AbstractAction.getOrCreateAbstractAction(
                         actionType = AbstractActionType.ITEM_LONGCLICK,
-                        attributeValuationMap = this
+                        attributeValuationMap = this,
+                    window = window
                 )
                 actionCount.putIfAbsent(itemLongClickAbstractAction,0)
 
             } else {
-                val abstractAction = AbstractAction(
+                val abstractAction = AbstractAction.getOrCreateAbstractAction(
                         actionType = AbstractActionType.CLICK,
-                        attributeValuationMap = this
+                        attributeValuationMap = this,
+                    window = window
                 )
                 actionCount.putIfAbsent(abstractAction, 0)
             }
@@ -145,21 +147,24 @@ class AttributeValuationMap {
 
         if (isLongClickable() && !isInputField()) {
             if (getClassName().equals("android.webkit.WebView")) {
-                val itemAbstractAction = AbstractAction(
+                val itemAbstractAction = AbstractAction.getOrCreateAbstractAction(
                     actionType = AbstractActionType.ITEM_LONGCLICK,
-                    attributeValuationMap = this
+                    attributeValuationMap = this,
+                    window = window
                 )
                 actionCount.putIfAbsent(itemAbstractAction,0)
-                val itemLongClickAbstractAction = AbstractAction(
+                val itemLongClickAbstractAction = AbstractAction.getOrCreateAbstractAction(
                     actionType = AbstractActionType.ITEM_LONGCLICK,
-                    attributeValuationMap = this
+                    attributeValuationMap = this,
+                    window = window
                 )
                 actionCount.putIfAbsent(itemLongClickAbstractAction,0)
 
             } else {
-                val abstractAction = AbstractAction(
+                val abstractAction = AbstractAction.getOrCreateAbstractAction(
                     actionType = AbstractActionType.LONGCLICK,
-                    attributeValuationMap = this
+                    attributeValuationMap = this,
+                    window = window
                 )
                 actionCount.putIfAbsent(abstractAction, 0)
             }
@@ -167,81 +172,93 @@ class AttributeValuationMap {
 
         if (isScrollable()) {
             if (localAttributes[AttributeType.scrollDirection]== ScrollDirection.HORIZONTAL.toString()) {
-                val abstractActionSwipeLeft = AbstractAction(
+                val abstractActionSwipeLeft = AbstractAction.getOrCreateAbstractAction(
                         actionType = AbstractActionType.SWIPE,
                         attributeValuationMap = this,
-                        extra = "SwipeLeft"
+                        extra = "SwipeLeft",
+                    window = window
                 )
-                val abstractActionSwipeRight = AbstractAction(
+                val abstractActionSwipeRight = AbstractAction.getOrCreateAbstractAction(
                         actionType = AbstractActionType.SWIPE,
                         attributeValuationMap = this,
-                        extra = "SwipeRight"
+                        extra = "SwipeRight",
+                    window = window
                 )
                 actionCount.putIfAbsent(abstractActionSwipeLeft, 0)
                 actionCount.putIfAbsent(abstractActionSwipeRight, 0)
             } else if (localAttributes[AttributeType.scrollDirection]== ScrollDirection.VERTICAL.toString()) {
-                val abstractActionSwipeUp = AbstractAction(
+                val abstractActionSwipeUp = AbstractAction.getOrCreateAbstractAction(
                         actionType = AbstractActionType.SWIPE,
                         attributeValuationMap = this,
-                        extra = "SwipeUp"
+                        extra = "SwipeUp",
+                    window = window
                 )
-                val abstractActionSwipeDown = AbstractAction(
+                val abstractActionSwipeDown = AbstractAction.getOrCreateAbstractAction(
                         actionType = AbstractActionType.SWIPE,
                         attributeValuationMap = this,
-                        extra = "SwipeDown"
+                        extra = "SwipeDown",
+                    window = window
                 )
                 actionCount.putIfAbsent(abstractActionSwipeUp, 0)
                 actionCount.putIfAbsent(abstractActionSwipeDown, 0)
 
             } else if (localAttributes[AttributeType.scrollDirection] == ScrollDirection.UP.toString()){
-                val abstractActionSwipe = AbstractAction(
+                val abstractActionSwipe = AbstractAction.getOrCreateAbstractAction(
                     actionType = AbstractActionType.SWIPE,
                     attributeValuationMap = this,
-                    extra = "SwipeUp"
+                    extra = "SwipeUp",
+                    window = window
                 )
                 actionCount.putIfAbsent(abstractActionSwipe, 0)
             } else if (localAttributes[AttributeType.scrollDirection] == ScrollDirection.DOWN.toString()){
-                val abstractActionSwipe = AbstractAction(
+                val abstractActionSwipe = AbstractAction.getOrCreateAbstractAction(
                     actionType = AbstractActionType.SWIPE,
                     attributeValuationMap = this,
-                    extra = "SwipeDown"
+                    extra = "SwipeDown",
+                    window = window
                 )
                 actionCount.putIfAbsent(abstractActionSwipe, 0)
             } else if (localAttributes[AttributeType.scrollDirection] == ScrollDirection.LEFT.toString()){
-                val abstractActionSwipe = AbstractAction(
+                val abstractActionSwipe = AbstractAction.getOrCreateAbstractAction(
                     actionType = AbstractActionType.SWIPE,
                     attributeValuationMap = this,
-                    extra = "SwipeLeft"
+                    extra = "SwipeLeft",
+                    window = window
                 )
                 actionCount.putIfAbsent(abstractActionSwipe, 0)
             } else if (localAttributes[AttributeType.scrollDirection] == ScrollDirection.RIGHT.toString()){
-                val abstractActionSwipe = AbstractAction(
+                val abstractActionSwipe = AbstractAction.getOrCreateAbstractAction(
                     actionType = AbstractActionType.SWIPE,
                     attributeValuationMap = this,
-                    extra = "SwipeRight"
+                    extra = "SwipeRight",
+                    window = window
                 )
                 actionCount.putIfAbsent(abstractActionSwipe, 0)
             }
             else {
-                val abstractActionSwipeUp = AbstractAction(
+                val abstractActionSwipeUp = AbstractAction.getOrCreateAbstractAction(
                         actionType = AbstractActionType.SWIPE,
                         attributeValuationMap = this,
-                        extra = "SwipeUp"
+                        extra = "SwipeUp",
+                    window = window
                 )
-                val abstractActionSwipeDown = AbstractAction(
+                val abstractActionSwipeDown = AbstractAction.getOrCreateAbstractAction(
                         actionType = AbstractActionType.SWIPE,
                         attributeValuationMap = this,
-                        extra = "SwipeDown"
+                        extra = "SwipeDown",
+                    window = window
                 )
-                val abstractActionSwipeLeft = AbstractAction(
+                val abstractActionSwipeLeft = AbstractAction.getOrCreateAbstractAction(
                         actionType = AbstractActionType.SWIPE,
                         attributeValuationMap = this,
-                        extra = "SwipeLeft"
+                        extra = "SwipeLeft",
+                    window = window
                 )
-                val abstractActionSwipeRight = AbstractAction(
+                val abstractActionSwipeRight = AbstractAction.getOrCreateAbstractAction(
                         actionType = AbstractActionType.SWIPE,
                         attributeValuationMap = this,
-                        extra = "SwipeRight"
+                        extra = "SwipeRight",
+                    window = window
                 )
                 actionCount.putIfAbsent(abstractActionSwipeUp, 0)
                 actionCount.putIfAbsent(abstractActionSwipeDown, 0)
@@ -261,9 +278,10 @@ class AttributeValuationMap {
             }*/
         }
         if (isInputField()) {
-            val abstractAction = AbstractAction(
+            val abstractAction = AbstractAction.getOrCreateAbstractAction(
                     actionType = AbstractActionType.TEXT_INSERT,
-                    attributeValuationMap = this
+                    attributeValuationMap = this,
+                window = window
             )
             actionCount.putIfAbsent(abstractAction, 0)
         }
@@ -283,6 +301,26 @@ class AttributeValuationMap {
             actionCount.put(longclickAbstractAction, 0)*//*
         }*/
     }
+
+    fun getAvailableActions(): List<AbstractAction> {
+        return actionCount.keys.toList()
+    }
+
+    fun getActionCount(abstractAction: AbstractAction): Int {
+        if (actionCount.containsKey(abstractAction)) {
+            return actionCount[abstractAction]!!
+        }
+        return -1
+    }
+
+    fun removeAction(abstractAction: AbstractAction) {
+        actionCount.remove(abstractAction)
+    }
+
+    fun setActionCount(abstractAction: AbstractAction, count: Int) {
+        actionCount[abstractAction] = count
+    }
+
     fun getClassName(): String {
         if (localAttributes.containsKey(AttributeType.className))
         {
@@ -368,13 +406,13 @@ class AttributeValuationMap {
         return isClickable() || isLongClickable() || isScrollable() || isCheckable()
     }
 
-    fun getGUIWidgets (guiState: State<*>): List<Widget>{
+    fun getGUIWidgets (guiState: State<*>,window: Window): List<Widget>{
         val selectedGuiWidgets = ArrayList<Widget>()
         Helper.getVisibleWidgetsForAbstraction(guiState).forEach {
             val attributeValuationMap = allWidgetAVMHashMap[window]!![it]
             if (attributeValuationMap != null) {
                 if (attributeValuationMap == this || attributeValuationMap.hashCode == this.hashCode
-                    || attributeValuationMap.isDerivedFrom(this))
+                    || attributeValuationMap.isDerivedFrom(this, window))
                     selectedGuiWidgets.add(it)
                 else if (isAbstractRepresentationOf(it,guiState,false)) {
                     selectedGuiWidgets.add(it)
@@ -409,7 +447,7 @@ class AttributeValuationMap {
             return true
         }
         if (compareDerived) {
-            if (derivedAttributeValuationSet.isDerivedFrom(this)) {
+            if (derivedAttributeValuationSet.isDerivedFrom(this,window)) {
                 return true
             }
         }
@@ -418,11 +456,11 @@ class AttributeValuationMap {
 
     fun havingSameContent(currentAbstractState: AbstractState, comparedAttributeValuationMap: AttributeValuationMap, comparedAbstractState: AbstractState): Boolean {
         val widgetGroupChildren = currentAbstractState.attributeValuationMaps.filter {
-            isParent(it)
+            isParent(it,currentAbstractState.window)
         }
 
         val comparedWidgetGroupChildren = comparedAbstractState.attributeValuationMaps.filter {
-            comparedAttributeValuationMap.isParent(it)
+            comparedAttributeValuationMap.isParent(it,window = currentAbstractState.window)
         }
         widgetGroupChildren.forEach {w1 ->
             if (!comparedWidgetGroupChildren.any { w2 -> w1 == w2 }) {
@@ -432,16 +470,16 @@ class AttributeValuationMap {
         return true
     }
 
-     fun isParent(attributeValuationMap: AttributeValuationMap): Boolean {
+     fun isParent(attributeValuationMap: AttributeValuationMap, window: Window): Boolean {
         if (attributeValuationMap.parentAttributeValuationMapId== "")
             return false
          val parentAttributeValuationSet = ALL_ATTRIBUTE_VALUATION_MAP[window]!!.get(attributeValuationMap.parentAttributeValuationMapId)!!
-        if (haveTheSameAttributePath(parentAttributeValuationSet))
+        if (haveTheSameAttributePath(parentAttributeValuationSet,window))
             return true
         return false
     }
 
-    fun haveTheSameAttributePath(attributePath: AttributePath): Boolean {
+    fun haveTheSameAttributePath(attributePath: AttributePath, window: Window): Boolean {
         val fullAttributePath = attributePath.fullAttributePath()
         val fullAttributeValuationMap = this.fullAttributeValuationMap
         if (fullAttributePath.hashCode() == hashCode)
@@ -473,20 +511,20 @@ class AttributeValuationMap {
             if (parentAttributePath==null) {
                 throw Exception()
             }
-            if (!parentAttributeValuationSet.haveTheSameAttributePath(parentAttributePath)) {
+            if (!parentAttributeValuationSet.haveTheSameAttributePath(parentAttributePath,window)) {
                 return false
             }
         }
         return true
     }
 
-    fun haveTheSameAttributePath(cmpAttributeValuationMap: AttributeValuationMap): Boolean {
+    fun haveTheSameAttributePath(cmpAttributeValuationMap: AttributeValuationMap, window: Window): Boolean {
         if (this.hashCode != cmpAttributeValuationMap.hashCode)
             return false
         return true
     }
 
-    fun isDerivedFrom(abstractAttributeValuationMap: AttributeValuationMap): Boolean {
+    fun isDerivedFrom(abstractAttributeValuationMap: AttributeValuationMap, window: Window): Boolean {
         //check local
         abstractAttributeValuationMap.localAttributes.forEach {
             if (!localAttributes.containsKey(it.key))
@@ -516,7 +554,7 @@ class AttributeValuationMap {
                 //throw Exception("Cannot find attributeValuationSet $parentAttributeValuationMapId")
                 return false
             }
-            if (!parentAttributeValuationSet.isDerivedFrom(abstractParentAttributeValuationSet)) {
+            if (!parentAttributeValuationSet.isDerivedFrom(abstractParentAttributeValuationSet,window)) {
                 return false
             }
         }
@@ -534,9 +572,9 @@ class AttributeValuationMap {
                 "[checkable=${isCheckable()}]"
     }
 
-    fun fullAttributeValuationMap(): String {
+    fun fullAttributeValuationMap(window: Window): String {
         val parentAttributeValuationMapString =  if (parentAttributeValuationMapId!="")
-            ALL_ATTRIBUTE_VALUATION_MAP.get(window)!!.get(parentAttributeValuationMapId)!!.fullAttributeValuationMap()
+            ALL_ATTRIBUTE_VALUATION_MAP.get(window)!!.get(parentAttributeValuationMapId)!!.fullAttributeValuationMap(window)
         else
             ""
         val s =  listOf<String>(parentAttributeValuationMapString,localAttributes.toSortedMap().toString()).joinToString("<;>")
@@ -562,7 +600,7 @@ class AttributeValuationMap {
                 "\"${abstractState.EWTGWidgetMapping[this]?.widgetId}\";$hashCode"*/
     }
 
-    fun loadDumpedString(line: String) {
+    fun loadDumpedString(line: String,window: Window) {
         val splites = AppModelLoader.splitCSVLineToField(line)
         val avmId = splites[0]
         val parentAVMId = splites[1]
@@ -625,7 +663,8 @@ class AttributeValuationMap {
             AttributeType. siblingsInfo -> "\""+ (value as String?)?.replace("\n","\\n")+"\""
         }
     }
-    private fun testReloadAttributes() {
+
+    private fun testReloadAttributes(window: Window) {
         val attributes = HashMap<AttributeType,String>()
 
         val className = getClassName()
@@ -660,7 +699,7 @@ class AttributeValuationMap {
             dumpParentUUID()
         else
             ""
-        val oldFullAttributeValuationSet = fullAttributeValuationMap()
+        val oldFullAttributeValuationSet = fullAttributeValuationMap(window)
 
         val oldUUID = oldFullAttributeValuationSet.toUUID()
 
@@ -680,7 +719,7 @@ class AttributeValuationMap {
         if (parentAttributeValuationMapId!= "") {
             if (!dumpedAttributeValuationSets.contains(parentAttributeValuationMapId)) {
                 bufferedWriter.newLine()
-                val parentAttributeValuationSet = ALL_ATTRIBUTE_VALUATION_MAP[window]!!.get(parentAttributeValuationMapId)!!
+                val parentAttributeValuationSet = ALL_ATTRIBUTE_VALUATION_MAP[abstractState.window]!!.get(parentAttributeValuationMapId)!!
                 parentAttributeValuationSet.dump(bufferedWriter, dumpedAttributeValuationSets,abstractState)
             }
         }
@@ -691,6 +730,25 @@ class AttributeValuationMap {
                 childAttributeValuationSet.dump(bufferedWriter, dumpedAttributeValuationSets,abstractState)
             }
         }*/
+    }
+
+    fun getAvailableActionsWithExercisingCount(): Map<AbstractAction, Int> {
+        return actionCount.toMap()
+    }
+
+    fun containsAction(action: AbstractAction): Boolean {
+        if (actionCount.containsKey(action))
+            return true
+        return false
+    }
+
+    fun increaseActionCount(action: AbstractAction):Int {
+        if (actionCount.containsKey(action)) {
+            val newValue = actionCount[action]!! + 1
+            actionCount[action] = newValue
+            return newValue
+        }
+        return -1
     }
 
 
@@ -704,7 +762,7 @@ class AttributeValuationMap {
             if (attributeValuationSet == null) {
                 // find the same AVM
                 val avmsOfWindow = ALL_ATTRIBUTE_VALUATION_MAP.get(window)!!.values
-                attributeValuationSet = avmsOfWindow.find { it.haveTheSameAttributePath(attributePath) }
+                attributeValuationSet = avmsOfWindow.find { it.haveTheSameAttributePath(attributePath,window) }
             }
             return attributeValuationSet
         }

@@ -82,7 +82,7 @@ class PhaseThreeStrategy(
             if (abstractStates.isNotEmpty()) {
                 /*targetWindowsCount.put(window, 0)*/
                 val targetInputs = atuaMF.notFullyExercisedTargetInputs.filter {it.sourceWindow == window}
-                val realisticInputs = abstractStates.map { it.inputMappings.values }.flatten().flatten().distinct()
+                val realisticInputs = abstractStates.map { it.getAvailableInputs() }.flatten().distinct()
                 val realisticTargetInputs = targetInputs.intersect(realisticInputs)
                 if (realisticTargetInputs.isNotEmpty()) {
                     targetWindowsCount.put(window, 0)
@@ -101,19 +101,17 @@ class PhaseThreeStrategy(
         return true
     }
 
-    override fun registerTriggeredEvents(chosenAbstractAction: AbstractAction, currentState: State<*>) {
+    override fun registerTriggeredInputs(chosenAbstractAction: AbstractAction, currentState: State<*>) {
         val abstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)!!
         //val abstractInteractions = regressionTestingMF.abstractTransitionGraph.edges(abstractState).filter { it.label.abstractAction.equals(abstractAction) }.map { it.label }
 
-        val staticEvents = abstractState.inputMappings[chosenAbstractAction]
-        if (staticEvents!=null) {
-            staticEvents.forEach {
-                if (it == targetEvent) {
-                    targetEvent = null
-                }
-                allTargetInputs.putIfAbsent(it,0)
-                allTargetInputs[it] = allTargetInputs[it]!! + 1
+        val inputs = abstractState.getInputsByAbstractAction(chosenAbstractAction)
+        inputs.forEach {
+            if (it == targetEvent) {
+                targetEvent = null
             }
+            allTargetInputs.putIfAbsent(it,0)
+            allTargetInputs[it] = allTargetInputs[it]!! + 1
         }
     }
 
@@ -127,7 +125,7 @@ class PhaseThreeStrategy(
             val abstractStates = AbstractStateManager.INSTANCE.getPotentialAbstractStates().filter { it.window == window }
             if (abstractStates.isNotEmpty()) {
                 val targetInputs = atuaMF.notFullyExercisedTargetInputs.filter {it.sourceWindow == window}
-                val realisticInputs = abstractStates.map { it.inputMappings.values }.flatten().flatten().distinct()
+                val realisticInputs = abstractStates.map { it.getAvailableInputs() }.flatten().distinct()
                 val realisticTargetInputs = targetInputs.intersect(realisticInputs)
                 if (realisticTargetInputs.isNotEmpty()) {
                     targetWindowsCount.put(window, 0)
@@ -203,39 +201,56 @@ class PhaseThreeStrategy(
                     && !chosenAction.name.isLaunchApp()
                     && chosenAction !is Swipe
 
-    override fun getPathsToExploreStates(currentState: State<*>, pathType: PathFindingHelper.PathType): List<TransitionPath> {
+    override fun getPathsToExploreStates(currentState: State<*>, pathType: PathFindingHelper.PathType, maxCost: Double): List<TransitionPath> {
         if (targetWindow==null)
             return emptyList()
         val transitionPaths = ArrayList<TransitionPath>()
-        val currentAbState = atuaMF.getAbstractState(currentState)
-        if (currentAbState==null)
+        val currentAppState = atuaMF.getAbstractState(currentState)
+        if (currentAppState==null)
             return transitionPaths
         val runtimeAbstractStates = getUnexhaustedExploredAbstractState(currentState)
         val goalByAbstractState = HashMap<AbstractState, List<Input>>()
-        runtimeAbstractStates.forEach {
-            val inputs = ArrayList<Input>()
-            it.getUnExercisedActions(null,atuaMF).forEach { action ->
-                inputs.addAll(it.inputMappings[action]?: emptyList())
+        runtimeAbstractStates.groupBy { it.window }.forEach { window, appStates ->
+            val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window)!!
+            val toExploreInputs = ArrayList<Input>()
+            appStates.forEach {
+                it.getUnExercisedActions(null, atuaMF,true).forEach { action ->
+                    val toExporeInputs =
+                        toExploreInputs.addAll(it.getInputsByAbstractAction(action))
+                }
             }
-            goalByAbstractState.put(it,inputs)
+            if (toExploreInputs.isEmpty()) {
+                appStates.forEach {
+                    it.getUnExercisedActions(null, atuaMF,false).forEach { action ->
+                        val toExporeInputs =
+                            toExploreInputs.addAll(it.getInputsByAbstractAction(action))
+                    }
+                }
+            }
+            goalByAbstractState.put(virtualAbstractState, toExploreInputs.distinct())
         }
-        val abstratStateCandidates = runtimeAbstractStates
-        val stateByActionCount = HashMap<AbstractState,Double>()
+        val abstratStateCandidates = goalByAbstractState.keys
+        val stateByActionCount = HashMap<AbstractState, Double>()
         abstratStateCandidates.forEach {
-            val weight =  it.computeScore(atuaMF)
-            if (weight>0.0) {
-                stateByActionCount.put(it, weight)
+            val weight = goalByAbstractState[it]!!.size
+            if (weight > 0.0) {
+                stateByActionCount.put(it, 1.0)
             }
         }
-        val stateCandidates: Map<AbstractState,Double>
-        stateCandidates = stateByActionCount
-
-        getPathToStatesBasedOnPathType(pathType,transitionPaths,stateByActionCount,currentAbState,currentState,true,false,
-            emptyMap())
+        getPathToStatesBasedOnPathType(
+            pathType,
+            transitionPaths,
+            stateByActionCount,
+            currentAppState,
+            currentState,
+            true,
+            goalByAbstractState = goalByAbstractState,
+            maxCost = maxCost
+        )
         return transitionPaths
     }
 
-    override fun getPathsToTargetWindows(currentState: State<*>, pathType: PathFindingHelper.PathType): List<TransitionPath> {
+    override fun getPathsToTargetWindows(currentState: State<*>, pathType: PathFindingHelper.PathType,maxCost: Double): List<TransitionPath> {
         val currentAbState = AbstractStateManager.INSTANCE.getAbstractState(currentState)
         val prevAbstractState = AbstractStateManager.INSTANCE.getAbstractState(atuaMF.appPrevState!!)
         if (currentAbState==null)
@@ -261,13 +276,13 @@ class PhaseThreeStrategy(
                     && it.attributeValuationMaps.isNotEmpty()
                     && it.guiStates.isNotEmpty()
         }.filterNot { it is VirtualAbstractState }.filter{
-            it.inputMappings.filter { it.value.contains(targetEvent) }.isNotEmpty()
+            it.getAvailableInputs().contains(targetEvent)
         }.forEach {
             goalByAbstractState.put(it, listOf(targetEvent!!))
             targetScores.put(it,1.0)
         }
         val transitionPaths = ArrayList<TransitionPath>()
-        getPathToStatesBasedOnPathType(pathType,transitionPaths,targetScores,currentAbState,currentState,false,false,goalByAbstractState)
+        getPathToStatesBasedOnPathType(pathType,transitionPaths,targetScores,currentAbState,currentState,false,false,goalByAbstractState,maxCost)
         return transitionPaths
     }
 
@@ -284,7 +299,7 @@ class PhaseThreeStrategy(
                     targetEvents.put(targetEvent!!, abstractActions)
                 }
             } else {
-                val availableEvents = abstractState.inputMappings.map { it.value }.flatten()
+                val availableEvents = abstractState.getAvailableInputs()
                 val windowTargetInputs = atuaMF.notFullyExercisedTargetInputs.filter {
                     it.sourceWindow == targetWindow!!
                 }
@@ -1149,9 +1164,9 @@ class PhaseThreeStrategy(
             // an abstract state has higher score if there are more unexercised target abstract transitions
             val unexercisedTargetAbstractActions = it.abstractTransitions.filter { t->
                 t.interactions.isNotEmpty()
-            }.map { it.abstractAction }.distinct().filter { action -> it.inputMappings.get(action)?.any { it.modifiedMethods.isNotEmpty() }?:false }
+            }.map { it.abstractAction }.distinct().filter { action -> it.getInputsByAbstractAction(action).any { it.modifiedMethods.isNotEmpty() }?:false }
             unexercisedTargetAbstractActions.forEach { action ->
-                val inputs = it.inputMappings.get(action)?: emptyList<Input>()
+                val inputs = it.getInputsByAbstractAction(action)
                 for (item in inputs.map { it.modifiedMethods.entries }.flatten()) {
                     if (!modifiedMethodWeights.containsKey(item.key))
                         modifiedMethodWeights.put(item.key, 1.0)

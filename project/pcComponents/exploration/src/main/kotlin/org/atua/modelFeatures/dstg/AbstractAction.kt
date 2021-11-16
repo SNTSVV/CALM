@@ -13,6 +13,8 @@
 package org.atua.modelFeatures.dstg
 
 import org.atua.modelFeatures.ewtg.Helper
+import org.atua.modelFeatures.ewtg.window.Launcher
+import org.atua.modelFeatures.ewtg.window.Window
 import org.droidmate.exploration.actions.swipeDown
 import org.droidmate.exploration.actions.swipeLeft
 import org.droidmate.exploration.actions.swipeRight
@@ -21,25 +23,17 @@ import org.droidmate.explorationModel.interaction.Interaction
 import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
 
-data class AbstractAction (
+class AbstractAction private constructor (
         val actionType: AbstractActionType,
         val attributeValuationMap: AttributeValuationMap?=null,
+        val window: Window,
         val extra: Any?=null
     ) {
-    override fun hashCode(): Int {
-        var hash = 31
-        hash += actionType.hashCode()
-        if (attributeValuationMap!=null)
-            hash+=attributeValuationMap!!.hashCode
-        if (extra!=null)
-            hash+=extra!!.hashCode()
-        return hash
-    }
-    override fun equals(other: Any?): Boolean {
+    /*override fun equals(other: Any?): Boolean {
         if (other !is AbstractAction)
             return false
         return this.hashCode() == other.hashCode()
-    }
+    }*/
     fun isItemAction(): Boolean {
         return when(actionType) {
             AbstractActionType.ITEM_CLICK,AbstractActionType.ITEM_LONGCLICK,AbstractActionType.ITEM_SELECTED -> true
@@ -90,7 +84,7 @@ data class AbstractAction (
     fun validateSwipeAction(abstractAction: AbstractAction, guiState: State<*>): Boolean {
         if (!abstractAction.isWidgetAction() || abstractAction.actionType != AbstractActionType.SWIPE)
             return true
-        val widgets = abstractAction.attributeValuationMap!!.getGUIWidgets(guiState)
+        val widgets = abstractAction.attributeValuationMap!!.getGUIWidgets(guiState,window)
         widgets.forEach {w->
             var valid = false
             if (w.metaInfo.any { it.contains("ACTION_SCROLL_FORWARD") }) {
@@ -117,7 +111,12 @@ data class AbstractAction (
         return false
     }
 
+    override fun toString(): String {
+        return "$actionType - $attributeValuationMap - $window"
+    }
     companion object {
+        val abstractActionsByWindow = HashMap<Window,ArrayList<AbstractAction>>()
+
         fun normalizeActionType(interaction: Interaction<Widget>, prevState: State<*>): AbstractActionType {
             val actionType = interaction.actionType
             var abstractActionType = when (actionType) {
@@ -157,10 +156,30 @@ data class AbstractAction (
             return swipeAction
         }
 
-        fun getLaunchAction(): AbstractAction? {
-            return AbstractAction(
-                    actionType = AbstractActionType.LAUNCH_APP
-            )
+        fun getOrCreateAbstractAction(actionType: AbstractActionType,
+                                      attributeValuationMap: AttributeValuationMap? = null,
+                                      extra: Any? = null,
+                                      window: Window
+        ): AbstractAction {
+            val abstractAction: AbstractAction
+            abstractActionsByWindow.putIfAbsent(window, ArrayList())
+            val availableAction = abstractActionsByWindow[window]!!.find {
+                it.actionType == actionType
+                        && it.attributeValuationMap == attributeValuationMap
+                        && it.extra == extra
+            }
+            if (availableAction == null) {
+                abstractAction = AbstractAction(
+                    actionType = actionType,
+                    attributeValuationMap = attributeValuationMap,
+                    extra = extra,
+                    window = window
+                )
+                abstractActionsByWindow[window]!!.add(abstractAction)
+            } else {
+                abstractAction = availableAction
+            }
+            return abstractAction
         }
 
         fun getOrCreateAbstractAction(actionType: AbstractActionType,
@@ -170,24 +189,26 @@ data class AbstractAction (
                                       attributeValuationMap: AttributeValuationMap?,
                                       atuaMF: org.atua.modelFeatures.ATUAMF
         ): AbstractAction {
-            val actionData = computeAbstractActionExtraData(actionType, interaction, guiState, abstractState, atuaMF)
-
             val abstractAction: AbstractAction
-            val availableAction = abstractState.getAvailableActions().find {
+            val actionData = computeAbstractActionExtraData(actionType, interaction, guiState, abstractState, atuaMF)
+            abstractActionsByWindow.putIfAbsent(abstractState.window, ArrayList())
+            val availableAction = abstractActionsByWindow[abstractState.window]!!.find {
                 it.actionType == actionType
                         && it.attributeValuationMap == attributeValuationMap
                         && it.extra == actionData
             }
-
             if (availableAction == null) {
                 abstractAction = AbstractAction(
                         actionType = actionType,
                         attributeValuationMap = attributeValuationMap,
-                        extra = actionData
+                        extra = actionData,
+                        window = abstractState.window
                 )
+                abstractActionsByWindow[abstractState.window]!!.add(abstractAction)
                 abstractState.addAction(abstractAction)
             } else {
                 abstractAction = availableAction
+                abstractState.addAction(abstractAction)
             }
             return abstractAction
         }

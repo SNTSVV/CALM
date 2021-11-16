@@ -25,7 +25,7 @@ class GoToTargetWindowTask (
         else
             computeNextPathType(currentPath!!.pathType,includeResetAction)*/
         while (possiblePaths.isEmpty()) {
-            possiblePaths.addAll(atuaStrategy.phaseStrategy.getPathsToTargetWindows(currentState,pathType = nextPathType))
+            possiblePaths.addAll(atuaStrategy.phaseStrategy.getPathsToTargetWindows(currentState,pathType = nextPathType,maxCost = maxCost))
             nextPathType = computeNextPathType(nextPathType,includeResetAction)
             if (nextPathType ==PathFindingHelper.PathType.WIDGET_AS_TARGET)
                 break

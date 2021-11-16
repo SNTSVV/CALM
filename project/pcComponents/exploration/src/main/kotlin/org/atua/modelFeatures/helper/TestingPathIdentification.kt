@@ -232,7 +232,7 @@ class PathFindingHelper {
         }
 
 
-        fun findPathToTargetComponentByBFS(
+        private fun findPathToTargetComponentByBFS(
             autautMF: org.atua.modelFeatures.ATUAMF, currentState: State<*>, root: AbstractState,
             prevEdgeIds: List<Int>,
             finalTarget: AbstractState, allPaths: ArrayList<TransitionPath>,
@@ -602,7 +602,7 @@ class PathFindingHelper {
                                                 val prevInputs2 = if (prevTransition == null)
                                                     null
                                                 else {
-                                                    prevTransition!!.source.inputMappings[prevAction]
+                                                    prevTransition!!.source.getInputsByAbstractAction(prevAction).toSet()
                                                 }
                                                 val reachability = getInputReachability(
                                                     hashSetOf(input),
@@ -670,15 +670,9 @@ class PathFindingHelper {
                     } else if (t.interactions.isNotEmpty() && t.activated) {
                         reachPb1 *= 1.0
                     }
-                    else if (atuaMF.dstg.abstractActionEnables.containsKey(prevWindow)
-                        && atuaMF.dstg.abstractActionEnables[prevWindow]!!.containsKey(
-                            prevAction
-                        )
-                    ) {
+                    else if (atuaMF.dstg.abstractActionEnables.containsKey(prevAction)) {
                         val enabledAbstractActions =
-                            atuaMF.dstg.abstractActionEnables[prevWindow]!!.get(
-                                prevAction
-                            )!!
+                            atuaMF.dstg.abstractActionEnables[prevAction]!!
                         if (enabledAbstractActions.containsKey(t.abstractAction)) {
                             val reliability =
                                 enabledAbstractActions[t.abstractAction]!!.second * 1.0 / enabledAbstractActions[t.abstractAction]!!.first
@@ -690,9 +684,9 @@ class PathFindingHelper {
                         val prevInputs2 = if (prevTransition1 == null)
                             null
                         else {
-                            prevTransition1!!.source.inputMappings[prevAction]
+                            prevTransition1!!.source.getInputsByAbstractAction(prevAction).toSet()
                         }
-                        val inputs = t.source.inputMappings[t.abstractAction]
+                        val inputs = t.source.getInputsByAbstractAction(t.abstractAction).toSet()
                         var reachability: Double = 1.0
                         reachability = getInputReachability(
                             inputs,
@@ -709,8 +703,8 @@ class PathFindingHelper {
         }
 
         private fun getInputReachability(
-            inputs: HashSet<Input>?,
-            prevInputs2: HashSet<Input>?,
+            inputs: Set<Input>?,
+            prevInputs2: Set<Input>?,
             atuaMF: ATUAMF,
             prevTransition: AbstractTransition?
         ): Double {
@@ -975,13 +969,13 @@ class PathFindingHelper {
             }
             if (stopWhenHavingUnexercisedAction &&
                 nextState !is VirtualAbstractState &&
-                nextState.getUnExercisedActions(null, atuamf).isNotEmpty()
+                nextState.getUnExercisedActions(null, atuamf,false).isNotEmpty()
             )
                 return true
             if (useVirtualAbstractState && nextState.window == finalTarget.window) {
                 return true
             }
-            if (goal.intersect(nextState.inputMappings.values.flatten()).isNotEmpty())
+            if (goal.intersect(nextState.getAvailableInputs()).isNotEmpty())
                 return true
             return false
         }
@@ -1054,7 +1048,7 @@ class PathFindingHelper {
                             || prevWindow1 == null || prevWindow2 == null)
         }
 
-        private fun createTransitionPath(
+        fun createTransitionPath(
             autautMF: org.atua.modelFeatures.ATUAMF,
             pathType: PathType,
             destination: AbstractState,
@@ -1086,7 +1080,7 @@ class PathFindingHelper {
                 val destination = transition.dest
                 fullPath.path.put(transitionId, transition)
                 //fullPath.edgeConditions[edge] = pathTracking[backwardNode]!!.third
-                val graphEdge = autautMF.dstg.edge(source, destination, transition)
+//                val graphEdge = autautMF.dstg.edge(source, destination, transition)
                 path.removeFirst()
                 transitionId++
             }

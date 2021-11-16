@@ -177,6 +177,7 @@ object DefaultStrategies: Logging {
 	fun handleTargetAbsence(prio: Int, maxWaitTime: Long = 1000) = object : AExplorationStrategy(){
 		private var cnt = 0
 		private var pressbackCnt = 0
+		private var waitCnt = 0
 		private var clickScreen = false
 		private var pressEnter = false
 		// may be used to terminate if there are no targets after waiting for maxWaitTime
@@ -193,6 +194,7 @@ object DefaultStrategies: Logging {
 					pressEnter = false
 					terminate = false
 					waitingForLaunch = false
+					waitCnt = 0
 				}
 			}
 			return hasNext
@@ -277,8 +279,9 @@ object DefaultStrategies: Logging {
 				}
 				// by default, if it cannot explore, presses back
 				else -> {
-					if (s.visibleTargets.isEmpty() && !lastActionType.isFetch()) {
+					if (s.visibleTargets.isEmpty() && waitCnt <= 3 ) {
 						delay(maxWaitTime)
+						waitCnt++
 						GlobalAction(ActionType.FetchGUI)
 					}
 					// if current state is not a relevent state

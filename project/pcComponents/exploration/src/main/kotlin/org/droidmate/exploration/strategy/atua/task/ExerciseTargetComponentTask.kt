@@ -77,10 +77,10 @@ class ExerciseTargetComponentTask private constructor(
         }
         if (eventList.isNotEmpty()) {
             return false
-        } else {
+        } /*else {
             if (randomBudget<0)
                 return true
-        }
+        }*/
         return true
     }
 
@@ -88,7 +88,6 @@ class ExerciseTargetComponentTask private constructor(
     private val randomExplorationTask = RandomExplorationTask(regressionWatcher,atuaTestingStrategy, delay,useCoordinateClicks,true,3)
 
     override fun initialize(currentState: State<*>) {
-        reset()
         randomExplorationTask.fillingData=false
         mainTaskFinished = false
         // establishTargetInputs(currentState)
@@ -99,9 +98,8 @@ class ExerciseTargetComponentTask private constructor(
         eventList.clear()
         val currentAbstractState = atuaMF.getAbstractState(currentState)
         eventList.addAll(atuaStrategy.phaseStrategy.getCurrentTargetInputs(currentState))
-        targetWindow = atuaMF.getAbstractState(currentState)!!.window
         eventList.filter { it.isItemAction() }.forEach { action ->
-            currentAbstractState!!.attributeValuationMaps.filter { action.attributeValuationMap!!.isParent(it) }.forEach { childWidget ->
+            currentAbstractState!!.attributeValuationMaps.filter { action.attributeValuationMap!!.isParent(it,currentAbstractState.window) }.forEach { childWidget ->
                 val childActionType = when (action.actionType) {
                     AbstractActionType.ITEM_CLICK -> AbstractActionType.CLICK
                     AbstractActionType.ITEM_LONGCLICK -> AbstractActionType.LONGCLICK
@@ -227,7 +225,7 @@ class ExerciseTargetComponentTask private constructor(
                 if (unexercisedActions.isNotEmpty() && randomBudget>=0) {
                     val action = unexercisedActions.random()
                     var chosenWidget: Widget? = null
-                    val chosenWidgets = action.attributeValuationMap!!.getGUIWidgets(currentState)
+                    val chosenWidgets = action.attributeValuationMap!!.getGUIWidgets(currentState,currentAbstractState.window)
                     if (chosenWidgets.isEmpty()) {
                         chosenWidget = null
                     } else {
@@ -306,10 +304,10 @@ class ExerciseTargetComponentTask private constructor(
         } else {
             chosenAbstractAction = eventList.filter { it.attributeValuationMap!=null && !it.attributeValuationMap.isInputField() }.random()
         }
-        val unexercisedInputs = currentAbstractState.inputMappings.values.flatten().distinct().filter { it.exerciseCount == 0 }
+        val unexercisedInputs = currentAbstractState.getAvailableInputs().filter { it.exerciseCount == 0 }
         if (unexercisedInputs.isEmpty()
             && atuaStrategy.phaseStrategy is PhaseTwoStrategy
-            && unexercisedInputs.intersect(currentAbstractState.inputMappings[chosenAbstractAction!!]?: emptyList()).isNotEmpty()
+            && unexercisedInputs.intersect(currentAbstractState.getInputsByAbstractAction(chosenAbstractAction!!)).isNotEmpty()
             && randomBudget>0) {
             return doRandomExploration(currentState)
         }
@@ -355,7 +353,7 @@ class ExerciseTargetComponentTask private constructor(
             }
             if (chosenAction == null)
             {
-                currentAbstractState.inputMappings.remove(chosenAbstractAction!!)
+                currentAbstractState.removeInputAssociatedAbstractAction(chosenAbstractAction!!)
                 //regressionTestingMF.registerTriggeredEvents(chosenEvent!!)
                 if (eventList.isNotEmpty())
                 {
@@ -366,7 +364,7 @@ class ExerciseTargetComponentTask private constructor(
             }
             else
             {
-                atuaStrategy.phaseStrategy.registerTriggeredEvents(chosenAbstractAction!!,currentState)
+                atuaStrategy.phaseStrategy.registerTriggeredInputs(chosenAbstractAction!!,currentState)
                 exercisedInputs.add(chosenAbstractAction!!)
                 atuaMF.isAlreadyRegisteringEvent = true
                 dataFilled = false

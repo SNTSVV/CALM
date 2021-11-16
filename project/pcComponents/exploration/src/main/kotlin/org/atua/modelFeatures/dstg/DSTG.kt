@@ -32,30 +32,30 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
                                         a==b
                                       })): IGraph<AbstractState, AbstractTransition> by graph {
 
-    val abstractActionEnables = HashMap<Window, HashMap<AbstractAction, HashMap<AbstractAction,Pair<Int,Int>>>>()
+    val abstractActionEnables = HashMap<AbstractAction, HashMap<AbstractAction,Pair<Int,Int>>>()
     fun updateAbstractActionEnability(
         abstractTransition: AbstractTransition,
         atua: ATUAMF
     ) {
+        if (AbstractStateManager.INSTANCE.goBackAbstractActions.contains(abstractTransition.abstractAction))
+            return
+        val abstractAction = abstractTransition.abstractAction
         val prevAbstractState = abstractTransition.source
         val newAbstractState = abstractTransition.dest
         val prevWindow = prevAbstractState.window
-        abstractActionEnables.putIfAbsent(prevWindow, HashMap())
-        val abstractAction = abstractTransition.abstractAction
-        abstractActionEnables[prevWindow]!!.putIfAbsent(
-            abstractAction,
-            HashMap()
-        )
+        abstractActionEnables.putIfAbsent(abstractAction, HashMap())
         val enableAbstractActions =
-            abstractActionEnables[prevWindow]!![abstractAction]!!
-        val availableAbstractActions = newAbstractState.getAvailableActions()
+            abstractActionEnables[abstractAction]!!
+        val availableActions = newAbstractState.getAvailableActions()
+        val prevAvailableActions = prevAbstractState.getAvailableActions()
+        val availableAbstractActions = availableActions.subtract(prevAvailableActions)
         availableAbstractActions.forEach {
             enableAbstractActions.putIfAbsent(it, Pair(0, 0))
             val total = enableAbstractActions[it]!!.first
             val enabled = enableAbstractActions[it]!!.second
             enableAbstractActions.put(it, Pair(total + 1, enabled + 1))
         }
-        enableAbstractActions.keys.subtract(availableAbstractActions).forEach {
+        enableAbstractActions.keys.subtract(availableActions).forEach {
             val total = enableAbstractActions[it]!!.first
             val enabled = enableAbstractActions[it]!!.second
             enableAbstractActions.put(it, Pair(total + 1, enabled))
@@ -135,6 +135,12 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
 
     private fun getInteractionHandlers(edge: AbstractTransition, statementCoverageMF: StatementCoverageMF) =
             edge.handlers.filter { it.value == true }.map { it.key }.map { statementCoverageMF.getMethodName(it) }.joinToString(separator = ";")
+
+    fun cleanPredictedAbstractStates() {
+        edges().filter { it.destination?.data is UncertainAbstractState }.forEach {
+            this.remove(it)
+        }
+    }
 
     companion object {
         @JvmStatic

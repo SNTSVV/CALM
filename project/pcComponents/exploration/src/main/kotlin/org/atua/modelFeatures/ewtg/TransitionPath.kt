@@ -15,6 +15,7 @@ package org.atua.modelFeatures.ewtg
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractTransition
 import org.atua.modelFeatures.dstg.AbstractState
+import org.atua.modelFeatures.dstg.UncertainAbstractState
 import org.atua.modelFeatures.helper.PathFindingHelper
 import kotlin.collections.HashMap
 
@@ -34,15 +35,28 @@ class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.Pa
         return false
     }
 
-    fun cost(start: Int=0): Int {
-        var cost = 0
+    fun cost(start: Int=0): Double {
+        var cost = 0.0
         path.values.drop(start).forEach {
             if (it.abstractAction.actionType == AbstractActionType.RESET_APP)
-                cost+=8
+                cost+=10
             else if (it.abstractAction.actionType == AbstractActionType.LAUNCH_APP)
-                cost+=6
+                cost+=5
             else
                 cost+=1
+            if (it.source is UncertainAbstractState) {
+                val reachPb = it.source.abstractActionsProbability[it.abstractAction]
+                val actionFaileur = 1.0-(reachPb?:0.0)
+                if (actionFaileur != 0.0) {
+                    cost+=(1.0 * actionFaileur)
+                }
+            }
+        }
+        if (goal.isNotEmpty() && destination is UncertainAbstractState) {
+            val avgProb = goal.intersect(destination.getAvailableInputs()).map { destination.getAbstractActionsWithSpecificInputs(it) }
+                .flatten().map { destination.abstractActionsProbability[it]?:0.0 }.average()
+            val actionFailure = 1.0 - avgProb
+            cost+=(1.0 *actionFailure)
         }
         return cost
     }
@@ -90,14 +104,12 @@ class PathTraverser (val transitionPath: TransitionPath) {
             return true
         }
         currentAppState.attributeValuationMaps.forEach {
-            if (it.isDerivedFrom(targetAVM))
+            if (it.isDerivedFrom(targetAVM,currentAppState.window))
                 return true
         }
-        val nextInput = nextAbstractTransition!!.source.inputMappings[nextAction]
-        if (nextInput!=null) {
-            if (currentAppState.inputMappings.values.flatten().intersect(nextInput).isNotEmpty()) {
-                return true
-            }
+        val nextInput = nextAbstractTransition!!.source.getInputsByAbstractAction(nextAction)
+        if (currentAppState.getAvailableInputs().intersect(nextInput).isNotEmpty()) {
+            return true
         }
         return false
     }

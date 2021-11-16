@@ -13,7 +13,9 @@
 package org.atua.calm.ewtgdiff
 
 import org.atua.calm.modelReuse.ModelHistoryInformation
+import org.atua.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.ATUAMF
+import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
 import org.atua.modelFeatures.dstg.AbstractTransition
@@ -231,8 +233,11 @@ class EWTGDiff private constructor(){
                 abstractState.EWTGWidgetMapping.remove(avm)
                 toRemoveAbstractTransitions.addAll(abstractState.abstractTransitions.filter { it.abstractAction.isWidgetAction()
                         && it.abstractAction.attributeValuationMap == avm})
+                abstractState.removeAVMAndRecomputeHashCode(avm)
             }
-            abstractState.attributeValuationMaps.removeIf { toDeleteAvms.contains(it) }
+
+//            abstractState.attributeValuationMaps.removeIf { toDeleteAvms.contains(it) }
+
             toRemoveAbstractTransitions.forEach {
                 abstractState.abstractTransitions.remove(it)
                 val edge = atuamf.dstg.edge(it.source,it.dest,it)
@@ -252,11 +257,18 @@ class EWTGDiff private constructor(){
     }
 
     private fun updateEWTGWidgetAVMMapping(replacement: Replacement<EWTGWidget>) {
-        AbstractStateManager.INSTANCE.ABSTRACT_STATES.forEach {
-            val toBeReplacedAvms = it.EWTGWidgetMapping.filter { it.value == replacement.old }.keys
+        AbstractStateManager.INSTANCE.ABSTRACT_STATES.forEach { appState ->
+            val toBeReplacedAvms = appState.EWTGWidgetMapping.filter { it.value == replacement.old }.keys
             toBeReplacedAvms.forEach { avm ->
-                it.EWTGWidgetMapping.put(avm, replacement.new)
+                appState.EWTGWidgetMapping.put(avm, replacement.new)
             }
+            appState.getAvailableActions()
+                .filter { toBeReplacedAvms.contains(it.attributeValuationMap)}
+                .forEach {  abstractAction ->
+                    val abstractTransitions = appState.abstractTransitions.filter { it.abstractAction == abstractAction }
+                    appState.removeInputAssociatedAbstractAction(abstractAction)
+                    Input.getOrCreateInputFromAbstractAction(appState,abstractAction,ModelVersion.RUNNING)
+                }
         }
     }
 
@@ -276,11 +288,19 @@ class EWTGDiff private constructor(){
 
     private fun updateInputs(replacement: Replacement<EWTGWidget>, isReplaced: Boolean, atuamf: ATUAMF) {
         replacement.old.window.inputs.filter { it.widget == replacement.old }.forEach { oldInput ->
-            val existingInputInUpdateVers = replacement.new.window.inputs
+            var existingInputInUpdateVers = replacement.new.window.inputs
                     .find { it.widget == replacement.new && it.eventType == oldInput.eventType }
-            if (existingInputInUpdateVers == null)
-                oldInput.widget = replacement.new
-            else {
+            if (existingInputInUpdateVers == null) {
+                existingInputInUpdateVers = Input.getOrCreateInput(
+                    eventHandlers = emptySet(),
+                    eventTypeString = oldInput.eventType.toString(),
+                    widget = replacement.new,
+                    createdAtRuntime = true,
+                    sourceWindow = replacement.new.window,
+                    modelVersion = ModelVersion.RUNNING
+                )
+            }
+            if (existingInputInUpdateVers != null) {
                 replacement.new.window.inputs.remove(oldInput)
                 /*if (*//*!isReplaced &&*//* existingInputInUpdateVers.eventHandlers.intersect(oldInput.eventHandlers).isEmpty()) {
                     existingInputInUpdateVers.eventHandlers.clear()
@@ -339,9 +359,6 @@ class EWTGDiff private constructor(){
         val oldWindowAVMs = AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP.get(replacement.old)
         if (oldWindowAVMs!=null) {
             AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP.put(replacement.new, oldWindowAVMs)
-            oldWindowAVMs.forEach { t, u ->
-                u.window = replacement.new
-            }
         }
         val oldWindowAttributePaths = AttributePath.allAttributePaths.get(replacement.old)
         if (oldWindowAttributePaths!=null) {
@@ -353,9 +370,6 @@ class EWTGDiff private constructor(){
         val oldWindowAttributePathsByAVM = AttributeValuationMap.attributePath_AttributeValuationMap.get(replacement.old)
         if (oldWindowAttributePathsByAVM!=null) {
             AttributeValuationMap.attributePath_AttributeValuationMap.put(replacement.new,oldWindowAttributePathsByAVM )
-            oldWindowAttributePathsByAVM.forEach { t, u ->
-                u.window = replacement.new
-            }
         }
         atuamf.modifiedMethodsByWindow.remove(replacement.old)
         replacement.old.widgets.forEach {
@@ -401,22 +415,34 @@ class EWTGDiff private constructor(){
             }
             ModelHistoryInformation.INSTANCE.inputUsefulness.remove(it.key)
         }
-        AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.window == replacement.old }.forEach {
-            it.window = replacement.new
-        }
-        AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.window == replacement.new }
-            .forEach { abstractState ->
-                abstractState.inputMappings.keys.filter { !it.isWidgetAction() }.forEach {
-                    val oldInputs = ArrayList(abstractState.inputMappings[it]!!)
-                    abstractState.inputMappings.remove(it)
-                    Input.getOrCreateInputFromAbstractAction(abstractState,it)
-                    val newInputs = abstractState.inputMappings[it]
-                    oldInputs.forEach { input ->
-
+        AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.window == replacement.old }.forEach { abstractState ->
+            abstractState.window = replacement.new
+            abstractState.getAvailableActions()
+                .forEach { abstractAction ->
+                    val oldInputs = ArrayList(abstractState.getInputsByAbstractAction(abstractAction))
+                    oldInputs.forEach {
+                        if (it.widget!=null) {
+                            it.sourceWindow = replacement.new
+                        }
                     }
-            }
+                    val abstractTransitions = abstractState.abstractTransitions.filter { it.abstractAction == abstractAction }
+                    val replacedAbstractAction = AbstractAction.getOrCreateAbstractAction(
+                        actionType = abstractAction.actionType,
+                        attributeValuationMap = abstractAction.attributeValuationMap,
+                        extra = abstractAction.extra,
+                        window = replacement.new
+                    )
+                    val actionCount = abstractState.getActionCount(abstractAction)
+                    abstractState.removeAction(abstractAction)
+                    abstractState.setActionCount(replacedAbstractAction, actionCount)
+                    abstractTransitions.forEach {
+                        it.abstractAction = replacedAbstractAction
+                    }
+                    abstractState.removeInputAssociatedAbstractAction(abstractAction)
+                    Input.getOrCreateInputFromAbstractAction(abstractState,replacedAbstractAction, ModelVersion.RUNNING)
+                }
+            //TODO update abstractAction's window
         }
-
     }
 
     private fun loadTransitionDifferences(jsonObject: JSONObject,atuamf: org.atua.modelFeatures.ATUAMF) {
