@@ -64,8 +64,6 @@ abstract class AbstractStrategyTask(
     val delay: Long,
     val useCoordinateClicks: Boolean
 ) {
-
-
     protected var random = java.util.Random(Random.nextLong())
         private set
 
@@ -232,7 +230,6 @@ abstract class AbstractStrategyTask(
                     } else {
                         ExplorationAction.rotate(-90)
                     }
-
                 }
                 AbstractActionType.SEND_INTENT -> callIntent(data)
                 AbstractActionType.SWIPE -> doSwipe(currentState, data as String)

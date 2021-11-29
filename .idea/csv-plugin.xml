@@ -1025,13 +1025,6 @@
             </Attribute>
           </value>
         </entry>
-        <entry key="/out/droidMate/model/org.wikipedia/DSTG/AbstractStates/AbstractState_23c9d5a4-c22f-3f09-ba53-ffe9ceea07ab.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value=";" />
-            </Attribute>
-          </value>
-        </entry>
         <entry key="/out/droidMate/model/org.wikipedia/DSTG/AbstractStates/AbstractState_2c79a2ec-3337-301b-9f98-48d7969c96a5.csv">
           <value>
             <Attribute>
@@ -1039,28 +1032,7 @@
             </Attribute>
           </value>
         </entry>
-        <entry key="/out/droidMate/model/org.wikipedia/DSTG/AbstractStates/AbstractState_324ff779-65c7-3f2d-8891-bfe22eca967e.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value=";" />
-            </Attribute>
-          </value>
-        </entry>
         <entry key="/out/droidMate/model/org.wikipedia/DSTG/AbstractStates/AbstractState_3dbba73f-730e-3172-864a-b5010f7d7ba1.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value=";" />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/out/droidMate/model/org.wikipedia/DSTG/AbstractStates/AbstractState_422ba944-4f2a-383b-84ac-b0f3bc1f6a56.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value=";" />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/out/droidMate/model/org.wikipedia/DSTG/AbstractStates/AbstractState_52843c9f-bdb3-30dd-8e8b-28db8c24db88.csv">
           <value>
             <Attribute>
               <option name="separator" value=";" />
@@ -1102,21 +1074,7 @@
             </Attribute>
           </value>
         </entry>
-        <entry key="/out/droidMate/model/org.wikipedia/DSTG/AbstractStates/AbstractState_6aba8116-5727-31a5-b23c-6018d85f4df2.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value=";" />
-            </Attribute>
-          </value>
-        </entry>
         <entry key="/out/droidMate/model/org.wikipedia/DSTG/AbstractStates/AbstractState_7b561e42-d79a-39de-8236-407fc517d97b.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value=";" />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/out/droidMate/model/org.wikipedia/DSTG/AbstractStates/AbstractState_7f62df95-76f0-3939-bd9a-6d80797cb3f9.csv">
           <value>
             <Attribute>
               <option name="separator" value=";" />
@@ -1187,13 +1145,6 @@
           </value>
         </entry>
         <entry key="/out/droidMate/model/org.wikipedia/DSTG/AbstractStates/AbstractState_bd83f464-5e85-33b0-b3f6-c49608ace555.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value=";" />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/out/droidMate/model/org.wikipedia/DSTG/AbstractStates/AbstractState_bfad2018-5e9e-3c7b-9cf0-162885e7e227.csv">
           <value>
             <Attribute>
               <option name="separator" value=";" />
@@ -2082,13 +2033,6 @@
             </Attribute>
           </value>
         </entry>
-        <entry key="/out/droidMate/model/org.wikipedia/states/22eb32d8-949a-71c6-f84d-af97f2928240_a3bdb637-de56-ae3a-7920-32f73c4ebeb4.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value=";" />
-            </Attribute>
-          </value>
-        </entry>
         <entry key="/out/droidMate/model/org.wikipedia/states/22eb32d8-949a-71c6-f84d-af97f2928240_c8609422-f8a5-bc84-9dc3-10e2569dccfe.csv">
           <value>
             <Attribute>
@@ -2104,27 +2048,6 @@
           </value>
         </entry>
         <entry key="/out/droidMate/model/org.wikipedia/states/2ffebb6f-8f5d-643b-0561-382eed5574b5_cf6a83bf-00aa-6bd6-a4cd-007e5ea27c50.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value=";" />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/out/droidMate/model/org.wikipedia/states/329ec0a0-d1df-01d4-0801-3d602fd7124e_86f4c4d2-f5e1-a65c-5c57-419253d9b6d6.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value=";" />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/out/droidMate/model/org.wikipedia/states/352c6c31-610d-3028-0a8e-e8f0bf0540a2_521b7dab-0b0c-3d43-277d-fa6a69044dbd.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value=";" />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/out/droidMate/model/org.wikipedia/states/537b84a2-42f9-07dd-28de-0161a0f11857_c729b07a-3fb0-eb94-9c8c-2d399da8fc0e.csv">
           <value>
             <Attribute>
               <option name="separator" value=";" />
@@ -2153,13 +2076,6 @@
           </value>
         </entry>
         <entry key="/out/droidMate/model/org.wikipedia/states/dadda5e2-6bc2-b27b-b040-22a1c9bac2f5_5c4a4491-4649-04f4-31ac-c150a441156e.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value=";" />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/out/droidMate/model/org.wikipedia/states/e38ba3f1-bceb-635a-b8ee-20b11ae373d4_139f55bd-4ce0-ab06-e901-d27caad8bb80.csv">
           <value>
             <Attribute>
               <option name="separator" value=";" />

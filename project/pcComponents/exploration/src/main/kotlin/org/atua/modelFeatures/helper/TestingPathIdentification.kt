@@ -524,7 +524,7 @@ class PathFindingHelper {
                                     else {
                                         val reliableTransitions = implicitTransitions
                                             .filter {
-                                                it.label.guardEnabled &&
+                                                !it.label.guardEnabled ||
                                                         it.label.dependentAbstractStates.intersect(ancestorAbstractStates)
                                                             .isNotEmpty()
                                             }
@@ -595,56 +595,27 @@ class PathFindingHelper {
                                         atuamf = atuaMF
                                     )
                                 ) {
-                                    if (pathType == PathType.WIDGET_AS_TARGET || pathType == PathType.WTG) {
-                                        if (goal.isNotEmpty()) {
-                                            for (input in goal) {
-                                                val prevAction = prevTransition!!.abstractAction
-                                                val prevInputs2 = if (prevTransition == null)
-                                                    null
-                                                else {
-                                                    prevTransition!!.source.inputMappings[prevAction]
-                                                }
-                                                val reachability = getInputReachability(
-                                                    hashSetOf(input),
-                                                    prevInputs2,
-                                                    atuaMF,
-                                                    prevTransition
-                                                )
-                                                reachPb *= reachability
-                                                if (reachPb > 0.0) {
-                                                    allPaths.add(fullGraph)
-                                                    fullGraph.reachabilityScore = reachPb
-                                                    fullGraph.goal.addAll(goal)
-                                                }
-                                            }
-                                        } else {
-                                            allPaths.add(fullGraph)
-                                            if (reachPb > 0.0) {
-                                                fullGraph.reachabilityScore = reachPb
-                                                fullGraph.goal.addAll(goal)
-                                            }
-                                        }
-                                    } else {
-                                        allPaths.add(fullGraph)
+                                    if (goal.isNotEmpty()) {
+                                        fullGraph.goal.addAll(goal)
+
                                     }
+                                    allPaths.add(fullGraph)
 //                                registerTransitionPath(root, nextState, fullGraph)
                                 }
                             }
-                            if( (pathType != PathType.WIDGET_AS_TARGET && pathType != PathType.WTG) || reachPb > 0.0) {
-                                val nextAbstateStack = if (transition.abstractAction.isLaunchOrReset()) {
-                                    Stack<AbstractState>().also { it.add(AbstractStateManager.INSTANCE.ABSTRACT_STATES.find{it.isHomeScreen}!!) }
-                                } else {
-                                    createAbstractStackForNext(abstractStateStack, source, nextState)
-                                }
-                                val key = if (traversedEdges.isEmpty())
-                                    0
-                                else
-                                    traversedEdges.keys.max()!! + 1
-                                traversedEdges.put(key, Pair(it.label, nextAbstateStack))
-                                if (prevEdgeId != null)
-                                    pathTracking.put(key, prevEdgeId)
-                                nextTransitions.add(key)
+                            val nextAbstateStack = if (transition.abstractAction.isLaunchOrReset()) {
+                                Stack<AbstractState>().also { it.add(AbstractStateManager.INSTANCE.ABSTRACT_STATES.find{it.isHomeScreen}!!) }
+                            } else {
+                                createAbstractStackForNext(abstractStateStack, source, nextState)
                             }
+                            val key = if (traversedEdges.isEmpty())
+                                0
+                            else
+                                traversedEdges.keys.max()!! + 1
+                            traversedEdges.put(key, Pair(it.label, nextAbstateStack))
+                            if (prevEdgeId != null)
+                                pathTracking.put(key, prevEdgeId)
+                            nextTransitions.add(key)
                         }
                     }
                 }
