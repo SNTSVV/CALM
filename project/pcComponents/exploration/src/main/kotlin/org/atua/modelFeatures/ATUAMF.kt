@@ -882,8 +882,6 @@ class ATUAMF(
             ) {
                 abstractTransition.guardEnabled = true
             }
-            if (abstractTransition.source != abstractTransition.dest)
-                dstg.updateAbstractActionEnability(abstractTransition, this)
             abstractTransition.computeGuaranteedAVMs()
             dstg.add(prevAbstractState, currentAbstractState, abstractTransition)
             lastExecutedTransition = abstractTransition
@@ -898,6 +896,7 @@ class ATUAMF(
                 interactionsTracingMap[interactions] = Pair(traceId, transitionId)
                 tracingInteractionsMap[Pair(traceId, transitionId)] = interactions
                 lastExecutedTransition!!.tracing.add(Pair(traceId, transitionId))
+                dstg.updateAbstractActionEnability(lastExecutedTransition!!, this)
             }
             // remove all obsolete abstract transitions that are not derived from interactions
             // AbstractStateManager.INSTANCE.removeObsoleteAbsstractTransitions(lastExecutedTransition!!)
@@ -1622,8 +1621,7 @@ class ATUAMF(
                 wtg
             )
         }
-        if (newAbstractInteraction.source != newAbstractInteraction.dest)
-            dstg.updateAbstractActionEnability(newAbstractInteraction, this)
+
     }
 
     var prevAbstractStateRefinement: Int = 0

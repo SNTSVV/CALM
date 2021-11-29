@@ -417,7 +417,7 @@ class PhaseOneStrategy(
         }*/
         var chosenAction: ExplorationAction?
         val explicitTargetWindows = phaseTargetInputs.filter { it.widget?.witnessed?:true }.map { it.sourceWindow }.distinct()
-        if (targetWindow != null &&
+        if (targetWindow != null && unreachableWindows.contains(targetWindow!!) &&
             ((!explicitTargetWindows.contains (targetWindow!!)
                     && outofbudgetWindows.contains(targetWindow!!))
                     || fullyCoveredWindows.contains(targetWindow!!))
@@ -476,7 +476,7 @@ class PhaseOneStrategy(
                     resetStrategyTask(currentState)
                 }
             }
-        } else if (outofbudgetWindows.contains(targetWindow!!)) {
+        } else if (outofbudgetWindows.contains(targetWindow!!) && !explicitTargetWindows.contains(targetWindow!!)) {
             //try select another target window
             selectTargetWindow(currentState, false).also {
                 resetStrategyTask(currentState)
@@ -660,7 +660,7 @@ class PhaseOneStrategy(
             return
         }
         //Current window has no more random exploration budget
-        if (strategyTask !is GoToAnotherWindowTask && goToExploreWindows.isAvailable(currentState)) {
+        if (strategyTask !is GoToAnotherWindowTask && exploreApp(currentState,goToExploreWindows)) {
             setGoToExploreState(goToExploreWindows, currentState)
             return
         }
@@ -865,7 +865,8 @@ class PhaseOneStrategy(
             }
         }
         if (continueOrEndCurrentTask(currentState)) return
-        unreachableWindows.add(targetWindow!!)
+        if (currentAppState.window != targetWindow)
+            unreachableWindows.add(targetWindow!!)
         if (targetWindow!! !is Dialog && randomExplorationInSpecialWindows(
                 currentAppState,
                 randomExplorationTask,
@@ -874,6 +875,31 @@ class PhaseOneStrategy(
         ) return
         val bkTargetWindow = targetWindow
         selectTargetWindow(currentState, true)
+        if (targetWindow!=null) {
+            resetStrategyTask(currentState)
+            nextActionOnInitial(
+                currentAppState,
+                exerciseTargetComponentTask,
+                currentState,
+                randomExplorationTask,
+                goToAnotherNode,
+                goToTargetNodeTask
+            )
+            return
+        }
+        targetWindow = bkTargetWindow
+        if (hasBudgetLeft(currentAppState.window)
+            && currentAppState.getUnExercisedActions(currentState, atuaMF,false)
+                .isNotEmpty()
+        ) {
+            setRandomExploration(randomExplorationTask, currentState, false, false)
+            return
+        }
+        if (hasBudgetLeft(currentAppState.window)) {
+            setRandomExploration(randomExplorationTask, currentState, false, false)
+            return
+        }
+        selectTargetWindow(currentState, false)
         if (targetWindow != null) {
             resetStrategyTask(currentState)
             nextActionOnInitial(
@@ -886,32 +912,7 @@ class PhaseOneStrategy(
             )
             return
         }
-        if (hasBudgetLeft(currentAppState.window)
-            && currentAppState.getUnExercisedActions(currentState, atuaMF,false)
-                .isNotEmpty()
-        ) {
-            setRandomExploration(randomExplorationTask, currentState, false, false)
-            return
-        }
-        if (hasBudgetLeft(currentAppState.window)) {
-            setRandomExploration(randomExplorationTask, currentState, false, false)
-            return
-        }
-        if (exploreApp(currentState, goToAnotherNode)) {
-            return
-        }
-        val oldTarget = targetWindow
-        selectTargetWindow(currentState, true)
-        if (targetWindow == null)
-            selectTargetWindow(currentState, false)
-        if (oldTarget != targetWindow) {
-            phaseState = PhaseState.P1_INITIAL
-            setRandomExploration(randomExplorationTask, currentState)
-            return
-        }
-        forceEnd = true
-        setFullyRandomExploration(randomExplorationTask, currentState, currentAppState)
-        forceEnd = true
+        nextActionWithoutTargetWindow(currentState,currentAppState,randomExplorationTask,goToAnotherNode)
         return
     }
 

@@ -430,6 +430,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/DSTG/AbstractStates/AbstractState_bfa91214-5ab4-3274-bd28-53f71143b02b.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/apks/model/bbc.mobile.news.ww/DSTG/AbstractStates/AbstractState_c3940287-ca4c-39a8-9c67-fcb90c41d28e.csv">
           <value>
             <Attribute>
@@ -479,6 +486,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/DSTG/AbstractStates/AbstractState_e0a408a1-3ad4-3749-9755-b1a965cfee5b.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/apks/model/bbc.mobile.news.ww/DSTG/AbstractStates/AbstractState_e31c9aee-0605-3aef-9497-3dde5e5f39c7.csv">
           <value>
             <Attribute>
@@ -487,6 +501,27 @@
           </value>
         </entry>
         <entry key="/apks/model/bbc.mobile.news.ww/DSTG/AbstractStates/AbstractState_e498ce76-69c1-3a32-918a-80f5f534469a.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/DSTG/AbstractStates/AbstractState_e6944783-cec9-3b34-a274-05931c07c329.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/DSTG/AbstractStates/AbstractState_e6e846c1-cd60-3b2d-8432-2cb51787d4ca.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/DSTG/AbstractStates/AbstractState_ef9e8caa-cdc3-3032-8bd0-646911b4df60.csv">
           <value>
             <Attribute>
               <option name="separator" value=";" />
@@ -606,6 +641,13 @@
           </value>
         </entry>
         <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_3006.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/EWTG/WindowsEvents/Events_3046.csv">
           <value>
             <Attribute>
               <option name="separator" value=";" />
@@ -913,7 +955,49 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/states/32de19ed-20c4-89d0-0840-96ac7ebc9a4a_f2332e83-eaaf-b85a-c795-ab4348a7c8d4.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/states/3398e4c1-6ffe-f888-08fb-6180cdf70902_df1b039d-32b7-50c5-b47d-805c90af613f.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/states/3dc318d9-a8c7-8087-1325-959906bf9101_73e01b7f-c700-dda0-4942-983f24f8ee1a.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/states/3e685970-ab6e-4487-13ca-d63009665501_b0cccdc8-3540-038a-862f-4a8793381404.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/apks/model/bbc.mobile.news.ww/states/55c6cba9-5534-4837-2b29-4868b32c58b1_2a9f5ac7-3e48-c6c4-0001-d7869c40d73e.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/states/5f4c717b-4d4d-daa8-34ae-ee3aab45eb22_3c530a9a-e227-9fce-11b5-875a401fb048.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/states/72adb4b5-9b8a-e299-4810-3174f982f313_c0146d31-6965-6e3c-9576-e9f0c75d7eb6.csv">
           <value>
             <Attribute>
               <option name="separator" value=";" />
@@ -942,6 +1026,27 @@
           </value>
         </entry>
         <entry key="/apks/model/bbc.mobile.news.ww/states/c8cc0797-40d5-764b-9e2e-84569ecd86c5_86b5738d-6cea-1833-5c17-f04ccae228ad.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/states/cc28dc03-f200-0a64-a18b-58c34ff81ade_cf1f5020-9937-1f32-a481-ccdff72f2fac.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/states/d4d962b9-dc9d-ad3c-aa3b-df793a95bdb6_ad6b327a-cc49-41bb-82cd-af3a2a415235.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/bbc.mobile.news.ww/states/d8268d1d-2c1d-b1ae-ad89-09dc8a15c228_fda5ba1b-302e-9d19-d308-36da8e26ad93.csv">
           <value>
             <Attribute>
               <option name="separator" value=";" />
@@ -1285,6 +1390,174 @@
           </value>
         </entry>
         <entry key="/apks/model/com.amaze.filemanager/actionCoverage.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/2db7cc36-43aa-d7df-031a-48f5a1a2e859_26178a4a-948a-494f-fb7a-0709f28259c9.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/2db7cc36-43aa-d7df-031a-48f5a1a2e859_813b4069-1298-36c9-569d-bd2870904743.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/2db7cc36-43aa-d7df-031a-48f5a1a2e859_e06f0fde-0d0f-2b00-b5d1-8c9d6b073b7a.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/2db7cc36-43aa-d7df-031a-48f5a1a2e859_ebae5b13-42e6-37b4-c110-d7d2a0de482e.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/468f5bec-c40e-4a52-1bf1-d8ac22065acc_9fb0b9fb-b78c-1f70-7513-36bb15842fea.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/52d7ccbd-fd33-2326-283a-497d5b2b33a0_4671f259-80d8-1007-1bd4-6f18ded02081.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/52d7ccbd-fd33-2326-283a-497d5b2b33a0_cf507d98-2e60-f977-a4b2-fa578c5909f1.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/5b850c83-13b1-0939-30e7-894271a919b3_a607bbb9-2d9f-b05b-7b6a-38788b97c0d5.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/7a8e500c-774e-0227-4ff0-cccbd54612a1_c510ff42-913c-a949-9a73-7c01ef34b9c3.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/88c846c6-dd0a-afb8-5e2a-c3863b02c032_3432ccfc-9c38-141b-0995-49bbfa302495.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/906fa219-7122-1661-65d2-1ed8cf1a26db_6ef1663f-2314-ca44-4453-e2fe810cdabe.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/9d186eca-01cb-5022-727a-eb895fc3609c_11275517-8417-f7db-e689-d1d6e2100855.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/9d186eca-01cb-5022-727a-eb895fc3609c_8a4600b3-f2f6-d73d-5fa8-7d7350eee7b7.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/c40c3a8e-9925-3cbb-996e-b74df71d4d35_d9ff5b20-5619-a7fe-af61-d7dfb411b878.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/cafef40f-c1f3-4356-a061-70cf1feb53d0_6b3a82a3-b750-6d96-409c-ff6315487e10.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/cb09f835-7988-1ab5-a06c-74f4d7802b2f_65c87eef-0ba7-d28e-3b2a-fbae699fe308.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/cdc9a884-aa38-ec0c-a32c-25440830fc86_03f88dc9-9470-d110-d95b-0a88f268e18a.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/cdc9a884-aa38-ec0c-a32c-25440830fc86_a35dc2aa-d65f-d481-78c0-3f6a3457e4fb.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/cdc9a884-aa38-ec0c-a32c-25440830fc86_f94c1d7d-06ca-db01-ceae-9a3c64c2eb7b.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/ea089e6c-05f6-0f85-bf6b-1b2b63ee1fff_2dbd6b74-6c34-0cf0-031f-e833ca2c1d6a.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/f9899872-5915-a982-ceec-1531b70db9fc_4f9081d5-d82e-de10-24f2-fe953626ee8a.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.amaze.filemanager/states/fce3bf34-73fc-3a50-d246-3bf3d1f44aca_ec0a0898-87a9-a6c5-c16c-8557e5a1b73f.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/DSTG/AbstractStates/AbstractState_d48a9763-6dfc-30c1-a818-b5035a020072.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/DSTG/AbstractStates/AbstractState_e5a4311d-77c3-3d30-b0a8-81821f405a68.csv">
           <value>
             <Attribute>
               <option name="separator" value=";" />
@@ -1928,6 +2201,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsWidget/Widgets_9098.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/apks/model/com.citymapper.app.release/EWTG/WindowsWidget/Widgets_Activity-58.csv">
           <value>
             <Attribute>
@@ -1949,6 +2229,20 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/apks/model/com.citymapper.app.release/states/36083b4f-7954-7e73-0b6a-b80ed74c8eed_33ab9f9d-c807-d175-090e-1c5d25ffe1ef.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/com.citymapper.app.release/states/9de39f6f-25c4-4bc7-7346-1c2e83bc5c41_447dd2ef-2b86-5ff5-19e0-4fae897e706f.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/apks/model/com.citymapper.app.release/states/b7281877-b55c-2e46-8c8a-953713543ec0_d6393e59-10a4-9481-ab9b-bb186e9ca4fb.csv">
           <value>
             <Attribute>
@@ -1957,6 +2251,13 @@
           </value>
         </entry>
         <entry key="/apks/model/com.citymapper.app.release/states/c35f6311-59cc-b9d5-98c1-dfd0b7c4ca4f_af8d54fa-fd19-f21b-84ef-d1ba5b120295.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/de.rampro.activitydiary/DSTG/AbstractStateList.csv">
           <value>
             <Attribute>
               <option name="separator" value=";" />
@@ -2244,6 +2545,13 @@
           </value>
         </entry>
         <entry key="/apks/model/de.rampro.activitydiary/EWTG/WindowsWidget/Widgets_Dialog-5.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/de.rampro.activitydiary/states/84ffbb00-a2d1-0fe7-5a62-37c000c92061_de684115-3f19-37c6-b3ca-bdd49d114840.csv">
           <value>
             <Attribute>
               <option name="separator" value=";" />
@@ -2810,7 +3118,84 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/apks/model/org.wikipedia/states/22eb32d8-949a-71c6-f84d-af97f2928240_ef54d787-21ac-b437-c4b7-54467fa4c4b1.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/org.wikipedia/states/2ec13355-6e93-a0e2-0423-b014cc8bb15c_c410bbf3-b774-e7f2-9973-38b3156cf86c.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/org.wikipedia/states/4191efab-b3e9-cb4d-16f4-6c6b11e1dbc7_75a517c5-dccd-5a5e-4b07-94853ac56ad8.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/org.wikipedia/states/7e28063d-0256-ea51-538a-82fc604efacb_b73c5841-4510-e455-8c9e-d500a308f4cf.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/org.wikipedia/states/82046e77-04a5-73e6-5766-eb36629d8460_1bbd24a9-16c4-973e-f11f-a16874bca7b8.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/org.wikipedia/states/88262141-1ab8-89fa-5d88-9e0078b09a74_48f17e0f-d558-02df-1e53-facf33501359.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/org.wikipedia/states/919e2226-741d-2dba-6700-9ee5d2153e34_5165907d-8810-45f2-26c8-0d3ce608566c.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/org.wikipedia/states/a60977b7-a5a5-2e53-7b6b-f477039d3ecd_c83840d8-5d8b-79a8-9d9a-bd97bb838a22.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/org.wikipedia/states/e7de80b1-28b8-143c-bd40-fd7086b024b6_4f4f3fbc-8af0-3c39-24b1-bc7be8e84cb3.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/apks/model/org.wikipedia/states/e7de80b1-28b8-143c-bd40-fd7086b024b6_de0591f2-95c4-312b-b368-0eb1f3bc41a5.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/org.wikipedia/states/e7de80b1-28b8-143c-bd40-fd7086b024b6_f4fa5b04-c358-32c3-ca5c-d7c42150433d.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/apks/model/org.wikipedia/states/e96a228e-a9ee-6aa2-becc-9f4e07e67b1c_203cd7b0-91bb-d8ca-f59f-546fefb3e944.csv">
           <value>
             <Attribute>
               <option name="separator" value=";" />

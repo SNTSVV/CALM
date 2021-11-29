@@ -174,7 +174,7 @@ object DefaultStrategies: Logging {
 	 *  - we try to wait for up to ${maxWaittime}s (default 5s) if any interactive element appears
 	 *  - if the app has crashed we terminate
 	 */
-	fun handleTargetAbsence(prio: Int, maxWaitTime: Long = 1000) = object : AExplorationStrategy(){
+	fun handleTargetAbsence(prio: Int, maxWaitTime: Long = 500) = object : AExplorationStrategy(){
 		private var cnt = 0
 		private var pressbackCnt = 0
 		private var waitCnt = 0
@@ -282,7 +282,10 @@ object DefaultStrategies: Logging {
 					if (s.visibleTargets.isEmpty() && waitCnt <= 3 ) {
 						delay(maxWaitTime)
 						waitCnt++
-						GlobalAction(ActionType.FetchGUI)
+						if (waitCnt < 2)
+							GlobalAction(ActionType.FetchGUI)
+						else
+							GlobalAction(ActionType.MinimizeMaximize)
 					}
 					// if current state is not a relevent state
 					else if ( !s.widgets.any { it.packageName == eContext.model.config.appName }) {

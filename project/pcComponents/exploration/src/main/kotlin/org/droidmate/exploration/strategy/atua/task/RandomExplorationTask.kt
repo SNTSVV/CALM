@@ -440,7 +440,7 @@ class RandomExplorationTask constructor(
             }.filter{
                 widgetActions.contains(it) }
             if (priotizeActions.isNotEmpty()) {
-                randomAction = exerciseUnexercisedWidgetAbstractActions(priotizeActions, randomAction, currentAbstractState)
+                randomAction = exerciseUnexercisedWidgetAbstractActions(priotizeActions, currentAbstractState)
                 //randomAction = unexercisedActions.random()
             } else if (unexercisedActions.isNotEmpty()) {
                 randomAction = if (unexercisedActions.any { it.attributeValuationMap != null }) {
@@ -677,17 +677,22 @@ class RandomExplorationTask constructor(
                     || currentAbstractState.window.classType == "com.yahoo.mobile.client.share.account.controller.activity.TrapsActivity"
 
 
-    private fun exerciseUnexercisedWidgetAbstractActions(unexercisedActions: List<AbstractAction>, randomAction: AbstractAction?, currentAbstractState: AbstractState): AbstractAction? {
-        var randomAction1 = randomAction
-        randomAction1 = if (unexercisedActions.any { it.attributeValuationMap != null }) {
+    private fun exerciseUnexercisedWidgetAbstractActions(unexercisedActions: List<AbstractAction>, currentAbstractState: AbstractState): AbstractAction? {
+        val unWitnessedActionsn = unexercisedActions.filter { !atuaMF.dstg.abstractActionEnables.containsKey(it) }
+        val toExerciseActionsn = if (unWitnessedActionsn.isNotEmpty()) {
+            unWitnessedActionsn
+        } else {
+            unexercisedActions
+        }
+        var randomAction1: AbstractAction?
+        if (toExerciseActionsn.any { it.attributeValuationMap != null }) {
             // Swipe on widget should be executed by last
-            val widgetActions = unexercisedActions.filter { it.attributeValuationMap != null }
+            val widgetActions = toExerciseActionsn.filter { it.attributeValuationMap != null }
             val nonWebViewActions = widgetActions.filterNot { it.attributeValuationMap!!.getClassName().contains("WebView") }
             val candidateActions = if (nonWebViewActions.isEmpty())
                 ArrayList(widgetActions)
             else
                 ArrayList(nonWebViewActions)
-
             //prioritize the less frequent widget
             val actionByScore = HashMap<AbstractAction, Double>()
             val windowWidgetFrequency = AbstractStateManager.INSTANCE.attrValSetsFrequency[currentAbstractState.window]!!
@@ -709,12 +714,12 @@ class RandomExplorationTask constructor(
 
             if (actionByScore.isNotEmpty()) {
                 val pb = ProbabilityDistribution<AbstractAction>(actionByScore)
-                pb.getRandomVariable()
+                randomAction1 = pb.getRandomVariable()
             } else {
-                candidateActions.random()
+                randomAction1 = candidateActions.random()
             }
         } else {
-            unexercisedActions.random()
+            randomAction1 = toExerciseActionsn.random()
         }
         return randomAction1
     }

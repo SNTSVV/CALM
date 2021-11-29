@@ -10,30 +10,25 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="5c639742-9a77-4c75-ae1f-b87fa8f0eb0c" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/../../../.idea/csv-plugin.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../../../.idea/csv-plugin.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/caches/build_file_checksums.ser" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/caches/build_file_checksums.ser" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/deviceControlDaemon.iml" beforeDir="false" afterPath="$PROJECT_DIR$/deviceControlDaemon.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/atua/calm/ewtgdiff/EWTGDiff.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/atua/calm/ewtgdiff/EWTGDiff.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/atua/calm/modelReuse/ModelHistoryInformation.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/atua/calm/modelReuse/ModelHistoryInformation.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/androidTest/java/org/droidmate/uiautomator2daemon/exploration/ActionExecution.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/androidTest/java/org/droidmate/uiautomator2daemon/exploration/ActionExecution.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/androidTest/java/org/droidmate/uiautomator2daemon/uiautomatorExtensions/UiAutomationEnvironment.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/androidTest/java/org/droidmate/uiautomator2daemon/uiautomatorExtensions/UiAutomationEnvironment.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/atua/modelFeatures/ATUAMF.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/atua/modelFeatures/ATUAMF.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/atua/modelFeatures/ewtg/TransitionPath.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/atua/modelFeatures/ewtg/TransitionPath.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/atua/modelFeatures/ewtg/window/Window.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/atua/modelFeatures/ewtg/window/Window.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/atua/modelFeatures/helper/TestingPathIdentification.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/atua/modelFeatures/helper/TestingPathIdentification.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/droidmate/exploration/modelFeatures/reporter/StatementCoverageMF.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/droidmate/exploration/modelFeatures/reporter/StatementCoverageMF.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/droidmate/exploration/strategy/atua/AbstractPhaseStrategy.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/droidmate/exploration/strategy/atua/AbstractPhaseStrategy.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/atua/modelFeatures/dstg/AbstractStateManager.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/atua/modelFeatures/dstg/AbstractStateManager.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/atua/modelFeatures/helper/ProbabilityBasedPathFinder.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/atua/modelFeatures/helper/ProbabilityBasedPathFinder.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/droidmate/exploration/strategy/DefaultStrategies.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/droidmate/exploration/strategy/DefaultStrategies.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/droidmate/exploration/strategy/atua/PhaseOneStrategy.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/droidmate/exploration/strategy/atua/PhaseOneStrategy.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/droidmate/exploration/strategy/atua/PhaseThreeStrategy.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/droidmate/exploration/strategy/atua/PhaseThreeStrategy.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/droidmate/exploration/strategy/atua/PhaseTwoStrategy.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/droidmate/exploration/strategy/atua/PhaseTwoStrategy.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/droidmate/exploration/strategy/atua/task/GoToAnotherWindowTask.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/droidmate/exploration/strategy/atua/task/GoToAnotherWindowTask.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/droidmate/exploration/strategy/atua/task/GoToTargetWindowTask.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/droidmate/exploration/strategy/atua/task/GoToTargetWindowTask.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/droidmate/exploration/strategy/atua/task/AbstractStrategyTask.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../../pcComponents/exploration/src/main/kotlin/org/droidmate/exploration/strategy/atua/task/AbstractStrategyTask.kt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
-  <component name="ExecutionTargetManager" SELECTED_TARGET="-calm-5m-activitydiary-111-1" />
+  <component name="ExecutionTargetManager" SELECTED_TARGET="avd_29_1" />
   <component name="ExternalProjectsData">
     <projectState path="$PROJECT_DIR$">
       <ProjectState />
@@ -314,33 +309,22 @@
     <state width="783" height="326" key="GridCell.Tab.1.right/1680.23.2560.1417/29.23.1651.1027@1680.23.2560.1417" timestamp="1631869960900" />
     <state width="783" height="326" key="GridCell.Tab.1.right/29.23.1651.1027@29.23.1651.1027" timestamp="1631741984059" />
     <state width="1608" height="336" key="GridCell.Tab.1.right/30.23.1650.1027@30.23.1650.1027" timestamp="1631631057179" />
-    <state x="355" y="175" key="SettingsEditor" timestamp="1626783883686">
-      <screen x="26" y="23" width="1654" height="1027" />
+    <state x="2337" y="460" key="com.intellij.ide.util.TipDialog" timestamp="1637162913539">
+      <screen x="1680" y="23" width="2560" height="1417" />
     </state>
-    <state x="355" y="175" key="SettingsEditor/26.23.1654.1027@26.23.1654.1027" timestamp="1626783883686" />
-    <state x="429" y="233" width="787" height="707" key="com.android.tools.idea.avdmanager.AvdListDialog" timestamp="1626427750933">
-      <screen x="26" y="23" width="1654" height="1027" />
-    </state>
-    <state x="429" y="233" width="787" height="707" key="com.android.tools.idea.avdmanager.AvdListDialog/1680.23.1920.1057/26.23.1654.1027@26.23.1654.1027" timestamp="1626427750933" />
-    <state x="431" y="233" width="786" height="707" key="com.android.tools.idea.avdmanager.AvdListDialog/28.23.1652.1027@28.23.1652.1027" timestamp="1626211031772" />
-    <state x="433" y="233" width="785" height="707" key="com.android.tools.idea.avdmanager.AvdListDialog/30.23.1650.1027@30.23.1650.1027" timestamp="1624892466840" />
-    <state x="454" y="340" key="com.intellij.ide.util.TipDialog" timestamp="1635675943829">
-      <screen x="31" y="23" width="1649" height="1027" />
-    </state>
-    <state x="450" y="340" key="com.intellij.ide.util.TipDialog/26.23.1654.1027@26.23.1654.1027" timestamp="1626768809486" />
-    <state x="451" y="340" key="com.intellij.ide.util.TipDialog/27.23.1653.1027@27.23.1653.1027" timestamp="1626018679913" />
+    <state x="2337" y="460" key="com.intellij.ide.util.TipDialog/1680.23.2560.1417/30.23.1650.1027@1680.23.2560.1417" timestamp="1637162913539" />
     <state x="454" y="340" key="com.intellij.ide.util.TipDialog/31.23.1649.1027@31.23.1649.1027" timestamp="1635675943829" />
     <state x="455" y="340" key="com.intellij.ide.util.TipDialog/33.23.1647.1027@33.23.1647.1027" timestamp="1630398042755" />
-    <state x="629" y="292" width="765" height="488" key="find.popup" timestamp="1630593184482">
-      <screen x="29" y="23" width="1651" height="1027" />
+    <state x="2610" y="394" width="1187" height="674" key="find.popup" timestamp="1637165815035">
+      <screen x="1680" y="23" width="2560" height="1417" />
     </state>
     <state x="629" y="292" width="765" height="488" key="find.popup/1680.23.2560.1417/29.23.1651.1027@29.23.1651.1027" timestamp="1630593184482" />
-    <state x="628" y="292" width="765" height="488" key="find.popup/27.23.1653.1027@27.23.1653.1027" timestamp="1626154523076" />
-    <state x="629" y="292" width="765" height="488" key="find.popup/28.23.1652.1027@28.23.1652.1027" timestamp="1626212701319" />
+    <state x="2610" y="394" width="1187" height="674" key="find.popup/1680.23.2560.1417/30.23.1650.1027@1680.23.2560.1417" timestamp="1637165815035" />
     <state x="632" y="292" width="763" height="488" key="find.popup/33.23.1647.1027@33.23.1647.1027" timestamp="1630398364301" />
-    <state x="520" y="250" width="670" height="676" key="search.everywhere.popup" timestamp="1631707739150">
-      <screen x="30" y="23" width="1650" height="1027" />
+    <state x="2440" y="336" width="1040" height="933" key="search.everywhere.popup" timestamp="1637167760942">
+      <screen x="1680" y="23" width="2560" height="1417" />
     </state>
+    <state x="2440" y="336" width="1040" height="933" key="search.everywhere.popup/1680.23.2560.1417/30.23.1650.1027@1680.23.2560.1417" timestamp="1637167760942" />
     <state x="520" y="250" width="670" height="676" key="search.everywhere.popup/30.23.1650.1027@30.23.1650.1027" timestamp="1631707739150" />
     <state x="522" y="250" width="670" height="676" key="search.everywhere.popup/33.23.1647.1027@33.23.1647.1027" timestamp="1631283261930" />
   </component>

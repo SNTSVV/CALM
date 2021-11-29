@@ -32,35 +32,68 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
                                         a==b
                                       })): IGraph<AbstractState, AbstractTransition> by graph {
 
-    val abstractActionEnables = HashMap<AbstractAction, HashMap<AbstractAction,Pair<Int,Int>>>()
+    val abstractActionEnables = HashMap<AbstractAction, Pair<Int,HashMap<AbstractAction,Int>>>()
+    fun removeAbstractActionEnabiblity(
+        abstractTransition: AbstractTransition,
+        atua: ATUAMF
+    ) {
+        if (abstractTransition.isImplicit)
+            return
+        val abstractAction = abstractTransition.abstractAction
+        val enableAbstractActions =
+            abstractActionEnables[abstractAction]
+        if (enableAbstractActions == null)
+            return
+        val totalCnt = enableAbstractActions.first
+        if (totalCnt <= 1) {
+            abstractActionEnables.remove(abstractAction)
+            return
+        }
+        val availableActions = abstractTransition.dest.getAvailableActions()
+        val prevAvailableActions = abstractTransition.source.getAvailableActions()
+        val availableAbstractActions = availableActions.subtract(prevAvailableActions)
+        availableAbstractActions.forEach {
+            if (enableAbstractActions.second.containsKey(it)) {
+                    val enabled = enableAbstractActions.second[it]!!
+                    if (enabled <= 1) {
+                        enableAbstractActions.second.remove(it)
+                    } else {
+                        enableAbstractActions.second.put(it, enabled - 1)
+                }
+            }
+        }
+        abstractActionEnables.put(abstractAction,Pair(totalCnt-1,enableAbstractActions.second))
+    }
     fun updateAbstractActionEnability(
         abstractTransition: AbstractTransition,
         atua: ATUAMF
     ) {
+        if (abstractTransition.isImplicit)
+            return
         if (AbstractStateManager.INSTANCE.goBackAbstractActions.contains(abstractTransition.abstractAction))
             return
         val abstractAction = abstractTransition.abstractAction
         val prevAbstractState = abstractTransition.source
         val newAbstractState = abstractTransition.dest
         val prevWindow = prevAbstractState.window
-        abstractActionEnables.putIfAbsent(abstractAction, HashMap())
+        abstractActionEnables.putIfAbsent(abstractAction, Pair(0, HashMap()))
         val enableAbstractActions =
             abstractActionEnables[abstractAction]!!
+        val totalCnt = enableAbstractActions.first
         val availableActions = newAbstractState.getAvailableActions()
         val prevAvailableActions = prevAbstractState.getAvailableActions()
         val availableAbstractActions = availableActions.subtract(prevAvailableActions)
         availableAbstractActions.forEach {
-            enableAbstractActions.putIfAbsent(it, Pair(0, 0))
-            val total = enableAbstractActions[it]!!.first
-            val enabled = enableAbstractActions[it]!!.second
-            enableAbstractActions.put(it, Pair(total + 1, enabled + 1))
+            if (!enableAbstractActions.second.containsKey(it))
+                enableAbstractActions.second.putIfAbsent(it, 1)
+            else {
+                val enabled = enableAbstractActions.second[it]!!
+                enableAbstractActions.second.put(it, enabled+1)
+            }
         }
-        enableAbstractActions.keys.subtract(availableActions).forEach {
-            val total = enableAbstractActions[it]!!.first
-            val enabled = enableAbstractActions[it]!!.second
-            enableAbstractActions.put(it, Pair(total + 1, enabled))
-        }
+        abstractActionEnables.put(abstractAction,Pair(totalCnt+1,enableAbstractActions.second))
     }
+
     override fun add(source: AbstractState, destination: AbstractState?, label: AbstractTransition, updateIfExists: Boolean, weight: Double): Edge<AbstractState, AbstractTransition> {
         val edge = graph.add(source, destination, label, updateIfExists, weight)
         return edge

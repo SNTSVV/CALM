@@ -451,7 +451,7 @@ abstract class AbstractStrategyTask(
         abstractAction: AbstractAction?
     ): ExplorationAction? {
         if (action == AbstractActionType.TEXT_INSERT && chosenWidget.isInputField) {
-            return chooseActionForTextInput(chosenWidget, currentState)
+            return chooseActionForTextInput(chosenWidget, currentState, data as String?)
         }
         val currentAbstractState = atuaMF.getAbstractState(currentState)!!
 
@@ -641,9 +641,13 @@ abstract class AbstractStrategyTask(
     }
 
 
-    private fun chooseActionForTextInput(chosenWidget: Widget, currentState: State<*>): ExplorationAction {
-        val inputValue = TextInput.getSetTextInputValue(chosenWidget, currentState, true, InputCoverage.FILL_RANDOM)
-        val explorationAction = chosenWidget.setText(inputValue, delay = delay, sendEnter = false)
+    private fun chooseActionForTextInput(chosenWidget: Widget, currentState: State<*>, data: String?): ExplorationAction {
+        if (data == null) {
+            val inputValue = TextInput.getSetTextInputValue(chosenWidget, currentState, true, InputCoverage.FILL_RANDOM)
+            val explorationAction = chosenWidget.setText(inputValue, delay = delay, sendEnter = false)
+            return explorationAction
+        }
+        val explorationAction = chosenWidget.setText(data, delay = delay, sendEnter = false)
         return explorationAction
     }
 

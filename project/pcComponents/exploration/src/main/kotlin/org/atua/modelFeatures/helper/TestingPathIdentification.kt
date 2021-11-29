@@ -672,10 +672,10 @@ class PathFindingHelper {
                     }
                     else if (atuaMF.dstg.abstractActionEnables.containsKey(prevAction)) {
                         val enabledAbstractActions =
-                            atuaMF.dstg.abstractActionEnables[prevAction]!!
+                            atuaMF.dstg.abstractActionEnables[prevAction]!!.second
                         if (enabledAbstractActions.containsKey(t.abstractAction)) {
                             val reliability =
-                                enabledAbstractActions[t.abstractAction]!!.second * 1.0 / enabledAbstractActions[t.abstractAction]!!.first
+                                enabledAbstractActions[t.abstractAction]!! * 1.0 / atuaMF.dstg.abstractActionEnables[prevAction]!!.first
                             reachPb1 *= reliability
                         } else {
                             reachPb1 = 0.0

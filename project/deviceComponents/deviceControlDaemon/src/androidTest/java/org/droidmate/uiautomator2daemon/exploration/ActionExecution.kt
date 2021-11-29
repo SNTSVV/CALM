@@ -176,7 +176,7 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 				ActionType.CloseKeyboard -> if (env.isKeyboardOpen()) //(UiHierarchy.any(env.device) { node, _ -> env.keyboardPkgs.contains(node.packageName) })
 					env.device.pressBack()
 				else true
-				ActionType.FetchGUI -> fetchDeviceData(env = env, afterAction = true)
+				ActionType.FetchGUI -> fetchDeviceData(env = env, afterAction = false)
 				ActionType.Terminate -> false /* should never be transferred to the device */
 
 				else -> true

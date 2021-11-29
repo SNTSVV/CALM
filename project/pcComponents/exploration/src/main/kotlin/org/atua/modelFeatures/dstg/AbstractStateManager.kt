@@ -1561,7 +1561,7 @@ class AbstractStateManager() {
                     /*&& it.data == abstractTransition.data*/
                     /*&& it.label.prevWindow == abstractTransition.label.prevWindow*/
                     && it.requiringPermissionRequestTransition == abstractTransition.requiringPermissionRequestTransition
-                    && ((!isImplicit && it.interactions.isNotEmpty() && it.isExplicit())
+                    && ((!isImplicit && it.interactions.isNotEmpty() )
                     || (isImplicit && it.interactions.isEmpty() && it.isImplicit))
                     && (!it.guardEnabled
                     || it.dependentAbstractStates.intersect(abstractTransition.dependentAbstractStates).isNotEmpty())
@@ -1738,8 +1738,12 @@ class AbstractStateManager() {
             }
         }
         ABSTRACT_STATES.forEach {
-            it.abstractTransitions.removeIf {
-                !ABSTRACT_STATES.contains(it.dest)
+            it.abstractTransitions.removeIf { at ->
+                !ABSTRACT_STATES.contains(at.dest).also {
+                    if (at.isExplicit()) {
+                        atuaMF.dstg.removeAbstractActionEnabiblity(at,atuaMF)
+                    }
+                }
             }
         }
     }
@@ -1798,6 +1802,7 @@ class AbstractStateManager() {
                                 if (oldAbstractEdge.label != newEdge.label) {
                                     oldAbstractEdge.source.data.abstractTransitions.remove(oldAbstractEdge.label)
                                     atuaMF.dstg.remove(oldAbstractEdge)
+                                    atuaMF.dstg.removeAbstractActionEnabiblity(oldAbstractEdge.label,atuaMF)
                                 }
                                 newAbstractTransitions.add(newEdge.label)
 
@@ -1839,6 +1844,7 @@ class AbstractStateManager() {
                                 if (oldAbstractEdge.label != newEdge.label) {
                                     oldAbstractEdge.source.data.abstractTransitions.remove(oldAbstractEdge.label)
                                     atuaMF.dstg.remove(oldAbstractEdge)
+                                    atuaMF.dstg.removeAbstractActionEnabiblity(oldAbstractEdge.label,atuaMF)
                                 }
                             }
 
@@ -2248,6 +2254,8 @@ class AbstractStateManager() {
                 }
             }
             addImplicitAbstractInteraction(destState, newAbstractionTransition, tracing, false)
+            if (newAbstractionTransition.source != newAbstractionTransition.dest)
+                atuaMF.dstg.updateAbstractActionEnability(newAbstractionTransition, atuaMF)
         }
         return newEdge
     }
@@ -2275,7 +2283,6 @@ class AbstractStateManager() {
             dest = destinationAbstractState,
             modelVersion = modelVersion
         )
-
         newAbstractionTransition1.interactions.add(interaction)
         if (prevWindowAbstractState != null)
             newAbstractionTransition1.dependentAbstractStates.add(prevWindowAbstractState)
@@ -2303,8 +2310,6 @@ class AbstractStateManager() {
             newAbstractionTransition1.guardEnabled = true
         }
         newAbstractionTransition1.activated = oldAbstractEdge.label.activated
-        if (newAbstractionTransition1.source != newAbstractionTransition1.dest)
-            atuaMF.dstg.updateAbstractActionEnability(newAbstractionTransition1, atuaMF)
         return Pair(newAbstractionTransition1, newEdge1)
     }
 
@@ -2353,8 +2358,6 @@ class AbstractStateManager() {
             newAbstractionTransition.guardEnabled = true
         }
         newAbstractionTransition.activated = oldAbstractEdge.label.activated
-        if (newAbstractionTransition.source != newAbstractionTransition.dest)
-            atuaMF.dstg.updateAbstractActionEnability(newAbstractionTransition, atuaMF)
         return Pair(newAbstractionTransition, newEdge1)
     }
 
@@ -2384,7 +2387,8 @@ class AbstractStateManager() {
         } else
             null
         if (p_prevWindowAbstractState != null)
-            if (currentAbstractState.window == p_prevWindowAbstractState.window) {
+            if (currentAbstractState.window == p_prevWindowAbstractState.window
+                && !currentAbstractState.isOpeningMenus) {
                 goBackAbstractActions.add(abstractTransition.abstractAction)
                 atuaMF.dstg.abstractActionEnables.remove(abstractTransition.abstractAction)
                 val inputs = abstractTransition.source.getInputsByAbstractAction(abstractTransition.abstractAction)
@@ -3189,7 +3193,7 @@ class AbstractStateManager() {
                 implicitAbstractTransition = null
             }
             if (implicitAbstractTransition != null) {
-                sourceAbstractState.increaseActionCount2(implicitAbstractTransition.abstractAction, false)
+                // sourceAbstractState.increaseActionCount2(implicitAbstractTransition.abstractAction, false)
                 implicitAbstractTransition!!.guardEnabled = abstractTransition.guardEnabled
             }
         }
@@ -3289,7 +3293,6 @@ class AbstractStateManager() {
         )
         similarAbstractTransitions.removeIf {
             it.interactions.isNotEmpty()
-                    || (it.modelVersion === ModelVersion.BASE && it.isExplicit())
         }
         correctAbstractTransition.source.abstractTransitions.removeIf { similarAbstractTransitions.contains(it) }
         atuaMF.dstg.edges(correctAbstractTransition.source)

@@ -318,8 +318,9 @@ class ProbabilityBasedPathFinder {
             val traveredAbstractTransitions = traversedEdges.map { it.value.first }
             val allAvailableActions = source.getAvailableActions()
             val validAbstractActions = allAvailableActions.filter {
-                it.actionType != AbstractActionType.RESET_APP
-                        || depth == 0
+                (it.actionType != AbstractActionType.RESET_APP
+                        || depth == 0) && it.actionType != AbstractActionType.ACTION_QUEUE
+                        && it.actionType != AbstractActionType.UNKNOWN && it.actionType != AbstractActionType.MINIMIZE_MAXIMIZE
             }
             validAbstractActions.forEach { abstractAction ->
                 val abstractTransitions = source.abstractTransitions.filter {
@@ -392,7 +393,7 @@ class ProbabilityBasedPathFinder {
                                     .goBackAbstractActions.contains(abstractAction)
                             ) {
                                 val reachableAbstractActions =
-                                    atuaMF.dstg.abstractActionEnables[abstractAction]?.filter { it.key.actionType != AbstractActionType.RESET_APP }
+                                    atuaMF.dstg.abstractActionEnables[abstractAction]?.second?.filter { it.key.actionType != AbstractActionType.RESET_APP }
                                 if (reachableAbstractActions != null) {
                                     val abstractActionsByWindow = reachableAbstractActions.keys.groupBy { it.window }
                                     abstractActionsByWindow.forEach { window, abstractActions ->
@@ -427,7 +428,7 @@ class ProbabilityBasedPathFinder {
                                                 predictAbstractState.associateAbstractActionWithInputs(action, it)
                                             }
                                             val prob =
-                                                reachableAbstractActions[action]!!.second * 1.0 / reachableAbstractActions[action]!!.first
+                                                reachableAbstractActions[action]!! * 1.0 / atuaMF.dstg.abstractActionEnables[abstractAction]!!.first
                                             predictAbstractState.abstractActionsProbability.put(action, prob)
                                         }
                                         predictAbstractState.updateHashCode()

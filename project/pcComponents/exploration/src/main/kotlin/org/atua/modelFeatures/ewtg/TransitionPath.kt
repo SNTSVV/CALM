@@ -44,19 +44,22 @@ class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.Pa
                 cost+=5
             else
                 cost+=1
+        }
+        var finalReachPb = 1.0
+        path.values.drop(start).forEach {
             if (it.source is UncertainAbstractState) {
                 val reachPb = it.source.abstractActionsProbability[it.abstractAction]
-                val actionFaileur = 1.0-(reachPb?:0.0)
-                if (actionFaileur != 0.0) {
-                    cost+=(1.0 * actionFaileur)
-                }
+                if (reachPb != null)
+                    finalReachPb = finalReachPb * reachPb
             }
         }
+        val failurePb = 1.0 - finalReachPb
+        cost += (cost * failurePb)
         if (goal.isNotEmpty() && destination is UncertainAbstractState) {
             val avgProb = goal.intersect(destination.getAvailableInputs()).map { destination.getAbstractActionsWithSpecificInputs(it) }
                 .flatten().map { destination.abstractActionsProbability[it]?:0.0 }.average()
             val actionFailure = 1.0 - avgProb
-            cost+=(1.0 *actionFailure)
+            cost+=(cost *actionFailure)
         }
         return cost
     }

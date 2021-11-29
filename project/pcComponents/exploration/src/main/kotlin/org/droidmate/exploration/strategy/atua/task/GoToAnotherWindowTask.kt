@@ -38,7 +38,7 @@ open class GoToAnotherWindowTask constructor(
     delay: Long, useCoordinateClicks: Boolean
 ) : AbstractStrategyTask(atuaTestingStrategy, autautMF, delay, useCoordinateClicks) {
 
-    private val DEFAULT_MAX_COST: Double = 10.0
+    private val DEFAULT_MAX_COST: Double = 25.0
     protected var maxCost: Double = DEFAULT_MAX_COST
     private var tryOpenNavigationBar: Boolean = false
     private var tryScroll: Boolean = false
