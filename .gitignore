@@ -49,3 +49,5 @@ out
 *.apk
 ˜
 ~
+.idea
+~*.docx
