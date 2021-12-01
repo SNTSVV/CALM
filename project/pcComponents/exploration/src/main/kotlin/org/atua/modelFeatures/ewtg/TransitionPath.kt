@@ -15,7 +15,7 @@ package org.atua.modelFeatures.ewtg
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractTransition
 import org.atua.modelFeatures.dstg.AbstractState
-import org.atua.modelFeatures.dstg.UncertainAbstractState
+import org.atua.modelFeatures.dstg.PredictedAbstractState
 import org.atua.modelFeatures.helper.PathFindingHelper
 import kotlin.collections.HashMap
 
@@ -47,7 +47,7 @@ class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.Pa
         }
         var finalReachPb = 1.0
         path.values.drop(start).forEach {
-            if (it.source is UncertainAbstractState) {
+            if (it.source is PredictedAbstractState) {
                 val reachPb = it.source.abstractActionsProbability[it.abstractAction]
                 if (reachPb != null)
                     finalReachPb = finalReachPb * reachPb
@@ -55,7 +55,7 @@ class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.Pa
         }
         val failurePb = 1.0 - finalReachPb
         cost += (cost * failurePb)
-        if (goal.isNotEmpty() && destination is UncertainAbstractState) {
+        if (goal.isNotEmpty() && destination is PredictedAbstractState) {
             val avgProb = goal.intersect(destination.getAvailableInputs()).map { destination.getAbstractActionsWithSpecificInputs(it) }
                 .flatten().map { destination.abstractActionsProbability[it]?:0.0 }.average()
             val actionFailure = 1.0 - avgProb
@@ -77,8 +77,13 @@ class PathTraverser (val transitionPath: TransitionPath) {
             return null
         return transitionPath.path[latestEdgeId!!]
     }
+    fun getNextTransition(): AbstractTransition? {
+        if (latestEdgeId == null)
+            return null
+        return transitionPath.path[latestEdgeId!!+1]
+    }
     fun next(): AbstractTransition? {
-        if(finalStateAchieved())
+        if(isEnded())
             return null
         if (latestEdgeId == null)
             latestEdgeId = 0
@@ -88,7 +93,7 @@ class PathTraverser (val transitionPath: TransitionPath) {
         return edge
     }
 
-    fun finalStateAchieved(): Boolean {
+    fun isEnded(): Boolean {
         return latestEdgeId == transitionPath.path!!.size-1
     }
 

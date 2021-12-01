@@ -812,17 +812,7 @@ class ATUAMF(
     }
 
     private fun computeRotation(): org.atua.modelFeatures.Rotation {
-        /*val roots = newState.widgets.filter { !it.hasParent || it.resourceId=="android.id/content"}
-        if (roots.isEmpty())
-            return Rotation.PORTRAIT
-        val root = roots.sortedBy { it.boundaries.height+it.boundaries.width }.last()
-        val height = root.boundaries.height
-        val width = root.boundaries.width
-        if (height > width) {
-            return Rotation.PORTRAIT
-        }
-        else
-            return Rotation.LANDSCAPE*/
+
         var rotation = 0
         runBlocking {
             rotation = getDeviceRotation()

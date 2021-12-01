@@ -19,7 +19,7 @@ import org.atua.modelFeatures.ewtg.Input
 import org.atua.modelFeatures.ewtg.window.Window
 import org.droidmate.explorationModel.interaction.State
 
-class UncertainAbstractState(
+class PredictedAbstractState(
     activity: String,
     attributeValuationMaps: ArrayList<AttributeValuationMap> = arrayListOf(),
     window: Window,

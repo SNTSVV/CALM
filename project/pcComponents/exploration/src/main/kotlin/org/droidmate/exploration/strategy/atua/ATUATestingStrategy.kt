@@ -100,8 +100,8 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
                             val abstractStates = AbstractStateManager.INSTANCE.getPotentialAbstractStates().filter { it.window == window }
                             abstractStates.isNotEmpty()
                         }) {
-                        phaseStrategy = PhaseTwoStrategy(this, scaleFactor, delay, useCoordinateClicks, unreachableWindows)
-//                        phaseStrategy = PhaseThreeStrategy(this,scaleFactor, delay, useCoordinateClicks)
+//                        phaseStrategy = PhaseTwoStrategy(this, scaleFactor, delay, useCoordinateClicks, unreachableWindows)
+                        phaseStrategy = PhaseThreeStrategy(this,scaleFactor, delay, useCoordinateClicks)
                         atuaMF.updateStage1Info(eContext)
 //                         atuaMF.updateStage2Info(eContext)
                     }

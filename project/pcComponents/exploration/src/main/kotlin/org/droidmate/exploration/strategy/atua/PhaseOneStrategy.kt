@@ -184,7 +184,7 @@ class PhaseOneStrategy(
             return false
         }
         reachedWindow
-        if (windowRandomExplorationBudget.keys.subtract(outofbudgetWindows).union(unreachableWindows).isEmpty())
+        if (windowRandomExplorationBudget.keys.union(targetWindowTryCount.keys).subtract(outofbudgetWindows.union(unreachableWindows)).isEmpty())
             return false
         if (delayCheckingBlockStates > 0) {
             delayCheckingBlockStates--
@@ -665,7 +665,7 @@ class PhaseOneStrategy(
             return
         }
         setRandomExploration(randomExplorationTask, currentState, false, false)
-        forceEnd = true
+//        forceEnd = true
         return
     }
 
@@ -1375,15 +1375,13 @@ class PhaseOneStrategy(
     }
 
 
-    private fun selectTargetWindow(currentState: State<*>, considerContainingTargetWindowsOnly: Boolean) {
+    private fun selectTargetWindow(currentState: State<*>, considerContainingTargetInputsOnly: Boolean) {
         log.info("Trying to select nearest target...")
         //Try finding reachable target
         val maxTry = targetWindowTryCount.size / 2 + 1
-        val explicitTargetWindows = WindowManager.instance.allMeaningWindows.filter { window ->
-            phaseTargetInputs.any { it.sourceWindow == window && it.widget?.witnessed?:true }
-        }
+
         var candidates =
-            targetWindowTryCount.filter { isExplicitCandidateWindow(explicitTargetWindows, it) }.map { it.key }
+            targetWindowTryCount.filter { isExplicitCandidateWindow(it.key) }.map { it.key }
         /*if (candidates.isNotEmpty()) {
             val leastTriedWindow = candidates.map { Pair<Window, Int>(first = it.key, second = it.value) }
                 .groupBy { it.second }.entries.sortedBy { it.key }.first()
@@ -1399,7 +1397,7 @@ class PhaseOneStrategy(
                 targetWindow = leastTriedWindow.value.random().first
             }
         }*/
-        if (candidates.isEmpty() && !considerContainingTargetWindowsOnly) {
+        if (candidates.isEmpty() && !considerContainingTargetInputsOnly) {
             candidates = targetWindowTryCount.filter { isCandidateWindow(it) }.map { it.key }
         }
         val currentAppState = atuaMF.getAbstractState(currentState)!!
@@ -1450,6 +1448,8 @@ class PhaseOneStrategy(
         if (shorestPaths.isNotEmpty()) {
             val minPath = shorestPaths.minBy { it.cost() }
             targetWindow = minPath!!.destination.window
+        } else if (candidates.isNotEmpty()){
+            targetWindow = candidates.random()
         } else {
             targetWindow = null
         }
@@ -1499,10 +1499,15 @@ class PhaseOneStrategy(
         actionCountSinceSelectTarget = 0
     }
 
-    private fun isExplicitCandidateWindow(explicitTargetWindows: List<Window>, it: Map.Entry<Window, Int>) =
-        explicitTargetWindows.contains(it.key)
-                && !fullyCoveredWindows.contains(it.key)
-                && !unreachableWindows.contains(it.key)
+    private fun isExplicitCandidateWindow(window: Window): Boolean {
+        val explicitTargetWindows = WindowManager.instance.allMeaningWindows.filter { window ->
+            phaseTargetInputs.any { it.sourceWindow == window && it.widget?.witnessed?:true }
+        }
+        return explicitTargetWindows.contains(window)
+                && !fullyCoveredWindows.contains(window)
+                && !unreachableWindows.contains(window)
+    }
+
 
     private fun isCandidateWindow(it: Map.Entry<Window, Int>) =
         !outofbudgetWindows.contains(it.key) && !fullyCoveredWindows.contains(it.key) && !unreachableWindows.contains(it.key)

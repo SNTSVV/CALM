@@ -132,12 +132,12 @@ class PhaseTwoStrategy(
             }
         }
         if (attempt < 0) {
-            if (atuaMF.statementMF!!.getCurrentModifiedMethodStatementCoverage() > initialCoverage) {
+            if (atuaMF.statementMF!!.getCurrentModifiedMethodStatementCoverage() > (initialCoverage+0.05)) {
                 targetWindowsCount.entries.removeIf {
                     !atuaMF.modifiedMethodsByWindow.containsKey(it.key)
                 }
                 gamma = gamma*0.5
-                attempt = (targetWindowsCount.size * scaleFactor*gamma).toInt()
+                attempt = (1 * scaleFactor).toInt()
                 initialCoverage = atuaMF.statementMF!!.getCurrentModifiedMethodStatementCoverage()
                 return true
             } else

@@ -14,12 +14,9 @@ package org.atua.modelFeatures.dstg
 
 import org.atua.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.ATUAMF
-import org.atua.modelFeatures.ewtg.Input
-import org.atua.modelFeatures.ewtg.window.Window
 import org.droidmate.exploration.ExplorationContext
 import org.droidmate.exploration.modelFeatures.graph.*
 import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF
-import org.droidmate.explorationModel.ExplorationTrace
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.BufferedWriter
@@ -170,7 +167,7 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
             edge.handlers.filter { it.value == true }.map { it.key }.map { statementCoverageMF.getMethodName(it) }.joinToString(separator = ";")
 
     fun cleanPredictedAbstractStates() {
-        edges().filter { it.destination?.data is UncertainAbstractState }.forEach {
+        edges().filter { it.destination?.data is PredictedAbstractState }.forEach {
             this.remove(it)
         }
     }

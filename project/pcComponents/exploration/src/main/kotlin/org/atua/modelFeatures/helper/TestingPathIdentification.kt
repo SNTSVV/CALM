@@ -1134,7 +1134,7 @@ class PathFindingHelper {
             val disablePath = LinkedList<AbstractTransition>()
             var pathTraverser = PathTraverser(transitionPath)
             // Move to after reset action
-            while (!pathTraverser.finalStateAchieved()) {
+            while (!pathTraverser.isEnded()) {
                 val edge = pathTraverser.next()
                 if (edge == null)
                     break
@@ -1142,7 +1142,7 @@ class PathFindingHelper {
                     break
                 }
             }
-            if (pathTraverser.finalStateAchieved()) {
+            if (pathTraverser.isEnded()) {
                 if (pathTraverser.getCurrentTransition()!!.abstractAction.isLaunchOrReset()) {
                     // This incorrect transition will be automatically removed
                     return
@@ -1151,7 +1151,7 @@ class PathFindingHelper {
                 pathTraverser = PathTraverser(transitionPath)
             }
 
-            while (!pathTraverser.finalStateAchieved()) {
+            while (!pathTraverser.isEnded()) {
                 val edge = pathTraverser.next()
                 if (edge == null)
                     break
@@ -1230,7 +1230,7 @@ class PathFindingHelper {
         private fun isFollowingTrace(path: TransitionPath): Boolean {
             val pathTraverser = PathTraverser(path)
             //move current cursor to the node after the RESET action
-            while (!pathTraverser.finalStateAchieved()) {
+            while (!pathTraverser.isEnded()) {
                 val nextTransition = pathTraverser.next()
                 if (nextTransition == null)
                     break
@@ -1239,7 +1239,7 @@ class PathFindingHelper {
                     break
                 }
             }
-            if (pathTraverser.finalStateAchieved()) {
+            if (pathTraverser.isEnded()) {
                 val prevTransition = pathTraverser.getCurrentTransition()
                 if (prevTransition != null && prevTransition.abstractAction.isLaunchOrReset())
                     return true
@@ -1250,7 +1250,7 @@ class PathFindingHelper {
             }
 
             val tracing = arrayListOf<Pair<Int, Int>>()
-            while (!pathTraverser.finalStateAchieved()) {
+            while (!pathTraverser.isEnded()) {
                 val nextTransition = pathTraverser.next()
                 if (nextTransition == null)
                     break
@@ -1281,7 +1281,7 @@ class PathFindingHelper {
 
             val pathTraverser = PathTraverser(path)
 
-            while (!pathTraverser.finalStateAchieved()) {
+            while (!pathTraverser.isEnded()) {
                 val nextTransition = pathTraverser.next()
                 if (nextTransition == null)
                     break
@@ -1300,7 +1300,7 @@ class PathFindingHelper {
             var initial = true
             while (iterator.hasNext()) {
                 val edge1 = iterator.next()
-                if (pathTraverser.finalStateAchieved()) {
+                if (pathTraverser.isEnded()) {
                     samePrefix = false
                     break
                 }

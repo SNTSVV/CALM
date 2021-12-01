@@ -20,7 +20,7 @@ import org.atua.modelFeatures.dstg.AbstractStateManager
 import org.atua.modelFeatures.dstg.AbstractTransition
 import org.atua.modelFeatures.dstg.Cardinality
 import org.atua.modelFeatures.dstg.DSTG
-import org.atua.modelFeatures.dstg.UncertainAbstractState
+import org.atua.modelFeatures.dstg.PredictedAbstractState
 import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.modelFeatures.ewtg.Input
 import org.atua.modelFeatures.ewtg.TransitionPath
@@ -247,7 +247,7 @@ class ProbabilityBasedPathFinder {
             }
             if (nextTransitions.isEmpty())
                 return
-            if (foundPaths.isNotEmpty() && foundPaths.any { it.path.values.all { it.dest !is UncertainAbstractState } }) {
+            if (foundPaths.isNotEmpty() && foundPaths.any { it.path.values.all { it.dest !is PredictedAbstractState } }) {
                 return
             }
             val newMinCost = foundPaths.map { it.cost() }.min()?:minCost
@@ -329,7 +329,7 @@ class ProbabilityBasedPathFinder {
                             && it.source != it.dest
                             && it.activated == true}
                 val validAbstactTransitions = abstractTransitions.filter {
-                    it.dest !is UncertainAbstractState
+                    it.dest !is PredictedAbstractState
                             && (includeWTG || !it.fromWTG )
                             && (!considerGuardedTransitions || !it.guardEnabled ||
                             it.dependentAbstractStates.intersect(abstractStateStack.toList()).isNotEmpty())
@@ -360,13 +360,13 @@ class ProbabilityBasedPathFinder {
                     && pathType != PathFindingHelper.PathType.NORMAL
                     && (goalsByTarget.isNotEmpty() || windowAsTarget)) {
                     var predictedAction = false
-                    if (traveredAbstractTransitions.any { it.dest is UncertainAbstractState && it.abstractAction == abstractAction }) {
+                    if (traveredAbstractTransitions.any { it.dest is PredictedAbstractState && it.abstractAction == abstractAction }) {
                         predictedAction = true
                     }
                     if (!predictedAction) {
-                        val exisitingPredictedTransitions = abstractTransitions.filter { it.dest is UncertainAbstractState }
+                        val exisitingPredictedTransitions = abstractTransitions.filter { it.dest is PredictedAbstractState }
                         if (exisitingPredictedTransitions.isNotEmpty()) {
-                            if (!traveredAbstractTransitions.any { it.abstractAction == abstractAction && it.dest is UncertainAbstractState }) {
+                            if (!traveredAbstractTransitions.any { it.abstractAction == abstractAction && it.dest is PredictedAbstractState }) {
                                 exisitingPredictedTransitions.forEach {
                                     processAbstractTransition(
                                         abstractTransition = it,
@@ -398,7 +398,7 @@ class ProbabilityBasedPathFinder {
                                     val abstractActionsByWindow = reachableAbstractActions.keys.groupBy { it.window }
                                     abstractActionsByWindow.forEach { window, abstractActions ->
                                         val activity = window.classType
-                                        val predictAbstractState = UncertainAbstractState(
+                                        val predictAbstractState = PredictedAbstractState(
                                             activity = activity,
                                             window = window,
                                             rotation = Rotation.PORTRAIT,

@@ -284,7 +284,6 @@ class RandomExplorationTask constructor(
         }
         goToLockedWindowTask = null
         isClickedShutterButton = false
-
         if (currentState.widgets.any { it.isKeyboard } && currentAbstractState.shouldNotCloseKeyboard == false) {
             val keyboardAction = dealWithKeyboard(currentState)
             if (keyboardAction != null)
@@ -336,11 +335,17 @@ class RandomExplorationTask constructor(
             }*/
         }
 
-        if (prevAbstractState!=null && prevAbstractState.window!=currentAbstractState.window
-                && prevAbstractState.window is Activity
-                && currentAbstractState.window is Activity) {
-            dataFilled = false
-            fillingData = false
+        if (dataFilled) {
+            val fillingTextTask = PrepareContextTask(atuaMF,atuaStrategy,delay,useCoordinateClicks)
+            if (fillingTextTask.isAvailable(currentState)) {
+                val currentUserlikeInputWidgets = fillingTextTask.inputFillDecision.keys.map { it.uid }
+                val beforeUserlikeInputWidgets = fillDataTask.inputFillDecision.map { it.key.uid }
+                if (currentUserlikeInputWidgets.subtract(beforeUserlikeInputWidgets).isNotEmpty()) {
+                    dataFilled = false
+                    fillingData = false
+                }
+            }
+
         }
         var action: ExplorationAction? = null
 

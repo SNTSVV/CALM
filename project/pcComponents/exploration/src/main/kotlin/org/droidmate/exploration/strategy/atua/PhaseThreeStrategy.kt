@@ -271,16 +271,9 @@ class PhaseThreeStrategy(
             }
         }*/
         val goalByAbstractState = HashMap<AbstractState, List<Input>>()
-        AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
-            it.window == targetWindow
-                    && it.attributeValuationMaps.isNotEmpty()
-                    && it.guiStates.isNotEmpty()
-        }.filterNot { it is VirtualAbstractState }.filter{
-            it.getAvailableInputs().contains(targetEvent)
-        }.forEach {
-            goalByAbstractState.put(it, listOf(targetEvent!!))
-            targetScores.put(it,1.0)
-        }
+        val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(targetWindow!!)!!
+        goalByAbstractState.put(virtualAbstractState, listOf(targetEvent!!))
+        targetScores.put(virtualAbstractState,1.0)
         val transitionPaths = ArrayList<TransitionPath>()
         getPathToStatesBasedOnPathType(pathType,transitionPaths,targetScores,currentAbState,currentState,false,false,goalByAbstractState,maxCost)
         return transitionPaths
