@@ -23,6 +23,7 @@ import org.atua.modelFeatures.ewtg.WindowManager
 import org.atua.modelFeatures.ewtg.window.Dialog
 import org.atua.modelFeatures.ewtg.window.Launcher
 import org.atua.modelFeatures.helper.PathFindingHelper
+import org.atua.modelFeatures.helper.ProbabilityBasedPathFinder
 import org.atua.modelFeatures.informationRetrieval.InformationRetrieval
 import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF
 import org.droidmate.exploration.strategy.atua.task.*
@@ -377,7 +378,7 @@ class PhaseThreeStrategy(
         phaseState = PhaseState.P3_GO_TO_RELATED_NODE
         if (goToAnotherNode.isAvailable(currentState = currentState,
                 destWindow = relatedWindow!!,
-                isWindowAsTarget = false,
+                isWindowAsTarget = true,
                 isExploration =  false,
                 includePressback = true,
                 includeResetApp =  false)) {
@@ -386,7 +387,7 @@ class PhaseThreeStrategy(
         }
         if (goToAnotherNode.isAvailable(currentState = currentState,
                 destWindow = relatedWindow!!,
-                isWindowAsTarget = false,
+                isWindowAsTarget = true,
                 isExploration =  false,
                 includePressback = true,
                 includeResetApp =  true)) {
@@ -423,7 +424,7 @@ class PhaseThreeStrategy(
         if (strategyTask is RandomExplorationTask
                 && (strategyTask as RandomExplorationTask).stopWhenHavingTestPath
                 && !currentAppState.isRequireRandomExploration()) {
-            if (goToAnotherNode.isAvailable(currentState, relatedWindow!!,false, true, true,false)) {
+            if (goToAnotherNode.isAvailable(currentState, relatedWindow!!,true, true, true,false)) {
                 setGoToRelatedWindow(goToAnotherNode, currentState)
                 return
             }
@@ -438,8 +439,9 @@ class PhaseThreeStrategy(
             return
         }
         selectTargetStaticEvent(currentState)
-        setRandomExploration(randomExplorationTask, currentState)
+        //setRandomExploration(randomExplorationTask, currentState)
         phaseState = PhaseState.P3_INITIAL
+        nextActionOnInitial(currentAppState, randomExplorationTask, currentState, goToAnotherNode)
         return
     }
 
@@ -690,7 +692,7 @@ class PhaseThreeStrategy(
                 setRandomExplorationInRelatedWindow(randomExplorationTask, currentState)
                 return
             }
-            if (goToAnotherNode.isAvailable(currentState, relatedWindow!!, false, true, false,false)) {
+            if (goToAnotherNode.isAvailable(currentState, relatedWindow!!, true, true, false,false)) {
                 setGoToRelatedWindow(goToAnotherNode, currentState)
                 return
             }
@@ -732,7 +734,7 @@ class PhaseThreeStrategy(
                 setRandomExplorationInRelatedWindow(randomExplorationTask, currentState)
                 return
             }
-            if (goToAnotherNode.isAvailable(currentState, relatedWindow!!,false, true, false,false)) {
+            if (goToAnotherNode.isAvailable(currentState, relatedWindow!!,true, true, false,false)) {
                 setGoToRelatedWindow(goToAnotherNode, currentState)
                 return
             }
@@ -1002,6 +1004,8 @@ class PhaseThreeStrategy(
     }
 
     private fun selectRelatedWindow(currentState: State<*>, numTried: Int, maxTry: Int ) {
+        relatedWindow = null
+        val currentAppState = atuaMF.getAbstractState(currentState)!!
         var max = if (maxTry == 0) {
             if (eventWindowCorrelation.containsKey(targetEvent)) {
                 eventWindowCorrelation[targetEvent!!]!!.size / 2 + 1
@@ -1011,30 +1015,69 @@ class PhaseThreeStrategy(
         } else {
             maxTry
         }
+        val reachableWindows = ArrayList<Window>()
+        val windows = WindowManager.instance.allMeaningWindows.toList()
+        getReachableWindows(windows, currentAppState, currentState, reachableWindows)
         if (targetEvent!=null
                 && eventWindowCorrelation.containsKey(targetEvent!!)
                 && eventWindowCorrelation[targetEvent!!]!!.isNotEmpty()) {
             val currentEventWindowCorrelation = eventWindowCorrelation[targetEvent!!]!!.filter {  it.key != targetWindow!! && it.key !is Dialog }
             if (currentEventWindowCorrelation.isNotEmpty()) {
-                val pdForRelatedWindows = ProbabilityDistribution<Window>(currentEventWindowCorrelation)
+                val reachableRelatedWindows = currentEventWindowCorrelation.keys.intersect(reachableWindows)
+                if (reachableRelatedWindows.isNotEmpty()) {
+                    val pdForRelatedWindows = ProbabilityDistribution<Window>(currentEventWindowCorrelation.filter { reachableRelatedWindows.contains(it.key) })
+                    relatedWindow = pdForRelatedWindows.getRandomVariable()
+                }
+            } 
+        }
+        if (relatedWindow == null) {
+            val relatedWindows = windowsCorrelation.get(targetWindow)
+            val reachableRelatedWindows = relatedWindows?.keys?: emptyList<Window>().intersect(reachableWindows)
+            if (reachableRelatedWindows.isNotEmpty()) {
+                val pdForRelatedWindows = ProbabilityDistribution<Window>(relatedWindows!!.filter { reachableRelatedWindows.contains(it.key) })
                 relatedWindow = pdForRelatedWindows.getRandomVariable()
-            } else {
-                val pdForRelatedWindows = ProbabilityDistribution<Window>(windowScores)
-                relatedWindow = pdForRelatedWindows.getRandomVariable()
-            }
-        } else {
-            val candidates = windowsCorrelation.get(targetWindow)
-            if (candidates!=null && candidates.isNotEmpty()) {
-                val pdForRelatedWindows = ProbabilityDistribution<Window>(candidates)
-                relatedWindow = pdForRelatedWindows.getRandomVariable()
-            } else {
-                relatedWindow = null
             }
         }
+        if (relatedWindow == null) {
+            if (reachableWindows.isNotEmpty()) {
+                val pdForRelatedWindows = ProbabilityDistribution<Window>(reachableWindows.associateWith { 1.0 })
+                relatedWindow = pdForRelatedWindows.getRandomVariable()
+            }
+        }
+
        /* if (numTried< max && getPathsToWindowToExplore(currentState, relatedWindow!!,PathFindingHelper.PathType.ANY,false).isEmpty()) {
             selectRelatedWindow(currentState, numTried+1,max)
         }*/
 
+    }
+
+    private fun getReachableWindows(
+        windows: List<Window>,
+        currentAppState: AbstractState,
+        currentState: State<*>,
+        reachableWindows: ArrayList<Window>
+    ) {
+        windows.forEach {
+            val paths = ArrayList<TransitionPath>()
+            val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(it)!!
+            val stateWithScore = HashMap<AbstractState, Double>()
+            stateWithScore.put(virtualAbstractState, 1.0)
+
+            getPathToStatesBasedOnPathType(
+                pathType = PathFindingHelper.PathType.WIDGET_AS_TARGET,
+                transitionPaths = paths,
+                statesWithScore = stateWithScore,
+                currentAbstractState = currentAppState,
+                currentState = currentState,
+                shortest = true,
+                windowAsTarget = true,
+                goalByAbstractState = emptyMap(),
+                maxCost = ProbabilityBasedPathFinder.DEFAULT_MAX_COST
+            )
+            if (paths.isNotEmpty()) {
+                reachableWindows.add(it)
+            }
+        }
     }
 
     private fun setRandomExploration(randomExplorationTask: RandomExplorationTask, currentState: State<*>) {

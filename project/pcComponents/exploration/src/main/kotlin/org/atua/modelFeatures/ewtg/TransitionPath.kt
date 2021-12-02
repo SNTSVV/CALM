@@ -57,7 +57,7 @@ class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.Pa
         cost += (cost * failurePb)
         if (goal.isNotEmpty() && destination is PredictedAbstractState) {
             val avgProb = goal.intersect(destination.getAvailableInputs()).map { destination.getAbstractActionsWithSpecificInputs(it) }
-                .flatten().map { destination.abstractActionsProbability[it]?:0.0 }.average()
+                .flatten().map { destination.abstractActionsProbability[it]?:0.0 }.max()?:0.0
             val actionFailure = 1.0 - avgProb
             cost+=(cost *actionFailure)
         }

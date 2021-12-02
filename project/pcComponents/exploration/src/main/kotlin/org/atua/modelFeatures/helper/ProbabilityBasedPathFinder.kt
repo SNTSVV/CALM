@@ -72,12 +72,12 @@ class ProbabilityBasedPathFinder {
             if (autautMF.dstg.edges().all {  !finalTargets.map{it.window }.contains(it.destination?.data?.window)}) {
                 return
             }
-            if (goalsByTarget.isNotEmpty()) {
+           /* if (goalsByTarget.values.flatten().isNotEmpty()) {
                 val possibleActions = EWTG_DSTGMapping.INSTANCE.inputsByAbstractActions.filter { it.value.intersect(goalsByTarget.values.flatten()).isNotEmpty() }
                 if (possibleActions.isEmpty()) {
                     return
                 }
-            }
+            }*/
             val currentAbstractStateStack: List<AbstractState> = autautMF.getAbstractStateStack()
             when (pathType) {
                 PathFindingHelper.PathType.NORMAL -> findPathToTargetComponentByBFS(
@@ -320,7 +320,7 @@ class ProbabilityBasedPathFinder {
             val validAbstractActions = allAvailableActions.filter {
                 (it.actionType != AbstractActionType.RESET_APP
                         || depth == 0) && it.actionType != AbstractActionType.ACTION_QUEUE
-                        && it.actionType != AbstractActionType.UNKNOWN && it.actionType != AbstractActionType.MINIMIZE_MAXIMIZE
+                        && it.actionType != AbstractActionType.UNKNOWN
             }
             validAbstractActions.forEach { abstractAction ->
                 val abstractTransitions = source.abstractTransitions.filter {
@@ -395,6 +395,7 @@ class ProbabilityBasedPathFinder {
                                 val reachableAbstractActions =
                                     atuaMF.dstg.abstractActionEnables[abstractAction]?.second?.filter { it.key.actionType != AbstractActionType.RESET_APP }
                                 if (reachableAbstractActions != null) {
+                                    val totalcnt = atuaMF.dstg.abstractActionEnables[abstractAction]!!.first
                                     val abstractActionsByWindow = reachableAbstractActions.keys.groupBy { it.window }
                                     abstractActionsByWindow.forEach { window, abstractActions ->
                                         val activity = window.classType
@@ -409,27 +410,33 @@ class ProbabilityBasedPathFinder {
                                             inputMappings = HashMap()
                                         )
                                         abstractActions.forEach { action ->
-                                            if (!action.isWidgetAction()) {
-                                                if (!predictAbstractState.containsActionCount(action))
-                                                    predictAbstractState.setActionCount(action, 0)
-                                            }
-                                            if (action.attributeValuationMap != null && !predictAbstractState.attributeValuationMaps.contains(
-                                                    action.attributeValuationMap
-                                                )
-                                            ) {
-                                                predictAbstractState.attributeValuationMaps.add(action.attributeValuationMap)
-                                                predictAbstractState.avmCardinalities.putIfAbsent(
-                                                    action.attributeValuationMap,
-                                                    Cardinality.ONE
-                                                )
-                                            }
-                                            val inputs = EWTG_DSTGMapping.INSTANCE.inputsByAbstractActions.get(action)
-                                            inputs?.forEach {
-                                                predictAbstractState.associateAbstractActionWithInputs(action, it)
-                                            }
                                             val prob =
-                                                reachableAbstractActions[action]!! * 1.0 / atuaMF.dstg.abstractActionEnables[abstractAction]!!.first
-                                            predictAbstractState.abstractActionsProbability.put(action, prob)
+                                                reachableAbstractActions[action]!! * 1.0 / totalcnt
+                                            if (prob > 0.4) {
+                                                if (!action.isWidgetAction()) {
+                                                    if (!predictAbstractState.containsActionCount(action))
+                                                        predictAbstractState.setActionCount(action, 0)
+                                                }
+                                                if (action.attributeValuationMap != null && !predictAbstractState.attributeValuationMaps.contains(
+                                                        action.attributeValuationMap
+                                                    )
+                                                ) {
+                                                    predictAbstractState.attributeValuationMaps.add(action.attributeValuationMap)
+                                                    predictAbstractState.avmCardinalities.putIfAbsent(
+                                                        action.attributeValuationMap,
+                                                        Cardinality.ONE
+                                                    )
+                                                }
+                                                val inputs =
+                                                    EWTG_DSTGMapping.INSTANCE.inputsByAbstractActions.get(action)
+                                                inputs?.forEach {
+                                                    predictAbstractState.associateAbstractActionWithInputs(action, it)
+                                                }
+
+                                                predictAbstractState.abstractActionsProbability.put(action, prob)
+                                            } else {
+                                                val faileur = 1.0-prob
+                                            }
                                         }
                                         predictAbstractState.updateHashCode()
                                         val newAbstractTransition = AbstractTransition(
@@ -518,7 +525,7 @@ class ProbabilityBasedPathFinder {
                 } else {
                     cost = fullGraph.cost()
                 }
-                if (cost <= minCost) {
+                if (cost <= minCost && foundPaths.isNotEmpty()) {
                     if (!isDisablePath(fullGraph, pathType)) {
                         result = true
                         val nextAbstateStack = if (abstractTransition.abstractAction.isLaunchOrReset()) {
@@ -538,8 +545,9 @@ class ProbabilityBasedPathFinder {
                         if (prevEdgeId != null)
                             pathTracking.put(key, prevEdgeId)
                         nextTransitions.add(key)
-
                     }
+                } else {
+                     val a = cost
                 }
             }
             return result
@@ -555,7 +563,7 @@ class ProbabilityBasedPathFinder {
             }
             if (finalTargets.map { it.window }.contains(destination.window)) {
                 val goals = goalsByTarget.filter { it.key.window == destination.window && it.value.isNotEmpty() }
-                if (goals.isEmpty() && windowAsTarget) {
+                if (goals.isEmpty() || windowAsTarget) {
                     return true
                 } else if (goals.isNotEmpty()) {
                     if (destination.getAvailableInputs().intersect(goals.values.flatten()).isNotEmpty()) {

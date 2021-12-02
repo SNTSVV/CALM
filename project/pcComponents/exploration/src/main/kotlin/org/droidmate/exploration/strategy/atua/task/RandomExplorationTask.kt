@@ -239,8 +239,8 @@ class RandomExplorationTask constructor(
             }
             if (lockedWindow != null
                     && lockedWindow != currentAbstractState.window) {
-                dataFilled = false
-                fillingData = false
+                /*dataFilled = false
+                fillingData = false*/
                 if (!currentAbstractState.isRequireRandomExploration() && !Helper.isOptionsMenuLayout(currentState)
                     || actionOnOutOfAppCount >= 5 // to avoid the case that we are in outOfApp too long
                 ) {
@@ -345,42 +345,28 @@ class RandomExplorationTask constructor(
                     fillingData = false
                 }
             }
-
         }
         var action: ExplorationAction? = null
 
-        if (widgetActions.isEmpty()) {
-            if (fillingData) {
-                if (!fillDataTask.isTaskEnd(currentState))
-                    action = fillDataTask.chooseAction(currentState)
-                if (action != null) {
-                    return action
-                } else {
-                    fillingData = false
-                }
+        if (fillingData) {
+            if (!fillDataTask.isTaskEnd(currentState))
+                action = fillDataTask.chooseAction(currentState)
+            if (action != null) {
+                return action
+            } else {
+                fillingData = false
             }
-
-            /*if (dataFilled) {
-                val userlikedInputs = currentAbstractState.attributeValuationMaps.filter { it.isUserLikeInput() }
-                val userlikedInputsEWidget = userlikedInputs.map { currentAbstractState.EWTGWidgetMapping.get(it) }
-                val previousStateWidgets = prevAbstractState.EWTGWidgetMapping.values
-                if (userlikedInputsEWidget.isNotEmpty() && userlikedInputsEWidget.intersect(previousStateWidgets)
-                        .isEmpty()
-                ) {
-                    dataFilled = false
-                }
-            }*/
-            if (!dataFilled && !fillingData) {
-                val lastAction = atuaStrategy.eContext.getLastAction()
-                if (!lastAction.actionType.isTextInsert() && !currentAbstractState.isOpeningKeyboard) {
-                    if (fillDataTask.isAvailable(currentState, alwaysUseRandomInput)) {
-                        fillDataTask.initialize(currentState)
-                        fillingData = true
-                        dataFilled = true
-                        val action = fillDataTask.chooseAction(currentState)
-                        if (action != null)
-                            return action
-                    }
+        }
+        if (!dataFilled && !fillingData) {
+            val lastAction = atuaStrategy.eContext.getLastAction()
+            if (!lastAction.actionType.isTextInsert() && !currentAbstractState.isOpeningKeyboard) {
+                if (fillDataTask.isAvailable(currentState, alwaysUseRandomInput)) {
+                    fillDataTask.initialize(currentState)
+                    fillingData = true
+                    dataFilled = true
+                    val action = fillDataTask.chooseAction(currentState)
+                    if (action != null)
+                        return action
                 }
             }
         }

@@ -405,7 +405,7 @@ class PhaseTwoStrategy(
         return transitionPaths
     }
     override fun getCurrentTargetInputs(currentState: State<*>): Set<AbstractAction> {
-        val targetEvents = HashMap<Input, List<AbstractAction>>()
+        val targetEvents = ArrayList<AbstractAction>()
         targetEvents.clear()
 
         val abstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)!!
@@ -414,16 +414,22 @@ class PhaseTwoStrategy(
             val availableInputs = abstractState.getAvailableInputs()
             val windowTargetInputs = phase2TargetEvents.filter { it.key.sourceWindow == targetWindow }.keys
             val inputScore = HashMap<Input,Double>()
-            windowTargetInputs.filter { availableInputs.contains(it) }.forEach { input ->
+            windowTargetInputs
+                .filter { availableInputs.contains(it) }
+                .forEach { input ->
                 val score = computeInputScore(input)
-                inputScore.put(input,score)
+                if (score > 0.0)
+                    inputScore.put(input,score)
             }
             if (inputScore.isNotEmpty()) {
+                val exerciseCnt = budgetLeft
                 val pb = ProbabilityDistribution<Input>(inputScore)
-                val selectedInput = pb.getRandomVariable()
-                val abstractActions = atuaMF.validateEvent(selectedInput, currentState)
-                if (abstractActions.isNotEmpty()) {
-                    targetEvents.put(selectedInput, abstractActions)
+                while (targetEvents.size < exerciseCnt) {
+                    val selectedInput = pb.getRandomVariable()
+                    val abstractActions = atuaMF.validateEvent(selectedInput, currentState)
+                    if (abstractActions.isNotEmpty()) {
+                        targetEvents.addAll(abstractActions)
+                    }
                 }
             }
             val potentialAbstractInteractions = abstractState.abstractTransitions
@@ -431,7 +437,7 @@ class PhaseTwoStrategy(
                         && it.modelVersion == ModelVersion.BASE
                         && it.modifiedMethods.isNotEmpty()
                         && it.modifiedMethods.keys.any { !atuaMF.statementMF!!.executedMethodsMap.containsKey(it) }}
-            return targetEvents.map { it.value }.flatten().union( potentialAbstractInteractions.map { it.abstractAction }).distinct().toSet()
+            return targetEvents.union( potentialAbstractInteractions.map { it.abstractAction }).distinct().toSet()
         }
         return emptySet<AbstractAction>()
     }
@@ -561,21 +567,10 @@ class PhaseTwoStrategy(
             setRandomExploration(randomExplorationTask, currentState, currentAppState, true, lockWindow = false)
         }
         if (currentAppState.window == targetWindow) {
-            if (currentAppState.getUnExercisedActions(currentState, atuaMF,false).isNotEmpty()
-                || hasUnexploreWidgets(currentState)) {
+            if (currentAppState.getUnExercisedActions(currentState, atuaMF,false).isNotEmpty()) {
                 setRandomExplorationInTargetWindow(randomExplorationTask, currentState)
                 return
             }
-        }
-        if (goToAnotherNode.isAvailable(currentState = currentState,
-                destWindow = targetWindow!!,
-                isWindowAsTarget = false,
-                includePressback = true,
-                includeResetApp = false,
-                isExploration = true
-            )) {
-            setGoToTarget(goToAnotherNode, currentState)
-            return
         }
         if (goToTargetNodeTask.isAvailable(currentState,
                 destWindow = targetWindow!!,

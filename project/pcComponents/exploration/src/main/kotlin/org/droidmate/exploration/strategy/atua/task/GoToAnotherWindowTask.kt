@@ -164,7 +164,7 @@ open class GoToAnotherWindowTask constructor(
                         AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.hashCode == currentPath!!.getFinalDestination().hashCode } }
                 else
                     AbstractStateManager.INSTANCE.getVirtualAbstractState(currentPath!!.getFinalDestination().window)
-                val minCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!! + 1)
+                val minCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!!)
                 if (finalTarget != null)
                     ProbabilityBasedPathFinder.findPathToTargetComponent(
                         currentState = currentState,
@@ -353,13 +353,11 @@ open class GoToAnotherWindowTask constructor(
             }
         }*/
         if (pathTraverser!!.isEnded()) {
-            if (expectedAbstractState is VirtualAbstractState
-                && expectedAbstractState.window == currentAppState.window
+            if (expectedAbstractState.window == currentAppState.window
             ) {
-                return true
-            }
-            if (expectedAbstractState is PredictedAbstractState
-                && expectedAbstractState.window == currentAppState.window) {
+                if (expectedAbstractState is VirtualAbstractState) {
+                    return true
+                }
                 val currentInputs = currentAppState.getAvailableInputs()
                 if (pathTraverser!!.transitionPath.goal.isEmpty() || currentInputs.intersect(pathTraverser!!.transitionPath.goal)
                         .isNotEmpty()
@@ -709,7 +707,7 @@ open class GoToAnotherWindowTask constructor(
         includeResetApp: Boolean
     ): PathFindingHelper.PathType {
         return when (pathType) {
-            PathFindingHelper.PathType.WIDGET_AS_TARGET -> PathFindingHelper.PathType.WTG
+            PathFindingHelper.PathType.WIDGET_AS_TARGET -> PathFindingHelper.PathType.NORMAL
             // PathFindingHelper.PathType.NORMAL -> PathFindingHelper.PathType.WTG
 //            PathFindingHelper.PathType.PARTIAL_TRACE -> PathFindingHelper.PathType.WTG
             /*PathFindingHelper.PathType.NORMAL_RESET -> PathFindingHelper.PathType.WIDGET_AS_TARGET_RESET
@@ -721,6 +719,7 @@ open class GoToAnotherWindowTask constructor(
                 else
                     PathFindingHelper.PathType.NORMAL
             PathFindingHelper.PathType.FULLTRACE -> PathFindingHelper.PathType.NORMAL*/
+            PathFindingHelper.PathType.NORMAL -> PathFindingHelper.PathType.WTG
             PathFindingHelper.PathType.WTG -> PathFindingHelper.PathType.WIDGET_AS_TARGET
             else -> PathFindingHelper.PathType.ANY
         }
