@@ -1062,7 +1062,7 @@ class PhaseThreeStrategy(
             val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(it)!!
             val stateWithScore = HashMap<AbstractState, Double>()
             stateWithScore.put(virtualAbstractState, 1.0)
-
+    
             getPathToStatesBasedOnPathType(
                 pathType = PathFindingHelper.PathType.WIDGET_AS_TARGET,
                 transitionPaths = paths,

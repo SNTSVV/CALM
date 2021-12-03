@@ -50,6 +50,10 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
     var isFullyRandomExploration: Boolean = false
     var latestAbstractAction: AbstractAction? = null
     lateinit var phaseStrategy: AbstractPhaseStrategy
+    lateinit var phaseStrategy1: AbstractPhaseStrategy
+    lateinit var phaseStrategy2: AbstractPhaseStrategy
+    lateinit var phaseStrategy3: AbstractPhaseStrategy
+    var currentPhase: Int = 1
     //lateinit var phaseTwoStrategy: AbstractPhaseStrategy
     /**
      * Mutex for synchronization
@@ -68,7 +72,7 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
 /*        if (!phaseStrategy.fullControl && handleTargetAbsent.hasNext(eContext)) {
             return handleTargetAbsent.nextAction(eContext)
         }*/
-        var chosenAction: ExplorationAction
+        var chosenAction: ExplorationAction = ExplorationAction.pressBack()
         ExplorationTrace.widgetTargets.clear()
         val currentState = eContext.getCurrentState()
         val currentAbstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)
@@ -79,6 +83,8 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
             log.info("Cannot retrieve current abstract state.")
             return eContext.resetApp()
         }
+        log.info("Current abstract state: ${currentAbstractState}")
+        log.info("Abstract State counts: ${AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter{it.guiStates.isNotEmpty()}.size}")
 
         if ((AbstractStateManager.INSTANCE.launchStates[AbstractStateManager.LAUNCH_STATE.NORMAL_LAUNCH]==currentAbstractState
                 || AbstractStateManager.INSTANCE.launchStates[AbstractStateManager.LAUNCH_STATE.RESET_LAUNCH]==currentAbstractState)
@@ -89,8 +95,43 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
 //        if(currentAbstractState.isOpeningKeyboard && !AbstractStateManager.instance.ABSTRACT_STATES.any { it !is VirtualAbstractState && it.window == currentAbstractState.window && !it.isOpeningKeyboard }) {
 //            return GlobalAction(actionType = ActionType.CloseKeyboard)
 //        }
-
-        if (!phaseStrategy.hasNextAction(eContext.getCurrentState())) {
+        if  (currentPhase == 1) {
+            if (phaseStrategy1.hasNextAction(eContext.getCurrentState())) {
+                phaseStrategy = phaseStrategy1
+                chosenAction = phaseStrategy1.nextAction(eContext)
+            }
+            else {
+                val unreachableWindows = (phaseStrategy1 as PhaseOneStrategy).unreachableWindows
+                phaseStrategy2 = PhaseTwoStrategy(this, scaleFactor, delay, useCoordinateClicks, unreachableWindows)
+                atuaMF.updateStage1Info(eContext)
+                currentPhase = 2
+            }
+        }
+        if (currentPhase == 2) {
+            /*if (phaseStrategy1.hasNextAction(eContext.getCurrentState())) {
+                phaseStrategy = phaseStrategy1
+                chosenAction = phaseStrategy1.nextAction(eContext)
+            } else*/ if (phaseStrategy2.hasNextAction(eContext.getCurrentState())) {
+                phaseStrategy = phaseStrategy2
+                chosenAction = phaseStrategy2.nextAction(eContext)
+            } else {
+                phaseStrategy3 = PhaseThreeStrategy(this, scaleFactor, delay, useCoordinateClicks)
+                atuaMF.updateStage2Info(eContext)
+                currentPhase = 3
+            }
+        }
+        if (currentPhase == 3) {
+            /*if (phaseStrategy1.hasNextAction(eContext.getCurrentState())) {
+                phaseStrategy = phaseStrategy1
+                chosenAction = phaseStrategy1.nextAction(eContext)
+            } else */if (phaseStrategy3.hasNextAction(eContext.getCurrentState())) {
+                phaseStrategy = phaseStrategy3
+                chosenAction = phaseStrategy3.nextAction(eContext)
+            } else {
+                return ExplorationAction.terminateApp()
+            }
+        }
+        /*if (!phaseStrategy.hasNextAction(eContext.getCurrentState())) {
             if (phaseStrategy is PhaseOneStrategy) {
                 val unreachableWindows = (phaseStrategy as PhaseOneStrategy).unreachableWindows
                 val potentialTargetWindows =
@@ -115,12 +156,7 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
             } else if (phaseStrategy is PhaseThreeStrategy) {
                 return ExplorationAction.terminateApp()
             }
-        }
-
-        log.info("Current abstract state: ${currentAbstractState}")
-        log.info("Abstract State counts: ${AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter{it.guiStates.isNotEmpty()}.size}")
-        val availableWidgets = eContext.getCurrentState().widgets
-        chosenAction = phaseStrategy.nextAction(eContext)
+        }*/
         prevNode = atuaMF.getAbstractState(eContext.getCurrentState())
         return chosenAction
     }
@@ -144,7 +180,9 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
     override fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> initialize(initialContext: ExplorationContext<M, S, W>) {
         super.initialize(initialContext)
         eContext = initialContext
-        phaseStrategy = PhaseOneStrategy(this,scaleFactor,delay, useCoordinateClicks)
+        phaseStrategy1 = PhaseOneStrategy(this,scaleFactor,delay, useCoordinateClicks)
+        phaseStrategy = phaseStrategy1
+        currentPhase = 1
     }
 
 

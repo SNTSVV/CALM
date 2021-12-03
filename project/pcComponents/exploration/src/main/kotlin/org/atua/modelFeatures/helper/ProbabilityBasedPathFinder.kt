@@ -99,7 +99,7 @@ class ProbabilityBasedPathFinder {
                     pathType = pathType,
                     targetTraces = targetTraces,
                     currentAbstractStateStack = currentAbstractStateStack,
-                    goalsByTarget = emptyMap(),
+                    goalsByTarget = goalsByTarget,
                     minCost = maxCost,
                     windowAsTarget = windowAsTarget
                 )
@@ -390,7 +390,7 @@ class ProbabilityBasedPathFinder {
                         } else {
                             // predict destination
                             if (!AbstractStateManager.INSTANCE
-                                    .goBackAbstractActions.contains(abstractAction)
+                                    .goBackAbstractActions.contains(abstractAction) || true
                             ) {
                                 val reachableAbstractActions =
                                     atuaMF.dstg.abstractActionEnables[abstractAction]?.second?.filter { it.key.actionType != AbstractActionType.RESET_APP }
@@ -519,13 +519,13 @@ class ProbabilityBasedPathFinder {
                     val targetInputs = goalsByTarget.filter { it.key.window == abstractTransition.dest.window }.values.flatten().distinct()
                     fullGraph.goal.addAll(targetInputs)
                     cost = fullGraph.cost()
-                    if (cost <= minCost ) {
+                    if (cost <= minCost) {
                         foundPaths.add(fullGraph)
                     }
                 } else {
                     cost = fullGraph.cost()
                 }
-                if (cost <= minCost && foundPaths.isNotEmpty()) {
+                if (cost <= minCost) {
                     if (!isDisablePath(fullGraph, pathType)) {
                         result = true
                         val nextAbstateStack = if (abstractTransition.abstractAction.isLaunchOrReset()) {

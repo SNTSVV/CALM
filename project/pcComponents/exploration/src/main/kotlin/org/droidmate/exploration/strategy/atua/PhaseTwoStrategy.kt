@@ -357,6 +357,10 @@ class PhaseTwoStrategy(
         val transitionPaths = ArrayList<TransitionPath>()
         getPathToStatesBasedOnPathType(pathType, transitionPaths, targetAbstractStatesPbMap, currentAbState, currentState,false,inputScore.isEmpty(),
            targetAbstractStateWithGoals,maxCost)
+        if (transitionPaths.isEmpty()) {
+            getPathToStatesBasedOnPathType(pathType, transitionPaths, targetAbstractStatesPbMap, currentAbState, currentState,false,true,
+                targetAbstractStateWithGoals,maxCost)
+        }
         return transitionPaths
     }
 
@@ -422,7 +426,10 @@ class PhaseTwoStrategy(
                     inputScore.put(input,score)
             }
             if (inputScore.isNotEmpty()) {
-                val exerciseCnt = budgetLeft
+                val exerciseCnt =  if ( budgetLeft > 0 )
+                    budgetLeft
+                else
+                    computeExerciseTestBudget(currentState)
                 val pb = ProbabilityDistribution<Input>(inputScore)
                 while (targetEvents.size < exerciseCnt) {
                     val selectedInput = pb.getRandomVariable()
@@ -483,13 +490,8 @@ class PhaseTwoStrategy(
                 setExerciseTarget(exerciseTargetComponentTask, currentState)
                 return
             }
-            val targetWindowEvents = phase2TargetEvents.filter {
-                it.key.sourceWindow == targetWindow!!
-            }
             setRandomExplorationInTargetWindow(randomExplorationTask, currentState)
             return
-            /*
-                    return*/
         }
         if (currentAppState.getUnExercisedActions(currentState, atuaMF,false).isNotEmpty()
             || hasUnexploreWidgets(currentState)) {
@@ -542,19 +544,28 @@ class PhaseTwoStrategy(
         }
         budgetType = BudgetType.EXERCISE_TARGET
         val currentAppState = atuaMF.getAbstractState(currentState)!!
+        val exerciseTestBudget =
+            computeExerciseTestBudget(currentState)
+        budgetLeft = exerciseTestBudget
+    }
+
+    private fun computeExerciseTestBudget(currentState: State<*>): Int {
         val inputWidgetCount = Helper.getUserInputFields(currentState).size
         //val inputWidgetCount = 1
-        val targetEvents = phase2TargetEvents.filter { it.key.sourceWindow == targetWindow && it.key.verifiedEventHandlers.isNotEmpty() }
+        val targetEvents =
+            phase2TargetEvents.filter { it.key.sourceWindow == targetWindow && it.key.verifiedEventHandlers.isNotEmpty() }
         var targetEventCount = targetEvents.size
         if (targetEventCount == 0)
             targetEventCount = 1
         val undiscoverdTargetHiddenHandlers = atuaMF.untriggeredTargetHiddenHandlers.filter {
             atuaMF.windowHandlersHashMap.get(targetWindow!!)?.contains(it) ?: false
         }
-//        if (undiscoverdTargetHiddenHandlers.isNotEmpty())
-//            budgetLeft = (targetEventCount * (inputWidgetCount+1)+ log2(undiscoverdTargetHiddenHandlers.size.toDouble()) * scaleFactor).toInt()
-//        else
-        budgetLeft = ((targetEventCount * (inputWidgetCount + 1)+undiscoverdTargetHiddenHandlers.size) * scaleFactor).toInt()
+        //        if (undiscoverdTargetHiddenHandlers.isNotEmpty())
+        //            budgetLeft = (targetEventCount * (inputWidgetCount+1)+ log2(undiscoverdTargetHiddenHandlers.size.toDouble()) * scaleFactor).toInt()
+        //        else
+        val exerciseTestBudget =
+            ((targetEventCount * (inputWidgetCount + 1) + undiscoverdTargetHiddenHandlers.size) * scaleFactor).toInt()
+        return exerciseTestBudget
     }
 
     private fun nextActionOnExerciseTargetWindow(currentState: State<*>, currentAppState: AbstractState, randomExplorationTask: RandomExplorationTask, goToTargetNodeTask: GoToTargetWindowTask, goToAnotherNode: GoToAnotherWindowTask, exerciseTargetComponentTask: ExerciseTargetComponentTask) {

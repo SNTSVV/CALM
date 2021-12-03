@@ -433,16 +433,19 @@ class PhaseOneStrategy(
                     targetWindow = currentAppState.window
                 } else if (!explicitTargetWindows.contains(targetWindow)
                     && !explicitTargetWindows.contains(currentAppState.window)
+                    && !outofbudgetWindows.contains(currentAppState.window)
                 ) {
                     resetStrategyTask(currentState)
                     targetWindow = currentAppState.window
                 } else if (!explicitTargetWindows.contains(targetWindow)
                     && explicitTargetWindows.contains(currentAppState.window)
+                    && !outofbudgetWindows.contains(currentAppState.window)
                 ) {
                     resetStrategyTask(currentState)
                     targetWindow = currentAppState.window
                 } else if (explicitTargetWindows.contains(targetWindow)
                     && explicitTargetWindows.contains(currentAppState.window)
+                    && !outofbudgetWindows.contains(currentAppState.window)
                 ) {
                     if (getCurrentTargetInputs(currentState).isNotEmpty()) {
                         resetStrategyTask(currentState)
@@ -476,7 +479,7 @@ class PhaseOneStrategy(
                     resetStrategyTask(currentState)
                 }
             }
-        } else if (outofbudgetWindows.contains(targetWindow!!) && !explicitTargetWindows.contains(targetWindow!!)) {
+        } else if (outofbudgetWindows.contains(targetWindow!!) ) {
             //try select another target window
             selectTargetWindow(currentState, false).also {
                 resetStrategyTask(currentState)
@@ -665,7 +668,7 @@ class PhaseOneStrategy(
             return
         }
         setRandomExploration(randomExplorationTask, currentState, false, false)
-//        forceEnd = true
+        forceEnd = true
         return
     }
 
@@ -875,7 +878,7 @@ class PhaseOneStrategy(
         ) return
         val bkTargetWindow = targetWindow
         selectTargetWindow(currentState, true)
-        if (targetWindow!=null) {
+        if (targetWindow!=null && targetWindow!=bkTargetWindow) {
             resetStrategyTask(currentState)
             nextActionOnInitial(
                 currentAppState,
@@ -899,19 +902,8 @@ class PhaseOneStrategy(
             setRandomExploration(randomExplorationTask, currentState, false, false)
             return
         }
-        selectTargetWindow(currentState, false)
-        if (targetWindow != null) {
-            resetStrategyTask(currentState)
-            nextActionOnInitial(
-                currentAppState,
-                exerciseTargetComponentTask,
-                currentState,
-                randomExplorationTask,
-                goToAnotherNode,
-                goToTargetNodeTask
-            )
-            return
-        }
+        targetWindow = null
+        strategyTask = null
         nextActionWithoutTargetWindow(currentState,currentAppState,randomExplorationTask,goToAnotherNode)
         return
     }
@@ -1009,7 +1001,7 @@ class PhaseOneStrategy(
             setRandomExploration(randomExplorationTask, currentState)
             return
         }*/
-        forceEnd = true
+//        forceEnd = true
         return
     }
 
@@ -1270,7 +1262,7 @@ class PhaseOneStrategy(
             phaseState = PhaseState.P1_INITIAL
             return
         }*/
-        forceEnd = true
+//        forceEnd = true
         return
     }
 
@@ -1506,8 +1498,8 @@ class PhaseOneStrategy(
         return explicitTargetWindows.contains(window)
                 && !fullyCoveredWindows.contains(window)
                 && !unreachableWindows.contains(window)
+                && !outofbudgetWindows.contains(window)
     }
-
 
     private fun isCandidateWindow(it: Map.Entry<Window, Int>) =
         !outofbudgetWindows.contains(it.key) && !fullyCoveredWindows.contains(it.key) && !unreachableWindows.contains(it.key)
@@ -1567,6 +1559,19 @@ class PhaseOneStrategy(
             goalByAbstractState = goalByAbstractState,
             maxCost = maxCost
         )
+        if (transitionPaths.isEmpty()) {
+            getPathToStatesBasedOnPathType(
+                pathType,
+                transitionPaths,
+                stateByActionCount,
+                currentAbstractState,
+                currentState,
+                true,
+                windowAsTarget = true,
+                goalByAbstractState = goalByAbstractState,
+                maxCost = maxCost
+            )
+        }
         return transitionPaths
     }
 
@@ -1631,6 +1636,19 @@ class PhaseOneStrategy(
             goalByAbstractState,
             maxCost
         )
+        if (transitionPaths.isEmpty()) {
+            getPathToStatesBasedOnPathType(
+                pathType,
+                transitionPaths,
+                stateScores,
+                currentAbstractState,
+                currentState,
+                true,
+                true,
+                goalByAbstractState,
+                maxCost
+            )
+        }
         /*if (transitionPaths.isEmpty() && currentAbstractState.window != targetWindow) {
             log.debug("No path from $currentAbstractState to $targetWindow!!")
             val virtualAbstractStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.window == targetWindow }
@@ -1711,7 +1729,7 @@ class PhaseOneStrategy(
 
     private fun isAvailableTargetWindow(currentAppState: AbstractState): Boolean {
         return targetWindowTryCount.filterNot {
-            outofbudgetWindows.contains(it.key) || fullyCoveredWindows.contains(it.key)
+            fullyCoveredWindows.contains(it.key)
         }.any { it.key == currentAppState.window }
     }
 
