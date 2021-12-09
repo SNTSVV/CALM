@@ -106,11 +106,16 @@ open class ExploreCommandBuilder(
     }
 
     private fun fromConfig(cfg: ConfigurationWrapper): ExploreCommandBuilder {
+        conditionalEnable(cfg[ConfigProperties.Strategies.manual]) {
+            strategies.add(DefaultStrategies.manual(getNextSelectorPriority()))
+        }
+
         conditionalEnable(cfg[ConfigProperties.Strategies.playback], cfg) { withPlayback(cfg) }
 
         conditionalEnable(cfg[actionLimit] > 0, cfg) { terminateAfterActions(cfg) }
         conditionalEnable(cfg[timeLimit] > 0, cfg) { terminateAfterTime(cfg) }
         resetOnCrash()
+
         conditionalEnable(cfg[ConfigProperties.Strategies.allowRuntimeDialog]) { allowRuntimePermissions() }
         conditionalEnable(cfg[ConfigProperties.Strategies.denyRuntimeDialog]) { denyRuntimePermissions() }
         loginWithGoogle()
@@ -138,7 +143,8 @@ open class ExploreCommandBuilder(
             cfg
         ) { collectStatementCoverage() }
 
-        selectors.add(DefaultSelector.regressionTestingMF(getNextSelectorPriority()))
+        selectors.add(DefaultSelector.ATUA_MF(getNextSelectorPriority()))
+
 
 
         return this

@@ -2,6 +2,7 @@ package org.droidmate.exploration.strategy.atua.task
 
 import kotlinx.coroutines.runBlocking
 import org.atua.calm.modelReuse.ModelVersion
+import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
@@ -31,6 +32,7 @@ import org.droidmate.explorationModel.interaction.Widget
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.*
+import kotlin.collections.ArrayList
 
 open class GoToAnotherWindowTask constructor(
     autautMF: org.atua.modelFeatures.ATUAMF,
@@ -127,7 +129,7 @@ open class GoToAnotherWindowTask constructor(
         //if currentNode is expectedNextNode
         if (isExploration) {
             if (destWindow==null || currentAppState.window == destWindow) {
-                if (currentAppState.getUnExercisedActions(currentState, atuaMF,false).filter{it.isWidgetAction()}.isNotEmpty()) {
+                if (currentAppState.getUnExercisedActions(currentState, atuaMF).filter{it.isWidgetAction()}.isNotEmpty()) {
                     return true
                 }
             }
@@ -925,7 +927,7 @@ open class GoToAnotherWindowTask constructor(
                 } else {
                     currentEdge!!.abstractAction.extra
                 }
-                atuaStrategy.phaseStrategy.registerTriggeredInputs(currentEdge!!.abstractAction,currentState)
+                // atuaStrategy.phaseStrategy.registerTriggeredInputs(currentEdge!!.abstractAction,currentState)
                 log.info("Widget: $chosenWidget")
                 return chooseActionWithName(
                     actionName,
@@ -975,7 +977,41 @@ open class GoToAnotherWindowTask constructor(
         else
             pathTraverser!!.transitionPath.path[pathTraverser!!.latestEdgeId!! + 1]
         val lastTransition = pathTraverser!!.getCurrentTransition()!!
-        if (lastTransition.dest is PredictedAbstractState) {
+        if (lastTransition.dest is PredictedAbstractState)
+        {
+            lastTransition.source.abstractTransitions.remove(lastTransition)
+          /*  if (corruptedEdge != null) {
+                var startAbstractState: AbstractState? = null
+                val corruptedActionSequence = LinkedList<AbstractAction>()
+                var action:AbstractAction? = null
+                var actionId = 0
+                action = pathTraverser!!.transitionPath.path[actionId]?.abstractAction
+                while (action != corruptedEdge.abstractAction && action != null) {
+                    val transition = pathTraverser!!.transitionPath.path[actionId]!!
+                    if (transition.dest is PredictedAbstractState) {
+                        if (corruptedActionSequence.isEmpty()) {
+                            startAbstractState = transition.source
+                        }
+                        corruptedActionSequence.add(transition.abstractAction)
+                    }
+                    actionId++
+                    action = pathTraverser!!.transitionPath.path[actionId]?.abstractAction
+                }
+                if (action != null) {
+                    val transition = pathTraverser!!.transitionPath.path[actionId]!!
+                    if (transition.dest is PredictedAbstractState) {
+                        if (corruptedActionSequence.isEmpty()) {
+                            startAbstractState = transition.source
+                        }
+                        corruptedActionSequence.add(transition.abstractAction)
+                    }
+                }
+                if (startAbstractState!=null && !pathTraverser!!.isEnded()) {
+                    ProbabilityBasedPathFinder.disableActionSequences.put(startAbstractState, ArrayList())
+                    ProbabilityBasedPathFinder.disableActionSequences[startAbstractState]!!.add(corruptedActionSequence)
+                }
+            }*/
+
             return
         }
         if (pathTraverser!!.transitionPath.pathType == PathFindingHelper.PathType.FULLTRACE) {

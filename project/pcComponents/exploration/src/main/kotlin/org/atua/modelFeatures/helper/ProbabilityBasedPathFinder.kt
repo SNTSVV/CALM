@@ -14,6 +14,7 @@ package org.atua.modelFeatures.helper
 
 import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.Rotation
+import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
@@ -32,7 +33,6 @@ import org.atua.modelFeatures.mapping.EWTG_DSTGMapping
 import org.droidmate.exploration.modelFeatures.graph.Edge
 import org.droidmate.explorationModel.interaction.State
 import java.util.*
-import kotlin.collections.HashMap
 
 class ProbabilityBasedPathFinder {
     companion object {
@@ -40,7 +40,7 @@ class ProbabilityBasedPathFinder {
         val allAvailableTransitionPaths = HashMap<Pair<AbstractState, AbstractState>, ArrayList<TransitionPath>>()
         private val disableEdges = HashSet<Edge<AbstractState, AbstractTransition>>()
         private val disablePaths = HashSet<Pair<List<AbstractTransition>, DisablePathType>>()
-
+        val disableActionSequences = HashMap<AbstractState, ArrayList<LinkedList<AbstractAction>>>()
         fun findPathToTargetComponent(
             autautMF: org.atua.modelFeatures.ATUAMF,
             currentState: State<*>,
@@ -51,33 +51,49 @@ class ProbabilityBasedPathFinder {
             pathCountLimitation: Int = 3,
             windowAsTarget: Boolean,
             pathType: PathFindingHelper.PathType,
-            goalsByTarget: Map<AbstractState,List<Input>>,
+            goalsByTarget: Map<AbstractState, List<Input>>,
             maxCost: Double
         ) {
-            val targetTraces = if (pathType == PathFindingHelper.PathType.PARTIAL_TRACE || pathType == PathFindingHelper.PathType.FULLTRACE) {
-                val edgesToTarget = autautMF.dstg.edges().filter { finalTargets.contains(it.label.dest) }
-                edgesToTarget.map { it.label.tracing }.flatten().map { it.first }.distinct()
-            } else {
-                emptyList()
-            }
+            val targetTraces =
+                if (pathType == PathFindingHelper.PathType.PARTIAL_TRACE || pathType == PathFindingHelper.PathType.FULLTRACE) {
+                    val edgesToTarget = autautMF.dstg.edges().filter { finalTargets.contains(it.label.dest) }
+                    edgesToTarget.map { it.label.tracing }.flatten().map { it.first }.distinct()
+                } else {
+                    emptyList()
+                }
             if (pathType == PathFindingHelper.PathType.PARTIAL_TRACE || pathType == PathFindingHelper.PathType.FULLTRACE) {
                 if (targetTraces.isEmpty())
                     return
             }
             if (pathType == PathFindingHelper.PathType.NORMAL && !windowAsTarget) {
-                val exisitingEdgesToTarget = autautMF.dstg.edges().filter {  finalTargets.contains(it.destination?.data) }
+                val exisitingEdgesToTarget =
+                    autautMF.dstg.edges().filter { finalTargets.contains(it.destination?.data) }
                 if (exisitingEdgesToTarget.isEmpty())
                     return
+
             }
-            if (autautMF.dstg.edges().all {  !finalTargets.map{it.window }.contains(it.destination?.data?.window)}) {
+            val existingEdgesToTargets =
+                autautMF.dstg.edges().filter { finalTargets.map { it.window }.contains(it.destination?.data?.window) }
+                    .map { it.label }
+            if (existingEdgesToTargets.isEmpty()) {
                 return
-            }
-           /* if (goalsByTarget.values.flatten().isNotEmpty()) {
-                val possibleActions = EWTG_DSTGMapping.INSTANCE.inputsByAbstractActions.filter { it.value.intersect(goalsByTarget.values.flatten()).isNotEmpty() }
-                if (possibleActions.isEmpty()) {
-                    return
+            } else {
+                val allTargetInputs = goalsByTarget.values.flatten()
+                if (allTargetInputs.isNotEmpty()) {
+                    val reachingTargetInputsEdges = existingEdgesToTargets.filter {
+                        it.dest.getAvailableInputs().intersect(allTargetInputs).isNotEmpty()
+                    }
+                    if (allTargetInputs.isEmpty() && !windowAsTarget) {
+                        return
+                    }
                 }
-            }*/
+            }
+            /* if (goalsByTarget.values.flatten().isNotEmpty()) {
+                 val possibleActions = EWTG_DSTGMapping.INSTANCE.inputsByAbstractActions.filter { it.value.intersect(goalsByTarget.values.flatten()).isNotEmpty() }
+                 if (possibleActions.isEmpty()) {
+                     return
+                 }
+             }*/
             val currentAbstractStateStack: List<AbstractState> = autautMF.getAbstractStateStack()
             when (pathType) {
                 PathFindingHelper.PathType.NORMAL -> findPathToTargetComponentByBFS(
@@ -250,7 +266,7 @@ class ProbabilityBasedPathFinder {
             if (foundPaths.isNotEmpty() && foundPaths.any { it.path.values.all { it.dest !is PredictedAbstractState } }) {
                 return
             }
-            val newMinCost = foundPaths.map { it.cost() }.min()?:minCost
+            val newMinCost = foundPaths.map { it.cost() }.min() ?: minCost
             foundPaths.removeIf { it.cost() > newMinCost }
             findPathToTargetComponentByBFS(
                 autautMF = autautMF,
@@ -296,7 +312,7 @@ class ProbabilityBasedPathFinder {
             pathType: PathFindingHelper.PathType,
             targetTraces: List<Int>,
             currentAbstractStateStack: List<AbstractState>,
-            goalsByTarget: Map<AbstractState,List<Input>>,
+            goalsByTarget: Map<AbstractState, List<Input>>,
             minCost: Double
         ) {
             val prevAbstractTransitions = ArrayList<AbstractTransition>()
@@ -324,13 +340,15 @@ class ProbabilityBasedPathFinder {
             }
             validAbstractActions.forEach { abstractAction ->
                 val abstractTransitions = source.abstractTransitions.filter {
-                            it.abstractAction == abstractAction
+                    it.abstractAction == abstractAction
                             && !traveredAbstractTransitions.map { it.source }.contains(it.dest)
                             && it.source != it.dest
-                            && it.activated == true}
+                            && it.activated == true
+                }
                 val validAbstactTransitions = abstractTransitions.filter {
+                    it.dest.window !is Launcher &&
                     it.dest !is PredictedAbstractState
-                            && (includeWTG || !it.fromWTG )
+                            && (includeWTG || !it.fromWTG)
                             && (!considerGuardedTransitions || !it.guardEnabled ||
                             it.dependentAbstractStates.intersect(abstractStateStack.toList()).isNotEmpty())
                 }
@@ -338,7 +356,7 @@ class ProbabilityBasedPathFinder {
                 if (validAbstactTransitions.isNotEmpty()) {
                     validAbstactTransitions.forEach { abstractTransition ->
                         selectedExercisedAbstractTransition = processAbstractTransition(
-                            abstractTransition= abstractTransition,
+                            abstractTransition = abstractTransition,
                             traversedEdges = traversedEdges,
                             pathType = pathType,
                             atuaMF = atuaMF,
@@ -358,13 +376,15 @@ class ProbabilityBasedPathFinder {
                 }
                 if ((!selectedExercisedAbstractTransition || abstractAction.isItemAction())
                     && pathType != PathFindingHelper.PathType.NORMAL
-                    && (goalsByTarget.isNotEmpty() || windowAsTarget)) {
+                    && (goalsByTarget.isNotEmpty() || windowAsTarget)
+                ) {
                     var predictedAction = false
                     if (traveredAbstractTransitions.any { it.dest is PredictedAbstractState && it.abstractAction == abstractAction }) {
                         predictedAction = true
                     }
                     if (!predictedAction) {
-                        val exisitingPredictedTransitions = abstractTransitions.filter { it.dest is PredictedAbstractState }
+                        val exisitingPredictedTransitions =
+                            abstractTransitions.filter { it.dest is PredictedAbstractState }
                         if (exisitingPredictedTransitions.isNotEmpty()) {
                             if (!traveredAbstractTransitions.any { it.abstractAction == abstractAction && it.dest is PredictedAbstractState }) {
                                 exisitingPredictedTransitions.forEach {
@@ -397,7 +417,7 @@ class ProbabilityBasedPathFinder {
                                 if (reachableAbstractActions != null) {
                                     val totalcnt = atuaMF.dstg.abstractActionEnables[abstractAction]!!.first
                                     val abstractActionsByWindow = reachableAbstractActions.keys.groupBy { it.window }
-                                    abstractActionsByWindow.forEach { window, abstractActions ->
+                                    abstractActionsByWindow.filter { it.key !is Launcher }. forEach { window, abstractActions ->
                                         val activity = window.classType
                                         val predictAbstractState = PredictedAbstractState(
                                             activity = activity,
@@ -435,7 +455,7 @@ class ProbabilityBasedPathFinder {
 
                                                 predictAbstractState.abstractActionsProbability.put(action, prob)
                                             } else {
-                                                val faileur = 1.0-prob
+                                                val faileur = 1.0 - prob
                                             }
                                         }
                                         predictAbstractState.updateHashCode()
@@ -514,9 +534,11 @@ class ProbabilityBasedPathFinder {
                     traversedEdges,
                     pathTracking
                 )
-                val cost:Double
-                if (reachedTarget(abstractTransition.dest, finalTargets, goalsByTarget,windowAsTarget)) {
-                    val targetInputs = goalsByTarget.filter { it.key.window == abstractTransition.dest.window }.values.flatten().distinct()
+                val cost: Double
+                if (reachedTarget(abstractTransition.dest, finalTargets, goalsByTarget, windowAsTarget)) {
+                    val targetInputs =
+                        goalsByTarget.filter { it.key.window == abstractTransition.dest.window }.values.flatten()
+                            .distinct()
                     fullGraph.goal.addAll(targetInputs)
                     cost = fullGraph.cost()
                     if (cost <= minCost) {
@@ -547,17 +569,48 @@ class ProbabilityBasedPathFinder {
                         nextTransitions.add(key)
                     }
                 } else {
-                     val a = cost
+                    val a = cost
                 }
             }
             return result
         }
 
         private fun isDisablePath(fullGraph: TransitionPath, pathType: PathFindingHelper.PathType): Boolean {
+            // get action sequences from predicted abstract states
+ /*           if (pathType == PathFindingHelper.PathType.WIDGET_AS_TARGET) {
+                var startAbstractState: AbstractState? = null
+                val predictedSequence = LinkedList<AbstractAction>()
+                var action: AbstractAction? = null
+                var actionId = 0
+                action = fullGraph.path[actionId]?.abstractAction
+                while (action != null) {
+                    val transition = fullGraph.path[actionId]!!
+                    if (transition.dest is PredictedAbstractState) {
+                        if (predictedSequence.isEmpty()) {
+                            startAbstractState = transition.source
+                        }
+                        predictedSequence.add(transition.abstractAction)
+                    }
+                    actionId++
+                    action = fullGraph.path[actionId]?.abstractAction
+                }
+                val corruptedSequences = disableActionSequences[startAbstractState]
+                if (corruptedSequences == null) {
+                    return false
+                }
+                if (corruptedSequences.find { it == predictedSequence } != null) {
+                    return true
+                }
+            }*/
             return false
         }
 
-        private fun reachedTarget(destination: AbstractState, finalTargets: List<AbstractState>, goalsByTarget: Map<AbstractState, List<Input>>, windowAsTarget: Boolean): Boolean {
+        private fun reachedTarget(
+            destination: AbstractState,
+            finalTargets: List<AbstractState>,
+            goalsByTarget: Map<AbstractState, List<Input>>,
+            windowAsTarget: Boolean
+        ): Boolean {
             if (finalTargets.contains(destination)) {
                 return true
             }

@@ -97,7 +97,7 @@ class ExplorationContext<M,S,W> @JvmOverloads constructor(val cfg: Configuration
 			//val resourceDir = Paths.get(cfg[ConfigProperties.Output.outputDir].path).toAbsolutePath().resolve(EnvironmentConstants.dir_name_temp_extracted_resources).toAbsolutePath()
 			val resourceDir = Paths.get(cfg[ConfigProperties.Exploration.apksDir].path).toAbsolutePath()
 			addWatcher(StatementCoverageMF(coverageDir, readDeviceStatements, model.config.appName, resourceDir))
-			if (model.config[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.use]) {
+			if (true || model.config[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.use]) {
 				val manualInput = model.config[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.manualInput]
 				val manualIntent = model.config[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.manualIntent]
 				val reuseBaseModel = model.config[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.reuseBaseModel]

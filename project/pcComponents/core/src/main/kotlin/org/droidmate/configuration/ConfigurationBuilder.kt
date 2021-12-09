@@ -81,6 +81,7 @@ import org.droidmate.configuration.ConfigProperties.Strategies.Parameters.uiRota
 import org.droidmate.configuration.ConfigProperties.Strategies.allowRuntimeDialog
 import org.droidmate.configuration.ConfigProperties.Strategies.back
 import org.droidmate.configuration.ConfigProperties.Strategies.denyRuntimeDialog
+import org.droidmate.configuration.ConfigProperties.Strategies.manual
 import org.droidmate.configuration.ConfigProperties.Strategies.minimizeMaximize
 import org.droidmate.configuration.ConfigProperties.Strategies.playback
 import org.droidmate.configuration.ConfigProperties.Strategies.reset
@@ -183,6 +184,7 @@ public class ConfigurationBuilder : IConfigurationBuilder {
 			CommandLineOption(playback, description = "Enables use of playback strategy (if a playback model is provided)."),
 			CommandLineOption(ConfigProperties.Strategies.dfs, description = "Enables use of Depth-First-Search strategy."),
 			CommandLineOption(rotateUI, description = "Enables use of Rotate UI strategy."),
+			CommandLineOption(manual, description = "Enables use of manual strategy."),
 			CommandLineOption(minimizeMaximize, description = "Enables use of Minimize-Maximize strategy to attempt to close the app and reopen it on the same screen."),
 			CommandLineOption(textInput, description = "Enable use of Text Input Dictionary"),
 			// Strategies parameters

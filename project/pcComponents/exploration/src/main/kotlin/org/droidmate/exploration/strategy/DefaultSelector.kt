@@ -23,7 +23,7 @@ object DefaultSelector {
 		}
 	}
 
-	fun regressionTestingMF(prio: Int) = object : AStrategySelector() {
+	fun ATUA_MF(prio: Int) = object : AStrategySelector() {
 		override suspend fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> selectStrategy(eContext: ExplorationContext<M, S, W>): AExplorationStrategy {
 			throw RuntimeException("this function should never be invoked")
 		}

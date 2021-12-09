@@ -348,7 +348,7 @@ class PhaseOneStrategy(
 
             }.groupBy { it.window }
         availableAbState_Window.forEach {
-            if (it.value.all { it.getUnExercisedActions(null, atuaMF,false).filter { it.isWidgetAction() }.isEmpty() }) {
+            if (it.value.all { it.getUnExercisedActions(null, atuaMF).filter { it.isWidgetAction() }.isEmpty() }) {
                 /*val allGuiStates = it.value.map { it.guiStates }.flatten()
             if (allGuiStates.all { atuaMF.actionCount.getUnexploredWidget(it).isEmpty() }) {
                 outofbudgetWindows.add(it.key)
@@ -393,7 +393,7 @@ class PhaseOneStrategy(
                             && it.guiStates.isNotEmpty()
                 }
                 if (abstractStates.isNotEmpty() && abstractStates.all {
-                        it.getUnExercisedActions(null, atuaMF,false).isEmpty()
+                        it.getUnExercisedActions(null, atuaMF).isEmpty()
                     }) {
                     fullyCoveredWindows.add(window)
                 }
@@ -663,9 +663,9 @@ class PhaseOneStrategy(
             return
         }
         //Current window has no more random exploration budget
-        if (strategyTask !is GoToAnotherWindowTask && exploreApp(currentState,goToExploreWindows)) {
-            setGoToExploreState(goToExploreWindows, currentState)
-            return
+        if (strategyTask !is GoToAnotherWindowTask ) {
+            if (exploreApp(currentState,goToExploreWindows))
+                return
         }
         setRandomExploration(randomExplorationTask, currentState, false, false)
         forceEnd = true
@@ -698,7 +698,7 @@ class PhaseOneStrategy(
             // Try random exploration
             if (randomlyExploreTargetIfHasBudgetAndUnexploredWidgets(currentState, randomExplorationTask)) return
             if (hasBudgetLeft(currentAppState.window)
-                && currentAppState.getUnExercisedActions(currentState, atuaMF,false)
+                && currentAppState.getUnExercisedActions(currentState, atuaMF)
                     .isNotEmpty()
             ) {
                 setRandomExplorationInTargetWindow(randomExplorationTask, currentState)
@@ -721,7 +721,7 @@ class PhaseOneStrategy(
         }
         unreachableWindows.add(targetWindow!!)
         if (hasBudgetLeft(currentAppState.window)
-            && currentAppState.getUnExercisedActions(currentState, atuaMF,false)
+            && currentAppState.getUnExercisedActions(currentState, atuaMF)
                 .isNotEmpty()
         ) {
             setRandomExploration(randomExplorationTask, currentState, false, false)
@@ -756,7 +756,7 @@ class PhaseOneStrategy(
                 targetWindow = bkTargetWindow
                 if (randomlyExploreTargetIfHasBudgetAndUnexploredWidgets(currentState, randomExplorationTask)) return
                 if (hasBudgetLeft(currentAppState.window)
-                    && currentAppState.getUnExercisedActions(currentState, atuaMF,false)
+                    && currentAppState.getUnExercisedActions(currentState, atuaMF)
                         .isNotEmpty()
                 ) {
                     setRandomExplorationInTargetWindow(randomExplorationTask, currentState)
@@ -809,7 +809,7 @@ class PhaseOneStrategy(
 
         //unreachableWindows.add(targetWindow!!)
         if (hasBudgetLeft(currentAppState.window)
-            && currentAppState.getUnExercisedActions(currentState, atuaMF,false)
+            && currentAppState.getUnExercisedActions(currentState, atuaMF)
                 .isNotEmpty()
         ) {
             setRandomExploration(randomExplorationTask, currentState, false, false)
@@ -860,7 +860,7 @@ class PhaseOneStrategy(
             if (continueOrEndCurrentTask(currentState)) return
             if (randomlyExploreTargetIfHasBudgetAndUnexploredWidgets(currentState, randomExplorationTask)) return
             if (hasBudgetLeft(currentAppState.window)
-                && currentAppState.getUnExercisedActions(currentState, atuaMF,false)
+                && currentAppState.getUnExercisedActions(currentState, atuaMF)
                     .isNotEmpty()
             ) {
                 setRandomExplorationInTargetWindow(randomExplorationTask, currentState)
@@ -892,7 +892,7 @@ class PhaseOneStrategy(
         }
         targetWindow = bkTargetWindow
         if (hasBudgetLeft(currentAppState.window)
-            && currentAppState.getUnExercisedActions(currentState, atuaMF,false)
+            && currentAppState.getUnExercisedActions(currentState, atuaMF)
                 .isNotEmpty()
         ) {
             setRandomExploration(randomExplorationTask, currentState, false, false)
@@ -956,7 +956,7 @@ class PhaseOneStrategy(
         if (currentAppState.window == targetWindow) {
             if (randomlyExploreTargetIfHasBudgetAndUnexploredWidgets(currentState, randomExplorationTask)) return
             if (hasBudgetLeft(currentAppState.window)
-                && currentAppState.getUnExercisedActions(currentState, atuaMF,false)
+                && currentAppState.getUnExercisedActions(currentState, atuaMF)
                     .isNotEmpty()
             ) {
                 setRandomExplorationInTargetWindow(randomExplorationTask, currentState)
@@ -980,7 +980,7 @@ class PhaseOneStrategy(
         }
         unreachableWindows.add(targetWindow!!)
         if (hasBudgetLeft(currentAppState.window)
-            && currentAppState.getUnExercisedActions(null, atuaMF,false).isNotEmpty()) {
+            && currentAppState.getUnExercisedActions(null, atuaMF).isNotEmpty()) {
             setRandomExploration(randomExplorationTask, currentState, false, false)
             return
         }
@@ -991,6 +991,9 @@ class PhaseOneStrategy(
         }
         if (exploreApp(currentState, goToAnotherNode))
             return
+        targetWindow = null
+        strategyTask = null
+        nextActionWithoutTargetWindow(currentState,currentAppState,randomExplorationTask,goToAnotherNode)
         /*unreachableWindows.add(targetWindow!!)
         val oldTarget = targetWindow
         selectTargetWindow(currentState, true)
@@ -1031,7 +1034,7 @@ class PhaseOneStrategy(
             }
             if (randomlyExploreTargetIfHasBudgetAndUnexploredWidgets(currentState, randomExplorationTask)) return
             if (hasBudgetLeft(currentAppState.window)
-                && currentAppState.getUnExercisedActions(currentState, atuaMF,false)
+                && currentAppState.getUnExercisedActions(currentState, atuaMF)
                     .isNotEmpty()
             ) {
                 setRandomExplorationInTargetWindow(randomExplorationTask, currentState)
@@ -1082,21 +1085,7 @@ class PhaseOneStrategy(
         }
         unreachableWindows.add(targetWindow!!)
         //unreachableWindows.add(targetWindow!!)
-        selectTargetWindow(currentState, true)
-        if (targetWindow != null) {
-            resetStrategyTask(currentState)
-            nextActionOnInitial(
-                currentAppState,
-                exerciseTargetComponentTask,
-                currentState,
-                randomExplorationTask,
-                goToAnotherNode,
-                goToTargetNodeTask
-            )
-            return
-        } else {
-            targetWindow = bkTargetWindow
-        }
+
         if (doRandomExplorationIfHaveUnexercisedActions(
                 currentAppState,
                 goToAnotherNode,
@@ -1111,7 +1100,9 @@ class PhaseOneStrategy(
         if (exploreApp(currentState, goToAnotherNode)) {
             return
         }
-        setFullyRandomExploration(randomExplorationTask, currentState, currentAppState)
+        targetWindow = null
+        strategyTask = null
+        nextActionWithoutTargetWindow(currentState,currentAppState,randomExplorationTask,goToAnotherNode)
         return
     }
 
@@ -1121,7 +1112,7 @@ class PhaseOneStrategy(
         currentState: State<*>,
         randomExplorationTask: RandomExplorationTask
     ): Boolean {
-        if (hasBudgetLeft(currentAppState.window) && currentAppState.getUnExercisedActions(currentState, atuaMF,false)
+        if (hasBudgetLeft(currentAppState.window) && currentAppState.getUnExercisedActions(currentState, atuaMF)
                 .isNotEmpty()
         ) {
             setRandomExploration(randomExplorationTask, currentState, true, false)
@@ -1169,7 +1160,7 @@ class PhaseOneStrategy(
             if (continueRandomExplorationIfIsFillingData(randomExplorationTask)) return
             if (randomlyExploreTargetIfHasBudgetAndUnexploredWidgets(currentState, randomExplorationTask)) return
             if (hasBudgetLeft(currentAppState.window)
-                && currentAppState.getUnExercisedActions(currentState, atuaMF,false)
+                && currentAppState.getUnExercisedActions(currentState, atuaMF)
                     .isNotEmpty()
             ) {
                 setRandomExplorationInTargetWindow(randomExplorationTask, currentState)
@@ -1240,7 +1231,7 @@ class PhaseOneStrategy(
         }
 //        unreachableWindows.add(targetWindow!!)
         if (hasBudgetLeft(currentAppState.window)
-            || currentAppState.getUnExercisedActions(currentState, atuaMF,false)
+            || currentAppState.getUnExercisedActions(currentState, atuaMF)
                 .isNotEmpty()
         ) {
             setRandomExploration(randomExplorationTask, currentState, false, false)
@@ -1254,6 +1245,9 @@ class PhaseOneStrategy(
             setRandomExploration(randomExplorationTask, currentState, false, false)
             return
         }
+        targetWindow = null
+        strategyTask = null
+        nextActionWithoutTargetWindow(currentState,currentAppState,randomExplorationTask,goToAnotherNode)
         /*val oldTarget = targetWindow
         selectTargetWindow(currentState, true)
         if (targetWindow == null)
@@ -1273,7 +1267,7 @@ class PhaseOneStrategy(
         randomExplorationTask: RandomExplorationTask
     ): Boolean {
         if (hasBudgetLeft(currentAppState.window)
-            || currentAppState.getUnExercisedActions(currentState, atuaMF,false)
+            || currentAppState.getUnExercisedActions(currentState, atuaMF)
                 .isNotEmpty()
         ) {
             setRandomExploration(randomExplorationTask, currentState)
@@ -1334,8 +1328,7 @@ class PhaseOneStrategy(
         ) {
             if (hasBudgetLeft(currentAbstractState.window) || currentAbstractState.getUnExercisedActions(
                     currentState,
-                    atuaMF,
-                    false
+                    atuaMF
                 ).isNotEmpty()
             )
                 return true
@@ -1526,14 +1519,14 @@ class PhaseOneStrategy(
             val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window)!!
             val toExploreInputs = ArrayList<Input>()
             appStates.forEach {
-                it.getUnExercisedActions(null, atuaMF,true).forEach { action ->
+                it.getUnExercisedActions(null, atuaMF).forEach { action ->
                     val toExporeInputs =
                         toExploreInputs.addAll(it.getInputsByAbstractAction(action))
                 }
             }
             if (toExploreInputs.isEmpty()) {
                 appStates.forEach {
-                    it.getUnExercisedActions(null, atuaMF,false).forEach { action ->
+                    it.getUnExercisedActions(null, atuaMF).forEach { action ->
                         val toExporeInputs =
                             toExploreInputs.addAll(it.getInputsByAbstractAction(action))
                     }
@@ -1659,13 +1652,13 @@ class PhaseOneStrategy(
         return transitionPaths
     }
 
-    override fun getCurrentTargetInputs(currentState: State<*>): Set<AbstractAction> {
-        val result = HashMap<Input, List<AbstractAction>>()
+    override fun getCurrentTargetInputs(currentState: State<*>): Set<Input> {
+        val result = ArrayList<Input>()
         val availableTargetInputsWithActions = HashMap<Input, List<AbstractAction>>()
 
         val abstractState = atuaMF.getAbstractState(currentState)!!
         if (abstractState.window != targetWindow)
-            return emptySet<AbstractAction>()
+            return emptySet<Input>()
         val currentWindowTargetEvents = phaseTargetInputs.filter { it.sourceWindow == targetWindow }
         currentWindowTargetEvents.forEach {
             val abstractActionss = atuaMF.validateEvent(it, currentState)
@@ -1680,12 +1673,13 @@ class PhaseOneStrategy(
                 val score = inputEffectiveness[input]!!
                 inputScore.put(input, score)
             }
-            if (inputScore.isNotEmpty()) {
+            while (inputScore.isNotEmpty()) {
                 val pb = ProbabilityDistribution<Input>(inputScore)
                 val selectedInput = pb.getRandomVariable()
                 val abstractActions = availableTargetInputsWithActions.get(selectedInput)!!
                 if (abstractActions.isNotEmpty()) {
-                    result.put(selectedInput, abstractActions)
+                    result.add(selectedInput)
+                    inputScore.remove(selectedInput)
                 }
             }
         }
@@ -1698,9 +1692,10 @@ class PhaseOneStrategy(
                             && it.modifiedMethods.isNotEmpty()
                             && it.modifiedMethods.keys.any { !atuaMF.statementMF!!.executedMethodsMap.containsKey(it) }
                 }
-            return potentialAbstractInteractions.map { it.abstractAction }.distinct().toSet()
+                .map { it.abstractAction }
+            return potentialAbstractInteractions.map { currentAppState.getInputsByAbstractAction(it) }.flatten().distinct().toSet()
         }
-        return result.map { it.value }.flatten().distinct().toSet()
+        return result.distinct().toSet()
         /*val currentAppState = regressionTestingMF.getAbstractState(currentState)!!
         val targetActions = currentAppState.targetActions
         val untriggerTargetActions = targetActions.filter {

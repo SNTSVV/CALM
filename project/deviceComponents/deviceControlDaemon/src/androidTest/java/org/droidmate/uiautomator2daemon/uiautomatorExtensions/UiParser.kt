@@ -101,16 +101,29 @@ abstract class UiParser {
 			true
 		else
 			false*/
-		var isTransparent = if (layoutViewClasses.contains(className) && !isFocusable && !isClickable && !isLongClickable &&!isCheckable && !isScrollable )
-			true
+		var isTransparent = if (!isFocusable && !isClickable && !isLongClickable &&!isCheckable && !isScrollable ) {
+			if (layoutViewClasses.contains(className))
+				true
+			else if (children.isEmpty())
+				true
+			else
+				false
+		}
 		else
 			false
 		props.add("isTransparent = ${isTransparent}")
 		// due to bottomUp strategy we will only get coordinates which are not overlapped by other UiElements
-		val visibleAreas = if(!isEnabled || !isVisibleToUser || isTransparent) emptyList()
+		val visibleAreas = if(!isEnabled || !isVisibleToUser) emptyList()
+				else if (isTransparent) {
+					val childrenC = children.flatMap { boundsList -> boundsList.visibleAreas } // allow the parent boundaries to contain all definedAsVisible child coordinates
+					props.add("childrenC = ${childrenC}")
+					uncoveredArea = false
+					nodeRect.visibleAxisR(childrenC)
+				}
 				else nodeRect.visibleAxis(w.area).map { it.toRectangle() }.let { area ->
-					if (area.isEmpty()) {
+					if (area.isEmpty() ) {
 						val childrenC = children.flatMap { boundsList -> boundsList.visibleAreas } // allow the parent boundaries to contain all definedAsVisible child coordinates
+						props.add("childrenC = ${childrenC}")
 						uncoveredArea = false
 						nodeRect.visibleAxisR(childrenC)
 					} else{
@@ -186,7 +199,8 @@ abstract class UiParser {
 			"android.widget.AbsoluteLayout",
 	"android.widget.FrameLayout",
 	"android.widget.GridLayout",
-	"android.widget.LinearLayout")
+	"android.widget.LinearLayout",
+	"android.widget.RelativeLayout")
 	private fun computeImgId(img: Bitmap?, b: Rectangle): Int {
 		if (img == null || b.isEmpty()) return 0
 		val subImg = Bitmap.createBitmap(b.width, b.height, Bitmap.Config.ARGB_8888)

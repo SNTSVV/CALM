@@ -189,6 +189,7 @@ class PhaseThreeStrategy(
         if (strategyTask is RandomExplorationTask
                 && (strategyTask as RandomExplorationTask).fillingData != true
                 && (strategyTask as RandomExplorationTask).goToLockedWindowTask == null
+                && (relatedWindow == null || currentAppState.window == relatedWindow)
                 && phaseState == PhaseState.P3_EXPLORATION_IN_RELATED_WINDOW
                 && isCountAction(chosenAction)) {
             randomBudgetLeft--
@@ -215,14 +216,14 @@ class PhaseThreeStrategy(
             val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window)!!
             val toExploreInputs = ArrayList<Input>()
             appStates.forEach {
-                it.getUnExercisedActions(null, atuaMF,true).forEach { action ->
+                it.getUnExercisedActions(null, atuaMF).forEach { action ->
                     val toExporeInputs =
                         toExploreInputs.addAll(it.getInputsByAbstractAction(action))
                 }
             }
             if (toExploreInputs.isEmpty()) {
                 appStates.forEach {
-                    it.getUnExercisedActions(null, atuaMF,false).forEach { action ->
+                    it.getUnExercisedActions(null, atuaMF).forEach { action ->
                         val toExporeInputs =
                             toExploreInputs.addAll(it.getInputsByAbstractAction(action))
                     }
@@ -273,15 +274,40 @@ class PhaseThreeStrategy(
         }*/
         val goalByAbstractState = HashMap<AbstractState, List<Input>>()
         val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(targetWindow!!)!!
-        goalByAbstractState.put(virtualAbstractState, listOf(targetEvent!!))
+
         targetScores.put(virtualAbstractState,1.0)
         val transitionPaths = ArrayList<TransitionPath>()
-        getPathToStatesBasedOnPathType(pathType,transitionPaths,targetScores,currentAbState,currentState,false,false,goalByAbstractState,maxCost)
+        if (targetEvent != null) {
+            goalByAbstractState.put(virtualAbstractState, listOf(targetEvent!!))
+            getPathToStatesBasedOnPathType(
+                pathType,
+                transitionPaths,
+                targetScores,
+                currentAbState,
+                currentState,
+                false,
+                false,
+                goalByAbstractState,
+                maxCost
+            )
+        } else {
+            getPathToStatesBasedOnPathType(
+                pathType,
+                transitionPaths,
+                targetScores,
+                currentAbState,
+                currentState,
+                false,
+                true,
+                goalByAbstractState,
+                maxCost
+            )
+        }
         return transitionPaths
     }
 
-    override fun getCurrentTargetInputs(currentState: State<*>): Set<AbstractAction> {
-        val targetEvents = HashMap<Input,List<AbstractAction>>()
+    override fun getCurrentTargetInputs(currentState: State<*>): Set<Input> {
+        val targetEvents = ArrayList<Input>()
         targetEvents.clear()
 
         val abstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)
@@ -290,7 +316,7 @@ class PhaseThreeStrategy(
             if (targetEvent!=null) {
                 val abstractActions = atuaMF.validateEvent(targetEvent!!, currentState)
                 if (abstractActions.isNotEmpty()) {
-                    targetEvents.put(targetEvent!!, abstractActions)
+                    targetEvents.add(targetEvent!!)
                 }
             } else {
                 val availableEvents = abstractState.getAvailableInputs()
@@ -312,12 +338,12 @@ class PhaseThreeStrategy(
                     val selectedInput = pb.getRandomVariable()
                     val abstractActions = atuaMF.validateEvent(selectedInput, currentState)
                     if (abstractActions.isNotEmpty()) {
-                        targetEvents.put(selectedInput, abstractActions)
+                        targetEvents.add(selectedInput)
                     }
                 }
             }
         }
-        return targetEvents.map { it.value }.flatten().toSet()
+        return targetEvents.toSet()
     }
 
     var relatedWindow: Window? = null
@@ -959,17 +985,23 @@ class PhaseThreeStrategy(
     fun selectTargetStaticEvent(currentState: State<*>){
         val windowTargetEvents = getWindowAvailableTargetInputs()
         if (windowTargetEvents.isEmpty()) {
-            targetEvent = null
-        } else {
-            val leastExerciseEventsCount = windowTargetEvents
-                    .minBy { it.value }?.value ?: emptyMap<Input, Int>()
-            val leastExerciseEvents = windowTargetEvents.filter { it.value == leastExerciseEventsCount }
-            val leastExerciseEventScores = targetInputScores.filter { leastExerciseEvents.containsKey(it.key) }
-            if (leastExerciseEventScores.isNotEmpty()) {
-                val pdForTargetEvents = ProbabilityDistribution<Input>(leastExerciseEventScores)
+            if (targetInputScores.isNotEmpty()) {
+                val pdForTargetEvents = ProbabilityDistribution<Input>(targetInputScores)
                 targetEvent = pdForTargetEvents.getRandomVariable()
             } else {
-                targetEvent = leastExerciseEvents.keys.random()
+                targetEvent = null
+            }
+        } else {
+            /*val leastExerciseEventsCount = windowTargetEvents
+                    .minBy { it.value }?.value ?: emptyMap<Input, Int>()
+            val leastExerciseEvents = windowTargetEvents.filter { it.value == leastExerciseEventsCount }
+            val leastExerciseEventScores = targetInputScores.filter { leastExerciseEvents.containsKey(it.key) }*/
+            val targetEventWithScores = targetInputScores.filter { windowTargetEvents.containsKey(it.key) }
+            if (targetEventWithScores.isNotEmpty()) {
+                val pdForTargetEvents = ProbabilityDistribution<Input>(targetEventWithScores)
+                targetEvent = pdForTargetEvents.getRandomVariable()
+            } else {
+                targetEvent = windowTargetEvents.keys.random()
             }
             allTargetInputs[targetEvent!!] = allTargetInputs[targetEvent!!]!! + 1
         }
@@ -1062,7 +1094,7 @@ class PhaseThreeStrategy(
             val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(it)!!
             val stateWithScore = HashMap<AbstractState, Double>()
             stateWithScore.put(virtualAbstractState, 1.0)
-    
+
             getPathToStatesBasedOnPathType(
                 pathType = PathFindingHelper.PathType.WIDGET_AS_TARGET,
                 transitionPaths = paths,

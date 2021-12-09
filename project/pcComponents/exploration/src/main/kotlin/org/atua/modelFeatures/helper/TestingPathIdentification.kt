@@ -969,7 +969,7 @@ class PathFindingHelper {
             }
             if (stopWhenHavingUnexercisedAction &&
                 nextState !is VirtualAbstractState &&
-                nextState.getUnExercisedActions(null, atuamf,false).isNotEmpty()
+                nextState.getUnExercisedActions(null, atuamf).isNotEmpty()
             )
                 return true
             if (useVirtualAbstractState && nextState.window == finalTarget.window) {

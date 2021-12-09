@@ -1,6 +1,7 @@
 package org.droidmate.exploration.strategy
 
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import org.atua.modelFeatures.ATUAMF
 import org.droidmate.deviceInterface.exploration.*
 import org.droidmate.exploration.ExplorationContext
@@ -426,5 +427,24 @@ object DefaultStrategies: Logging {
 
 		override suspend fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> nextAction(eContext: ExplorationContext<M, S, W>): ExplorationAction =
 			ExplorationAction.pressBack()
+	}
+
+	fun manual(prio: Int) = object : AExplorationStrategy() {
+		override fun getPriority(): Int {
+			return prio
+		}
+
+		override suspend fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> hasNext(eContext: ExplorationContext<M, S, W>): Boolean {
+			return true
+		}
+
+		override suspend fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> computeNextAction(eContext: ExplorationContext<M, S, W>): ExplorationAction {
+			runBlocking {
+				println("Do any action and then press anykey to continue")
+				val line = readLine()
+			}
+			return GlobalAction(actionType = ActionType.FetchGUI)
+		}
+
 	}
 }

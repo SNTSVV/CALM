@@ -85,6 +85,8 @@ class Helper {
                     //if a widgetGroup has more
                     val matchingWidget = matchEWTGWidget(item, guiState, bestMatchedNode,  appPackage,isMenuOpen,true,guiWidgetId_ewtgWidgets)
                     if (matchingWidget != null) {
+                        if (Helper.isUserLikeInput(item))
+                            matchingWidget!!.isUserLikeInput = true
                         guiwidget_Ewtgwidgets.put(item,matchingWidget)
                         guiWidgetId_ewtgWidgets.put(item.id,matchingWidget)
                     }
@@ -118,10 +120,17 @@ class Helper {
                         //if a widgetGroup has more
                         val matchingWidget = matchEWTGWidget(item, guiState, bestMatchedNode,appPackage ,isMenuOpen,true)
                         if (matchingWidget != null) {
+                            if (isUserLikeInput(item))
+                                matchingWidget.isUserLikeInput = true
                             guiwidget_Ewtgwidgets.put(item,matchingWidget)
                             guiWidgetId_ewtgWidgets.put(item.id,matchingWidget)
                         }
                     }
+                }
+            }
+            guiwidget_Ewtgwidgets.keys.groupBy { guiwidget_Ewtgwidgets[it]!! }.forEach {
+                if (it.value.size>1) {
+                    it.key.isItemWidget = true
                 }
             }
         }
@@ -1050,6 +1059,12 @@ class Helper {
             }
         }
 
+        fun isUserLikeInput(widgetClass: String):Boolean {
+            return when (widgetClass) {
+                "android.widget.RadioButton", "android.widget.CheckBox", "android.widget.Switch", "android.widget.ToggleButton", "android.widget.EditText" -> true
+                else -> false
+            }
+        }
         fun getAvailableActionsForWidget(chosenWidget: Widget, currentState: State<*>,delay: Long, useCoordinateClicks:Boolean): ArrayList<ExplorationAction> {
              val availableActions = ArrayList(chosenWidget.availableActions(delay, useCoordinateClicks))
              availableActions.removeIf {!chosenWidget.clickable &&

@@ -48,7 +48,7 @@ abstract class AbstractPhaseStrategy(
     ): List<TransitionPath>
 
     fun needReset(currentState: State<*>): Boolean {
-        val interval = 100 * scaleFactor
+        val interval = 50 * scaleFactor
         val lastReset = runBlocking {
             atuaTestingStrategy.eContext.explorationTrace.P_getActions()
                 .indexOfLast { it.actionType == "ResetApp" }
@@ -109,14 +109,14 @@ abstract class AbstractPhaseStrategy(
                 it is VirtualAbstractState
             }
             val unexercisedInputs = ArrayList<Input>()
-            val canExploreAppStates1 = targetStates.associateWith { it.getUnExercisedActions(null, atuaMF,true)}.filter { it.value.isNotEmpty() }
+            val canExploreAppStates1 = targetStates.associateWith { it.getUnExercisedActions(null, atuaMF)}.filter { it.value.isNotEmpty() }
             if (canExploreAppStates1.isNotEmpty()) {
                 canExploreAppStates1.forEach { s, actions ->
                     val inputs = actions.map { s.getInputsByAbstractAction(it) }.flatten().distinct()
                     unexercisedInputs.addAll(inputs)
                 }
             } else {
-                val canExploreAppStates2 = targetStates.associateWith { it.getUnExercisedActions(null, atuaMF,false)}.filter { it.value.isNotEmpty() }
+                val canExploreAppStates2 = targetStates.associateWith { it.getUnExercisedActions(null, atuaMF)}.filter { it.value.isNotEmpty() }
                 canExploreAppStates2.forEach { s, actions ->
                     val inputs = actions.map { s.getInputsByAbstractAction(it) }.flatten().distinct()
                     unexercisedInputs.addAll(inputs)
@@ -245,7 +245,7 @@ abstract class AbstractPhaseStrategy(
         }
     }
 
-    abstract fun getCurrentTargetInputs(currentState: State<*>): Set<AbstractAction>
+    abstract fun getCurrentTargetInputs(currentState: State<*>): Set<Input>
 
     abstract fun hasNextAction(currentState: State<*>): Boolean
 

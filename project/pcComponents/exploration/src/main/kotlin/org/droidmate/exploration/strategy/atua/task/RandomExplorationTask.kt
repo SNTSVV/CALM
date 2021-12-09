@@ -9,6 +9,7 @@ import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
+import org.atua.modelFeatures.dstg.PredictedAbstractState
 import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.WindowManager
@@ -133,7 +134,7 @@ class RandomExplorationTask constructor(
     }
 
     fun setMaxiumAttempt(currentState: State<*>, minAttempt: Int) {
-        val actionBasedAttempt = (atuaMF.getAbstractState(currentState)?.getUnExercisedActions(currentState,atuaMF,false)?.size
+        val actionBasedAttempt = (atuaMF.getAbstractState(currentState)?.getUnExercisedActions(currentState,atuaMF)?.size
                 ?: 1)
         maximumAttempt = max(actionBasedAttempt, minAttempt)
     }
@@ -209,7 +210,7 @@ class RandomExplorationTask constructor(
     override fun chooseAction(currentState: State<*>): ExplorationAction? {
         executedCount++
         val currentAbstractState = atuaMF.getAbstractState(currentState)!!
-        val unexercisedActions = currentAbstractState.getUnExercisedActions(currentState,atuaMF,false)
+        val unexercisedActions = currentAbstractState.getUnExercisedActions(currentState,atuaMF)
         val widgetActions = unexercisedActions.filter {
             it.attributeValuationMap != null
         }
@@ -392,29 +393,7 @@ class RandomExplorationTask constructor(
             ExplorationTrace.widgetTargets.add(selectedWidget)
             log.info("Widget: ${selectedWidget}")
             return selectedAction
-        }/* else if (!isPureRandom && lastAction != null
-                && lastAction!!.actionType == AbstractActionType.SWIPE
-                && lastAction!!.attributeValuationMap!=null
-                && listOf<String>("ListView","RecyclerView").any { lastAction!!.attributeValuationMap!!.getClassName().contains(it) } ) {
-                if ( prevAbstractState != currentAbstractState
-                        && prevAbstractState.window == currentAbstractState.window
-                        && atuaMF.abstractStateVisitCount[currentAbstractState]!! == 1
-                        *//*&& isScrollToEnd
-                        && lastAction!!.extra == "SwipeTillEnd"*//*
-                        && currentAbstractState.getAvailableActions().contains(lastAction!!)) {
-                tryLastAction = 1
-                maximumAttempt += 1
-                randomAction = currentAbstractState.getAvailableActions().find { it == lastAction }
-            } *//*else if (atuaMF.appPrevState!!.stateId != currentState.stateId
-                    && atuaMF.stateVisitCount[currentState] == 1
-                    && tryLastAction < MAX_TRY_LAST_ACTION
-                    && currentAbstractState.getAvailableActions().contains(lastAction!!)
-                    ) {
-                tryLastAction += 1
-                maximumAttempt += 1
-                randomAction = currentAbstractState.getAvailableActions().find { it == lastAction }
-            }*//*
-        }*/
+        }
         if(randomAction==null) {
             tryLastAction = 0
             //val widgetActions = currentAbstractState.getAvailableActions().filter { it.widgetGroup != null }
@@ -448,10 +427,9 @@ class RandomExplorationTask constructor(
                             && it.actionType == AbstractActionType.SWIPE }
                 val unexercisedActionsInCurrentState = swipeActions.filter { action->
                     !currentAbstractState.abstractTransitions.any {
-                        it.abstractAction == action && (
-                                it.modelVersion != ModelVersion.BASE
-                                        || (it.modelVersion == ModelVersion.BASE && it.interactions.isNotEmpty())
-                                ) } }
+                        it.abstractAction == action &&
+                                (it.dest !is VirtualAbstractState
+                                        && it.dest !is PredictedAbstractState)} }
                 if (unexercisedActionsInCurrentState.isNotEmpty()) {
                     randomAction = unexercisedActionsInCurrentState.random()
                 } else if (!isPureRandom && !recentGoToExploreState && canGoToUnexploredStates(
@@ -623,7 +601,7 @@ class RandomExplorationTask constructor(
                         && it !is VirtualAbstractState
                         && it.guiStates.isNotEmpty()
                         && it.attributeValuationMaps.isNotEmpty()
-                        && it.getUnExercisedActions(null, atuaMF,false)
+                        && it.getUnExercisedActions(null, atuaMF)
                     .filter { it.isWidgetAction() && !it.attributeValuationMap!!.getClassName().contains("WebView") }
                     .isNotEmpty()
             }.toHashSet()
