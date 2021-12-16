@@ -118,16 +118,17 @@ class EWTGDiff private constructor(){
         WindowManager.instance.baseModelWindows.filter {
                     it is Dialog || it is OutOfApp || it is Activity
         }.forEach {w->
-            val exisitingWindow = WindowManager.instance.updatedModelWindows.find { it.javaClass == w.javaClass && it.classType == w.classType }
+            val newWindow = w.copyToRunningModel()
+            replaceWindow(Replacement(w,newWindow),atuamf)
+            WindowManager.instance.updatedModelWindows.add(newWindow)
+            WindowManager.instance.baseModelWindows.remove(w)
+            /*val exisitingWindow = WindowManager.instance.updatedModelWindows.find { it.javaClass == w.javaClass && it.classType == w.classType }
             if (exisitingWindow != null) {
                 // replace old window with the exisiting one
                 replaceWindow(Replacement(w,exisitingWindow),atuamf)
             } else {
-                val newWindow = w.copyToRunningModel()
-                replaceWindow(Replacement(w,newWindow),atuamf)
-                WindowManager.instance.updatedModelWindows.add(newWindow)
-                WindowManager.instance.baseModelWindows.remove(w)
-            }
+
+            }*/
         }
 
         if (widgetDifferentSets.containsKey("DeletionSet")) {
@@ -381,6 +382,9 @@ class EWTGDiff private constructor(){
             it.sourceWindow = replacement.new
             replacement.new.inputs.add(it)
         }
+        replacement.old.inputs.filter { it.widget == null }.forEach { oldInput->
+            updateNonWidgetInput(replacement, oldInput, atuamf)
+        }
         replacement.old.inputs.clear()
         val toRemoveEdges = ArrayList<Edge<Window, WindowTransition>>()
         atuamf.wtg.edges(replacement.old).forEach {
@@ -442,6 +446,51 @@ class EWTGDiff private constructor(){
                     Input.getOrCreateInputFromAbstractAction(abstractState,replacedAbstractAction, ModelVersion.RUNNING)
                 }
             //TODO update abstractAction's window
+        }
+    }
+
+    private fun updateNonWidgetInput(
+        replacement: Replacement<Window>,
+        oldInput: Input,
+        atuamf: ATUAMF
+    ) {
+        var existingInputInUpdateVers = replacement.new.inputs
+            .find { it.eventType == oldInput.eventType }
+        if (existingInputInUpdateVers == null) {
+            existingInputInUpdateVers = Input.getOrCreateInput(
+                eventHandlers = emptySet(),
+                eventTypeString = oldInput.eventType.toString(),
+                widget = null,
+                createdAtRuntime = true,
+                sourceWindow = replacement.new,
+                modelVersion = ModelVersion.RUNNING
+            )
+        }
+        if (existingInputInUpdateVers != null) {
+            replacement.old.inputs.remove(oldInput)
+            /*if (*//*!isReplaced &&*//* existingInputInUpdateVers.eventHandlers.intersect(oldInput.eventHandlers).isEmpty()) {
+                        existingInputInUpdateVers.eventHandlers.clear()
+                        existingInputInUpdateVers.modifiedMethods.clear()
+                        existingInputInUpdateVers.modifiedMethodStatement.clear()
+                    }*/
+            val uncoveredHanndlers = existingInputInUpdateVers.eventHandlers.subtract(oldInput.eventHandlers)
+            if (uncoveredHanndlers.isNotEmpty()) {
+                val remainHandlers = uncoveredHanndlers.filter { atuamf.statementMF!!.isModifiedMethod(it) }
+                existingInputInUpdateVers.eventHandlers.clear()
+                existingInputInUpdateVers.eventHandlers.addAll(remainHandlers)
+            }
+            existingInputInUpdateVers.eventHandlers.addAll(oldInput.eventHandlers)
+            val beforeCnt = existingInputInUpdateVers.modifiedMethods.size
+            val reachableModifiedMethods = existingInputInUpdateVers.eventHandlers.map { handler ->
+                atuamf.modifiedMethodWithTopCallers.filter { it.value.contains(handler) }.keys
+            }.flatten().distinct()
+            val unreachableMethods = existingInputInUpdateVers.modifiedMethods.keys.subtract(reachableModifiedMethods)
+            unreachableMethods.forEach {
+                existingInputInUpdateVers.modifiedMethods.remove(it)
+            }
+            existingInputInUpdateVers.modifiedMethods.putAll(oldInput.modifiedMethods)
+            val afterCnt = existingInputInUpdateVers.modifiedMethods.size
+            existingInputInUpdateVers.coveredMethods.putAll(oldInput.coveredMethods)
         }
     }
 

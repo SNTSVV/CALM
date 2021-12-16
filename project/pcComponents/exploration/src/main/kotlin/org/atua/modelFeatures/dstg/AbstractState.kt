@@ -53,6 +53,7 @@ open class AbstractState(
     var modelVersion: ModelVersion = ModelVersion.RUNNING,
     reuseAbstractStateId: UUID? = null
 ) {
+    var ignored: Boolean = false
     var activated: Boolean = true
     private val actionCount = HashMap<AbstractAction, Int>()
     val abstractStateId: String

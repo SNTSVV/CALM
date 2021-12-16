@@ -65,6 +65,7 @@ abstract class AbstractPhaseStrategy(
         val runtimeAbstractStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES
             .filterNot {
                 it is VirtualAbstractState
+                        || it.ignored
                         || it == currentAbstractState
                         || it.window is Launcher
                         || it.window is OutOfApp
@@ -74,6 +75,7 @@ abstract class AbstractPhaseStrategy(
                         || it.attributeValuationMaps.isEmpty()
                         || it.guiStates.isEmpty()
                         || it.guiStates.all { atuaMF.actionCount.getUnexploredWidget(it).isEmpty() }
+
             }
         return runtimeAbstractStates
     }
@@ -97,6 +99,7 @@ abstract class AbstractPhaseStrategy(
         val stateWithScores = HashMap<AbstractState, Double>()
         var targetStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
             it.window == targetWindow
+                    && it.ignored == false
                     && (pathType == PathFindingHelper.PathType.FULLTRACE
                     || pathType == PathFindingHelper.PathType.PARTIAL_TRACE
                     || !AbstractStateManager.INSTANCE.unreachableAbstractState.contains(it))

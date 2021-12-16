@@ -87,7 +87,7 @@ class PhaseTwoStrategy(
         statementMF = atuaTestingStrategy.eContext.getOrCreateWatcher()
         atuaMF.updateMethodCovFromLastChangeCount = 0
         val allTargetWindows = atuaMF.notFullyExercisedTargetInputs.map { it.sourceWindow }.distinct()
-        val seenWindows = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it !is VirtualAbstractState }.map { it.window }.distinct()
+        val seenWindows = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it !is VirtualAbstractState && it.ignored == false}.map { it.window }.distinct()
         atuaMF.modifiedMethodsByWindow.keys
             .filter{ it !is Launcher && ( allTargetWindows.contains(it) || seenWindows.contains(it))}.forEach { window ->
             targetWindowsCount.put(window, 0)
@@ -115,7 +115,7 @@ class PhaseTwoStrategy(
             if (phase2TargetEvents.containsKey(it)) {
                 phase2TargetEvents[it] = phase2TargetEvents[it]!! + 1
             }
-            // currentTargetInputs.remove(it)
+            currentTargetInputs.remove(it)
         }
     }
 
@@ -558,6 +558,7 @@ class PhaseTwoStrategy(
     }
 
     private fun computeExerciseTestBudget(currentState: State<*>): Int {
+        val currentAppState = atuaMF.getAbstractState(currentState)!!
         val inputWidgetCount = Helper.getUserInputFields(currentState).size
         //val inputWidgetCount = 1
         val targetEvents =
@@ -572,6 +573,8 @@ class PhaseTwoStrategy(
         }
         if (targetEventCount == 0)
             targetEventCount = 1
+        val abstractStateCnt = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.window == currentAppState.window
+                && it.guiStates.isNotEmpty()}.size
         val undiscoverdTargetHiddenHandlers = atuaMF.untriggeredTargetHiddenHandlers.filter {
             atuaMF.windowHandlersHashMap.get(targetWindow!!)?.contains(it) ?: false
         }
@@ -579,7 +582,7 @@ class PhaseTwoStrategy(
         //            budgetLeft = (targetEventCount * (inputWidgetCount+1)+ log2(undiscoverdTargetHiddenHandlers.size.toDouble()) * scaleFactor).toInt()
         //        else
         val exerciseTestBudget =
-            ((targetEventCount * (inputWidgetCount + 1) + undiscoverdTargetHiddenHandlers.size) * scaleFactor).toInt()
+            ((targetEventCount * (inputWidgetCount + 1) + undiscoverdTargetHiddenHandlers.size+abstractStateCnt) * scaleFactor).toInt()
         return exerciseTestBudget
     }
 
@@ -597,6 +600,8 @@ class PhaseTwoStrategy(
         }
         if (targetEventCount == 0)
             targetEventCount = 1
+        val abstractStateCnt = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.window == window
+                && it.guiStates.isNotEmpty()}.size
         val undiscoverdTargetHiddenHandlers = atuaMF.untriggeredTargetHiddenHandlers.filter {
             atuaMF.windowHandlersHashMap.get(targetWindow!!)?.contains(it) ?: false
         }
@@ -604,7 +609,7 @@ class PhaseTwoStrategy(
         //            budgetLeft = (targetEventCount * (inputWidgetCount+1)+ log2(undiscoverdTargetHiddenHandlers.size.toDouble()) * scaleFactor).toInt()
         //        else
         val exerciseTestBudget =
-            ((targetEventCount * (userlikeInputsCnt + 1) + undiscoverdTargetHiddenHandlers.size) * scaleFactor).toInt()
+            ((targetEventCount * (userlikeInputsCnt + 1) + undiscoverdTargetHiddenHandlers.size+abstractStateCnt) * scaleFactor).toInt()
         return exerciseTestBudget
     }
 

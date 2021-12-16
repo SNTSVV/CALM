@@ -25,6 +25,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.atua.calm.AppModelLoader
 import org.atua.calm.ModelBackwardAdapter
+import org.atua.calm.TargetInputReport
 import org.atua.calm.ewtgdiff.AdditionSet
 import org.atua.calm.ewtgdiff.EWTGDiff
 import org.atua.calm.modelReuse.ModelHistoryInformation
@@ -241,7 +242,7 @@ class ATUAMF(
     //region Model feature override
     override suspend fun onAppExplorationFinished(context: ExplorationContext<*, *, *>) {
         this.join()
-        produceTargetWidgetReport(context)
+        produceCoverageReport(context)
         ATUAModelOutput.dumpModel(context.model.config, this, context)
     }
 
@@ -260,6 +261,13 @@ class ATUAMF(
         )
         removeDuplicatedWidgets()
         processOptionsMenusWindow()
+        for (window in WindowManager.instance.updatedModelWindows) {
+            window.inputs.forEach {
+                if (it.modifiedMethods.isNotEmpty()) {
+                    TargetInputReport.INSTANCE.targetIdentifiedByStaticAnalysis.add(it)
+                }
+            }
+        }
         AbstractStateManager.INSTANCE.init(this, appName)
         AbstractStateManager.INSTANCE.initVirtualAbstractStates()
         if (reuseBaseModel) {
@@ -269,7 +277,14 @@ class ATUAMF(
         }
 
         postProcessingTargets()
-
+        for (window in WindowManager.instance.updatedModelWindows) {
+            window.inputs.forEach {
+                if (it.modifiedMethods.isNotEmpty()) {
+                    if (!TargetInputReport.INSTANCE.targetIdentifiedByStaticAnalysis.contains(it))
+                        TargetInputReport.INSTANCE.targetIdentifiedByBaseModel.add(it)
+                }
+            }
+        }
         AbstractStateManager.INSTANCE.initAbstractInteractionsForVirtualAbstractStates()
         /* dstg.edges().forEach {
              if (it.label.source !is VirtualAbstractState && it.label.dest !is VirtualAbstractState) {
@@ -704,6 +719,7 @@ class ATUAMF(
         currentState: State<*>,
         isLaunch: Boolean
     ) {
+
         if (isLaunch) {
             windowStack.clear()
             abstractStateStack.clear()
@@ -713,6 +729,8 @@ class ATUAMF(
                 stateList.add(homeScreenState)
                 abstractStateStack.push(getAbstractState(homeScreenState)!!)
                 prevWindowStateMapping.put(currentState, homeScreenState)
+            } else {
+                abstractStateStack.push(AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.window is Launcher }!!)
             }
         } else if (prevAbstractState != null) {
             if (windowStack.contains(currentAbstractState.window) && windowStack.size > 1) {
@@ -1672,6 +1690,9 @@ class ATUAMF(
         )
         if (getAbstractState(newState) == null)
             throw Exception("State has not been derived")
+        if (ignoredStates.contains(newState)) {
+            newAbstractState.ignored = true
+        }
         AbstractStateManager.INSTANCE.updateLaunchAndResetAbstractTransitions(newAbstractState)
         increaseNodeVisit(abstractState = newAbstractState)
         log.info("Computing Abstract State. - DONE")
@@ -2233,6 +2254,7 @@ class ATUAMF(
         interaction: Interaction<Widget>,
         coverageIncreased: Int
     ) {
+        input.witnessed = true
         val prevWindows = abstractTransition.dependentAbstractStates.map { it.window }
         //update ewtg transitions
         if (prevWindows.isNotEmpty()) {
@@ -2339,6 +2361,7 @@ class ATUAMF(
                 modifiedMethodsByWindow.putIfAbsent(input.sourceWindow, HashSet())
                 modifiedMethodsByWindow[input.sourceWindow]!!.addAll(input.modifiedMethods.keys)
             }
+            TargetInputReport.INSTANCE.praticalTargets.add(input)
         }
         if (coverageIncreased > 0) {
             log.debug("New $coverageIncreased updated statements covered by event: $input.")
@@ -2602,7 +2625,7 @@ class ATUAMF(
 
     //endregion
 
-    fun produceTargetWidgetReport(context: ExplorationContext<*, *, *>) {
+    fun produceCoverageReport(context: ExplorationContext<*, *, *>) {
         log.info("Producing Coverage report...")
         val sb = StringBuilder()
         sb.appendln("Statements;${statementMF!!.statementInstrumentationMap.size}")
@@ -2692,8 +2715,13 @@ class ATUAMF(
         if (reuseBaseModel) {
             ModelBackwardAdapter.instance.produceReport(context)
         }
+        produceTargetIdentificationReport(context)
     }
 
+    fun produceTargetIdentificationReport(context: ExplorationContext<*,*,*>) {
+        val outputFile = context.model.config.baseDir.resolve("targetIdentificationReport.txt")
+        TargetInputReport.INSTANCE.writeReport(outputFile.toString())
+    }
 
     fun accumulateTargetEventsDependency(): HashMap<Input, HashMap<String, Long>> {
         val result = HashMap<Input, HashMap<String, Long>>()

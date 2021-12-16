@@ -485,7 +485,7 @@ class RandomExplorationTask constructor(
             }
             if (isValidAction) {
                 val actionType = randomAction.actionType
-                log.debug("Action: $actionType")
+                log.debug("Action: $actionType - ${randomAction.extra}")
                 val chosenAction = when (actionType) {
                     AbstractActionType.SEND_INTENT -> chooseActionWithName(actionType, randomAction.extra, null, currentState, randomAction)
                     AbstractActionType.ROTATE_UI -> chooseActionWithName(actionType, 90, null, currentState, randomAction)
@@ -597,6 +597,7 @@ class RandomExplorationTask constructor(
         if (!currentAbstractState.isRequireRandomExploration() && !Helper.isOptionsMenuLayout(currentState) && !recentGoToExploreState) {
             var targetStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
                 it.window == currentAbstractState.window
+                        && it.ignored == false
                         && it != currentAbstractState
                         && it !is VirtualAbstractState
                         && it.guiStates.isNotEmpty()

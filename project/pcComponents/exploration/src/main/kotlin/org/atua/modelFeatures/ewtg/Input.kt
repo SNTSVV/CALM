@@ -26,6 +26,7 @@ import java.lang.Exception
 
 
 open class Input{
+
     val eventType: EventType
     val eventHandlers: HashSet<String> = HashSet()
     var widget: EWTGWidget?
@@ -34,6 +35,7 @@ open class Input{
         field = value
         value.inputs.add(this)
     }
+    var witnessed: Boolean = false
     val createdAtRuntime: Boolean
     val verifiedEventHandlers = HashSet<String>() //if an event handler appears in this set, we will not remove it from event's handlers
     val coveredMethods = HashMap<String,Boolean> ()

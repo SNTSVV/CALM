@@ -223,6 +223,7 @@ class AppModelLoader {
                         existingEvent
                     if (event != null) {
                         updateHandlerAndModifiedMethods(event, data, window, autautMF)
+                        val isTargetInput = event?.modifiedMethods.isNotEmpty()
                         if (!ModelHistoryInformation.INSTANCE.inputUsefulness.containsKey(event)) {
                             val totalActionCnt = data[4].toInt()
                             val increasingActionCnt = data[5].toInt()

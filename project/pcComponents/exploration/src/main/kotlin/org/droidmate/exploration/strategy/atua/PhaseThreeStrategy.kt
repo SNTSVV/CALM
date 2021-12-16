@@ -929,7 +929,7 @@ class PhaseThreeStrategy(
     }
 
     private fun selectLeastTriedTargetWindow(maxTry: Int, numTried: Int, currentState: State<*>): Boolean {
-        var leastExercise = targetWindowsCount.values.min()
+//        var leastExercise = targetWindowsCount.values.min()
         var leastTriedWindows = targetWindowsCount.filter { windowScores.containsKey(it.key) }.map { Pair<Window, Int>(first = it.key, second = it.value) }
 
         /*if (leastTriedWindows.isEmpty()) {
@@ -940,6 +940,8 @@ class PhaseThreeStrategy(
             val pb = ProbabilityDistribution<Window>(leastTriedWindowScore)
             val targetNode = pb.getRandomVariable()
             targetWindow = targetNode
+        } else {
+            targetWindow = WindowManager.instance.allMeaningWindows.random()
         }
 /*        if (tarqetWindowCandidates.isNotEmpty()) {
             leastTryTargetWindows = tarqetWindowCandidates.map { Pair<Window, Int>(first = it.key, second = it.value) }
@@ -959,7 +961,7 @@ class PhaseThreeStrategy(
         } else {
             return false
         }*/
-        targetWindowsCount[targetWindow!!] = targetWindowsCount[targetWindow!!]!! + 1
+//        targetWindowsCount[targetWindow!!] = targetWindowsCount[targetWindow!!]!! + 1
         /*var max = if (maxTry == 0)
             leastTryTargetWindows.size / 2 + 1
         else

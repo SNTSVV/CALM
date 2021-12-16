@@ -503,7 +503,7 @@ private suspend fun UiDevice.launchApp(appPackageName: String, env: UiAutomation
 				waitTime)
 
 		delay(launchActivityDelay)
-		success = UiHierarchy.waitFor(env, interactiveTimeout, actableAppElem)
+		success = UiHierarchy.waitFor(env, waitTime, actableAppElem)
 		// mute audio after app launch (for very annoying apps we may need a contentObserver listening on audio setting changes)
 		val audio = env.context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 		audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_MUTE,0)

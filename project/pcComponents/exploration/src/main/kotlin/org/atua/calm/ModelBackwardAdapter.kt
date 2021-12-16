@@ -437,6 +437,7 @@ class ModelBackwardAdapter {
                     && !it.modifiedMethods.all { atuamf.statementMF!!.fullyCoveredMethods.contains(it.key) }
                     && !atuamf.notFullyExercisedTargetInputs.contains(it)) {
                     atuamf.notFullyExercisedTargetInputs.add(it)
+                    TargetInputReport.INSTANCE.targetIdentifiedByBaseModel.add(it)
                 }
             }
             backwardEquivalentAbstractTransitionMapping.put(newAbstractTransition, HashSet())
@@ -454,6 +455,7 @@ class ModelBackwardAdapter {
                     && !it.modifiedMethods.all { atuamf.statementMF!!.fullyCoveredMethods.contains(it.key) }
                     && !atuamf.notFullyExercisedTargetInputs.contains(it)) {
                     atuamf.notFullyExercisedTargetInputs.add(it)
+                    TargetInputReport.INSTANCE.targetIdentifiedByBaseModel.add(it)
                 }
             }
             backwardEquivalentAbstractTransitionMapping.putIfAbsent(existingAbstractTransition, HashSet())

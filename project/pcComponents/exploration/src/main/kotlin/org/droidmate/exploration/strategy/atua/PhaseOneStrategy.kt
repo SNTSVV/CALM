@@ -338,6 +338,7 @@ class PhaseOneStrategy(
         val availableAbState_Window = AbstractStateManager.INSTANCE.ABSTRACT_STATES
             .filter {
                 it !is VirtualAbstractState
+                        && it.ignored == false
                         && it.window !is OutOfApp
                         && it.window !is Launcher
                         && it.attributeValuationMaps.isNotEmpty()
@@ -365,39 +366,49 @@ class PhaseOneStrategy(
                     || it.key is Launcher
         }
         targetWindowTryCount.keys.filterNot { fullyCoveredWindows.contains(it) }.forEach { window ->
-            var coverCriteriaCount = 0
-            if (phaseTargetInputs.filter { input -> input.sourceWindow == window }.isEmpty()) {
-                coverCriteriaCount++
+            val isWitnessed =  AbstractStateManager.INSTANCE.ABSTRACT_STATES.any {
+                it !is VirtualAbstractState
+                        && it.ignored == false
+                        && it.window == window
+                        && it.guiStates.isNotEmpty()
             }
-            if (atuaMF.modifiedMethodsByWindow[window]!!.all { atuaMF.statementMF!!.executedMethodsMap.contains(it) }
-            ) {
-                coverCriteriaCount++
-            }
-            val windowTargetHandlers = atuaMF.allTargetHandlers.intersect(
-                atuaMF.windowHandlersHashMap[window] ?: emptyList()
-            )
-            val untriggeredHandlers =
-                windowTargetHandlers.subtract(atuaMF.statementMF!!.executedMethodsMap.keys)
-            if (untriggeredHandlers.isEmpty()) {
-                // all target hidden handlers are triggered
-                coverCriteriaCount++
-            }
-            if (coverCriteriaCount >= 2) {
-                if (!fullyCoveredWindows.contains(window)) {
-                    fullyCoveredWindows.add(window)
+            if (isWitnessed) {
+                var coverCriteriaCount = 0
+                if (phaseTargetInputs.filter { input -> input.sourceWindow == window }.isEmpty()) {
+                    coverCriteriaCount++
                 }
-            } else {
-                val abstractStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
-                    it !is VirtualAbstractState
-                            && it.window == window
-                            && it.guiStates.isNotEmpty()
+                if (atuaMF.modifiedMethodsByWindow[window]!!.all { atuaMF.statementMF!!.executedMethodsMap.contains(it) }
+                ) {
+                    coverCriteriaCount++
                 }
-                if (abstractStates.isNotEmpty() && abstractStates.all {
-                        it.getUnExercisedActions(null, atuaMF).isEmpty()
-                    }) {
-                    fullyCoveredWindows.add(window)
+                val windowTargetHandlers = atuaMF.allTargetHandlers.intersect(
+                    atuaMF.windowHandlersHashMap[window] ?: emptyList()
+                )
+                val untriggeredHandlers =
+                    windowTargetHandlers.subtract(atuaMF.statementMF!!.executedMethodsMap.keys)
+                if (untriggeredHandlers.isEmpty()) {
+                    // all target hidden handlers are triggered
+                    coverCriteriaCount++
+                }
+                if (coverCriteriaCount >= 3) {
+                    if (!fullyCoveredWindows.contains(window)) {
+                        fullyCoveredWindows.add(window)
+                    }
+                } else {
+                    val abstractStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
+                        it !is VirtualAbstractState
+                                && it.ignored == false
+                                && it.window == window
+                                && it.guiStates.isNotEmpty()
+                    }
+                    if (abstractStates.isNotEmpty() && abstractStates.all {
+                            it.getUnExercisedActions(null, atuaMF).isEmpty()
+                        }) {
+                        fullyCoveredWindows.add(window)
+                    }
                 }
             }
+
         }
     }
 
@@ -431,18 +442,21 @@ class PhaseOneStrategy(
                 if (isTargetAbstractState(currentAppState, true)) {
                     resetStrategyTask(currentState)
                     targetWindow = currentAppState.window
+                    log.info("Switch target window to $targetWindow")
                 } else if (!explicitTargetWindows.contains(targetWindow)
                     && !explicitTargetWindows.contains(currentAppState.window)
                     && !outofbudgetWindows.contains(currentAppState.window)
                 ) {
                     resetStrategyTask(currentState)
                     targetWindow = currentAppState.window
+                    log.info("Switch target window to $targetWindow")
                 } else if (!explicitTargetWindows.contains(targetWindow)
                     && explicitTargetWindows.contains(currentAppState.window)
                     && !outofbudgetWindows.contains(currentAppState.window)
                 ) {
                     resetStrategyTask(currentState)
                     targetWindow = currentAppState.window
+                    log.info("Switch target window to $targetWindow")
                 } else if (explicitTargetWindows.contains(targetWindow)
                     && explicitTargetWindows.contains(currentAppState.window)
                     && !outofbudgetWindows.contains(currentAppState.window)
@@ -450,9 +464,11 @@ class PhaseOneStrategy(
                     if (getCurrentTargetInputs(currentState).isNotEmpty()) {
                         resetStrategyTask(currentState)
                         targetWindow = currentAppState.window
+                        log.info("Switch target window to $targetWindow")
                     } else if (strategyTask !is GoToTargetWindowTask) {
                         resetStrategyTask(currentState)
                         targetWindow = currentAppState.window
+                        log.info("Switch target window to $targetWindow")
                     }
                 }
             }
@@ -466,6 +482,7 @@ class PhaseOneStrategy(
                         )
                     ) {
                         resetStrategyTask(currentState)
+                        log.info("Switch target window to $targetWindow")
                     } else {
                         targetWindow = oldTargetWindow
                     }
@@ -477,12 +494,14 @@ class PhaseOneStrategy(
             selectTargetWindow(currentState, false).also {
                 if (targetWindow != null) {
                     resetStrategyTask(currentState)
+                    log.info("Switch target window to $targetWindow")
                 }
             }
         } else if (outofbudgetWindows.contains(targetWindow!!) ) {
             //try select another target window
             selectTargetWindow(currentState, false).also {
                 resetStrategyTask(currentState)
+                log.info("Switch target window to $targetWindow")
             }
         } /*else if (currentAppState.window == targetWindow && getCurrentTargetEvents(currentState).isEmpty()) {
             if (getPathsToTargetWindows(currentState,PathFindingHelper.PathType.ANY).isEmpty()) {
@@ -549,6 +568,7 @@ class PhaseOneStrategy(
             strategyTask!!.reset()
         strategyTask = null
         phaseState = PhaseState.P1_INITIAL
+        log.info("Reset the current task.")
     }
 
     private fun chooseTask_P1(eContext: ExplorationContext<*, *, *>, currentState: State<*>) {
@@ -1618,7 +1638,7 @@ class PhaseOneStrategy(
         if (pathType == PathFindingHelper.PathType.WTG && !windowAsTarget) {
             return emptyList()
         }
-        getPathToStatesBasedOnPathType(
+            getPathToStatesBasedOnPathType(
             pathType,
             transitionPaths,
             stateScores,
@@ -1853,6 +1873,7 @@ class PhaseOneStrategy(
         val excludedNodes = arrayListOf<AbstractState>(currentNode)
         var targetAbstractStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES
             .filter {
+                it.ignored == false &&
                 it !is VirtualAbstractState
                         && (it.modelVersion != ModelVersion.BASE || it.guiStates.isNotEmpty())
                 it.window == window
@@ -1863,6 +1884,7 @@ class PhaseOneStrategy(
         if (targetAbstractStates.isEmpty()) {
             targetAbstractStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES
                 .filter {
+                    it.ignored == false &&
                     it !is VirtualAbstractState
                             && (it.modelVersion == ModelVersion.BASE)
                     it.window == window

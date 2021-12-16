@@ -578,16 +578,26 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
     }
 
     fun produceActionCoverageHTMLReport(context: ExplorationContext<*, *, *>) {
-        val actionCoverageHTMLFolderPath = context.model.config.baseDir.resolve("actionCoverageHTMLReport")
+        val actionCoverageHTMLFolderPath = context.model.config.baseDir.resolve("actionCoverageHTML")
         // Files.createDirectory(actionCoverageHTMLFolderPath)
         // Copy the folder with the required resources
         Files.deleteIfExists(actionCoverageHTMLFolderPath)
         val zippedVisDir = Resource("actionCoverageHTML.zip").extractTo(context.model.config.baseDir)
-        try {
-            zippedVisDir.unzip(actionCoverageHTMLFolderPath)
-            Files.delete(zippedVisDir)
-        } catch (e: FileSystemException) { // FIXME temporary work-around for windows file still used issue
-            log.warn("resource zip could not be unzipped/removed ${e.localizedMessage}")
+        runBlocking {
+            try {
+                log.debug("Start unzip...")
+                zippedVisDir.unzip(actionCoverageHTMLFolderPath)
+                log.debug("Unzip done ...")
+                log.debug("Delete zip file.")
+                Files.delete(zippedVisDir)
+                log.debug("Delete zip file done.")
+            } catch (e: FileSystemException) { // FIXME temporary work-around for windows file still used issue
+                log.warn("resource zip could not be unzipped/removed ${e.localizedMessage}")
+            }
+        }
+        val screenshotFolder = actionCoverageHTMLFolderPath.resolve("screenshot")
+        if (!Files.exists(screenshotFolder)) {
+            Files.createDirectories(screenshotFolder)
         }
         val actions = ArrayList<Interaction<*>>()
         runBlocking {
@@ -655,6 +665,11 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                 actionJSONObject.put(
                     "newExecutedUpdatedStatements",
                     actionIncreasingUpdatedCoverageTracking.get(actionIdStr)?.size ?: 0
+                )
+                val executedUpdatedMethods = actionIncreasingUpdatedCoverageTracking.get(actionIdStr)?.map { statementMethodInstrumentationMap[it]!! }?.distinct()?.map { getMethodName(it) }?: emptyList()
+                actionJSONObject.put(
+                    "executedUpdatedMethods",
+                    executedUpdatedMethods
                 )
                 if (it.targetWidget != null) {
                     val widget = it.targetWidget!!

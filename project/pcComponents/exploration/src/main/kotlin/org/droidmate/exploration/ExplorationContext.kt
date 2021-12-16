@@ -27,6 +27,7 @@ package org.droidmate.exploration
 
 import com.natpryce.konfig.Configuration
 import kotlinx.coroutines.*
+import org.atua.modelFeatures.ewtg.Helper
 import org.droidmate.configuration.ConfigProperties
 import org.droidmate.device.android_sdk.IApk
 import org.droidmate.deviceInterface.exploration.*
@@ -235,7 +236,9 @@ class ExplorationContext<M,S,W> @JvmOverloads constructor(val cfg: Configuration
 
 	private fun isActivityChooser(currentState: S): Boolean {
 		return currentState.widgets.any{
-			it.packageName == "android" && it.resourceId == "android:id/resolver_list"}
+			it.packageName == "android"
+					&& it.resourceId == "android:id/resolver_list"
+					}
 	}
 
 	fun isOpenWithDialog() = getCurrentState().widgets.any { it.text == "JUST ONCE" || it.text == "ALWAYS" }

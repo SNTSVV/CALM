@@ -14,6 +14,8 @@
 package org.droidmate.exploration.actions
 
 import org.droidmate.configuration.ConfigProperties
+import org.droidmate.configuration.ConfigProperties.Exploration.launchActivityDelay
+import org.droidmate.configuration.ConfigProperties.Exploration.launchActivityTimeout
 import org.droidmate.deviceInterface.exploration.*
 import org.droidmate.exploration.ExplorationContext
 import org.droidmate.explorationModel.debugOut
@@ -78,7 +80,7 @@ fun ExplorationAction.Companion.swipe(start: Pair<Int,Int>,end:Pair<Int,Int>,ste
 fun ExplorationAction.Companion.queue(actions: List<ExplorationAction>, delay:Long=0) = ActionQueue(actions, delay)
 
 //TODO enableWifi takes ~11s therefore we may consider to only do it once on exploration start instead
-fun ExplorationContext<*,*,*>.launchApp(): ExplorationAction = LaunchApp(apk.packageName,1000)
+fun ExplorationContext<*,*,*>.launchApp(): ExplorationAction = LaunchApp(apk.packageName,cfg[ConfigProperties.Exploration.launchActivityDelay].toLong(), cfg[ConfigProperties.Exploration.launchActivityTimeout].toLong())
 
 /*fun ExplorationAction.Companion.launchApp(packageName: String, launchDelay: Long) = queue(listOf(LaunchApp(packageName, launchDelay),
 	GlobalAction(ActionType.EnableData),
