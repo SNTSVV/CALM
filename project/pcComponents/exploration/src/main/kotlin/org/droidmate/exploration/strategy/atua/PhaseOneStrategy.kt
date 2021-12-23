@@ -1448,7 +1448,9 @@ class PhaseOneStrategy(
             shortest = true,
             windowAsTarget = stateWithGoals.isEmpty(),
             goalByAbstractState = stateWithGoals,
-            maxCost = ProbabilityBasedPathFinder.DEFAULT_MAX_COST
+            maxCost = ProbabilityBasedPathFinder.DEFAULT_MAX_COST,
+            abandonedAppStates = emptyList(),
+            forceLaunch = false
         )
         if (shorestPaths.isNotEmpty()) {
             val minPath = shorestPaths.minBy { it.cost() }
@@ -1570,7 +1572,9 @@ class PhaseOneStrategy(
             currentState,
             true,
             goalByAbstractState = goalByAbstractState,
-            maxCost = maxCost
+            maxCost = maxCost,
+            abandonedAppStates = emptyList(),
+            forceLaunch = false
         )
         if (transitionPaths.isEmpty()) {
             getPathToStatesBasedOnPathType(
@@ -1582,7 +1586,9 @@ class PhaseOneStrategy(
                 true,
                 windowAsTarget = true,
                 goalByAbstractState = goalByAbstractState,
-                maxCost = maxCost
+                maxCost = maxCost,
+                abandonedAppStates = emptyList(),
+                forceLaunch = false
             )
         }
         return transitionPaths
@@ -1647,19 +1653,23 @@ class PhaseOneStrategy(
             true,
             windowAsTarget,
             goalByAbstractState,
-            maxCost
+            maxCost,
+                abandonedAppStates = emptyList(),
+                forceLaunch = false
         )
         if (transitionPaths.isEmpty()) {
             getPathToStatesBasedOnPathType(
-                pathType,
-                transitionPaths,
-                stateScores,
-                currentAbstractState,
-                currentState,
-                true,
-                true,
-                goalByAbstractState,
-                maxCost
+                pathType = pathType,
+                transitionPaths = transitionPaths,
+                statesWithScore = stateScores,
+                currentAbstractState =  currentAbstractState,
+                currentState = currentState,
+                shortest =  true,
+                windowAsTarget =  true,
+                goalByAbstractState =  goalByAbstractState,
+                maxCost =  maxCost,
+                abandonedAppStates = emptyList(),
+                forceLaunch = false
             )
         }
         /*if (transitionPaths.isEmpty() && currentAbstractState.window != targetWindow) {

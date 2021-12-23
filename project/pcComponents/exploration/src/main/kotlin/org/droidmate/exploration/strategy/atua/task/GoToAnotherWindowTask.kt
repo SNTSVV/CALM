@@ -180,7 +180,9 @@ open class GoToAnotherWindowTask constructor(
                         pathType = currentPath!!.pathType,
                         goalsByTarget = mapOf(Pair(finalTarget, pathTraverser!!.transitionPath.goal)),
                         windowAsTarget = (finalTarget is VirtualAbstractState && pathTraverser!!.transitionPath.goal.isEmpty()),
-                        maxCost = minCost
+                        maxCost = minCost,
+                        abandonedAppStates = emptyList(),
+                        forceLaunch = false
                     )
                     if (transitionPaths.any { it.path.values.map { it.abstractAction }.equals(currentPath!!.path.values.map { it.abstractAction }) }) {
                         transitionPaths.removeIf {
@@ -266,7 +268,7 @@ open class GoToAnotherWindowTask constructor(
                     AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.hashCode == currentPath!!.getFinalDestination().hashCode } }
             else
                 AbstractStateManager.INSTANCE.getVirtualAbstractState(currentPath!!.getFinalDestination().window)
-            val minCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!! + 1)
+            val minCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!!)
             if (finalTarget != null)
                 ProbabilityBasedPathFinder.findPathToTargetComponent(
                     currentState = currentState,
@@ -279,7 +281,9 @@ open class GoToAnotherWindowTask constructor(
                     pathType = currentPath!!.pathType,
                     goalsByTarget = mapOf(Pair(finalTarget,currentPath!!.goal)),
                     windowAsTarget = (currentPath!!.destination is VirtualAbstractState && currentPath!!.goal.isEmpty()),
-                    maxCost = minCost
+                    maxCost = minCost,
+                    abandonedAppStates = emptyList(),
+                    forceLaunch = false
                 )
             if (transitionPaths.any { it.path.values.map { it.abstractAction }.equals(currentPath!!.path.values.map { it.abstractAction }) }) {
                 transitionPaths.removeIf {
@@ -292,7 +296,7 @@ open class GoToAnotherWindowTask constructor(
                 initialize(currentState)
                 return false
             }
-            AbstractStateManager.INSTANCE.unreachableAbstractState.add(finalTarget!!)
+//            AbstractStateManager.INSTANCE.unreachableAbstractState.add(finalTarget!!)
         }
         val retryBudget = if (includeResetAction) {
             (3 * atuaStrategy.scaleFactor).toInt()
@@ -429,7 +433,7 @@ open class GoToAnotherWindowTask constructor(
     }
 
     override fun initialize(currentState: State<*>) {
-        randomExplorationTask!!.fillingData = true
+        randomExplorationTask!!.fillingData = false
         randomExplorationTask!!.backAction = true
         chooseRandomOption(currentState)
         atuaStrategy.phaseStrategy.fullControl = true

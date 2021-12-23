@@ -151,7 +151,9 @@ abstract class AbstractPhaseStrategy(
             true,
             !explore,
             goalByAbstractState,
-            maxCost
+            maxCost,
+            emptyList(),
+            false
         )
         return transitionPaths
     }
@@ -165,7 +167,9 @@ abstract class AbstractPhaseStrategy(
         shortest: Boolean = true,
         windowAsTarget: Boolean = false,
         goalByAbstractState: Map<AbstractState, List<Input>>,
-        maxCost: Double
+        maxCost: Double,
+        abandonedAppStates: List<AbstractState>,
+        forceLaunch: Boolean
     ) {
         if (pathType != PathFindingHelper.PathType.ANY) {
             getPathToStates(
@@ -177,7 +181,9 @@ abstract class AbstractPhaseStrategy(
                 shortest = shortest,
                 windowAsTarget = windowAsTarget,
                 goalByAbstractState = goalByAbstractState,
-                maxCost = maxCost
+                maxCost = maxCost,
+                abandonedAppStates = abandonedAppStates,
+                forceLaunch = forceLaunch
             )
         } else {
             getPathToStates(
@@ -189,7 +195,9 @@ abstract class AbstractPhaseStrategy(
                 shortest = shortest,
                 windowAsTarget = windowAsTarget,
                 goalByAbstractState = goalByAbstractState,
-                maxCost = maxCost
+                maxCost = maxCost,
+                abandonedAppStates = abandonedAppStates,
+                forceLaunch = forceLaunch
             )
             if (transitionPaths.isEmpty() &&
                 (windowAsTarget || goalByAbstractState.isNotEmpty())
@@ -203,7 +211,9 @@ abstract class AbstractPhaseStrategy(
                     shortest = shortest,
                     windowAsTarget = windowAsTarget,
                     goalByAbstractState = goalByAbstractState,
-                    maxCost = maxCost
+                    maxCost = maxCost,
+                    abandonedAppStates = abandonedAppStates,
+                    forceLaunch = forceLaunch
                 )
             }
             if (transitionPaths.isEmpty() && windowAsTarget) {
@@ -216,7 +226,9 @@ abstract class AbstractPhaseStrategy(
                     shortest = shortest,
                     windowAsTarget = windowAsTarget,
                     goalByAbstractState = goalByAbstractState,
-                    maxCost = maxCost
+                    maxCost = maxCost,
+                    abandonedAppStates = abandonedAppStates,
+                    forceLaunch = forceLaunch
                 )
             }
             if (transitionPaths.isEmpty()) {
@@ -229,7 +241,9 @@ abstract class AbstractPhaseStrategy(
                     shortest = shortest,
                     windowAsTarget = windowAsTarget,
                     goalByAbstractState = goalByAbstractState,
-                    maxCost = maxCost
+                    maxCost = maxCost,
+                    abandonedAppStates = abandonedAppStates,
+                    forceLaunch = forceLaunch
                 )
             }
             if (transitionPaths.isEmpty()) {
@@ -242,7 +256,9 @@ abstract class AbstractPhaseStrategy(
                     shortest = shortest,
                     windowAsTarget = windowAsTarget,
                     goalByAbstractState = goalByAbstractState,
-                    maxCost = maxCost
+                    maxCost = maxCost,
+                    abandonedAppStates = abandonedAppStates,
+                    forceLaunch = false
                 )
             }
         }
@@ -265,7 +281,9 @@ abstract class AbstractPhaseStrategy(
         pathCountLimitation: Int = 1,
         pathType: PathFindingHelper.PathType,
         goalByAbstractState: Map<AbstractState, List<Input>>,
-        maxCost: Double
+        maxCost: Double,
+        abandonedAppStates: List<AbstractState>,
+        forceLaunch: Boolean
     ) {
 
         val candidateStates = HashMap(stateByScore)
@@ -284,7 +302,9 @@ abstract class AbstractPhaseStrategy(
                 pathType = pathType,
                 goalsByTarget = goalByAbstractState.filter { abstractStates.contains(it.key) },
                 windowAsTarget = windowAsTarget,
-                maxCost = maxCost)
+                maxCost = maxCost,
+                abandonedAppStates = abandonedAppStates,
+                forceLaunch = forceLaunch)
             abstractStates.forEach { candidateStates.remove(it) }
         }
 //        LoggerFactory.getLogger(this::class.simpleName).debug("Paths count: ${transitionPaths.size}")
@@ -306,7 +326,9 @@ abstract class AbstractPhaseStrategy(
             pathCountLimitation = 1,
             pathType = PathFindingHelper.PathType.NORMAL,
             goalByAbstractState = mapOf(),
-            maxCost = ProbabilityBasedPathFinder.DEFAULT_MAX_COST
+            maxCost = ProbabilityBasedPathFinder.DEFAULT_MAX_COST,
+            abandonedAppStates = emptyList(),
+            forceLaunch = false
         )
         if (transitionPath.isNotEmpty())
             return false

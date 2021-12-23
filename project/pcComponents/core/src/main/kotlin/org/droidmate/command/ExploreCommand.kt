@@ -290,10 +290,10 @@ open class ExploreCommand<M,S,W>(
 					}
 
 					// execute action
-					result = action.execute(app, device)
 					if (action is ResetApp) {
 						pushSdcardData(device)
 					}
+					result = action.execute(app, device)
 					if (cfg[ConfigProperties.UiAutomatorServer.delayedImgFetch]) {
 						if (capturedPreviously && action is ActionQueue) {
 							action.actions.forEachIndexed { i, a ->

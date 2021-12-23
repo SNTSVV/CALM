@@ -281,10 +281,10 @@ abstract class AbstractStrategyTask(
             val widget = currentState.widgets.find { it.uid == interaction.targetWidget!!.uid }
             if (widget != null) {
                 action = when (interaction.actionType) {
-                    "Click" -> widget.availableActions(25, useCoordinateClicks).filter {
+                    "Click" -> widget.availableActions(delay, useCoordinateClicks).filter {
                         it.name.isClick()
                     }.singleOrNull()
-                    "LongClick" -> widget.availableActions(25, useCoordinateClicks).filter {
+                    "LongClick" -> widget.availableActions(delay, useCoordinateClicks).filter {
                         it.name.isLongClick()
                     }.singleOrNull()
                     "Swipe" -> {
@@ -292,7 +292,7 @@ abstract class AbstractStrategyTask(
                         ExplorationTrace.widgetTargets.add(widget)
                         Swipe(swipeData[0], swipeData[1], 25, true)
                     }
-                    else -> widget.availableActions(0, useCoordinateClicks).random()
+                    else -> widget.availableActions(delay, useCoordinateClicks).random()
                 }
             }
         }
@@ -344,10 +344,10 @@ abstract class AbstractStrategyTask(
                     val widget = currentState.widgets.find { it.uid == interaction.targetWidget!!.uid }
                     if (widget != null) {
                         val action = when (interaction.actionType) {
-                            "Click" -> widget.availableActions(25, useCoordinateClicks).filter {
+                            "Click" -> widget.availableActions(delay, useCoordinateClicks).filter {
                                 it.name.isClick()
                             }.singleOrNull()
-                            "LongClick" -> widget.availableActions(25, useCoordinateClicks).filter {
+                            "LongClick" -> widget.availableActions(delay, useCoordinateClicks).filter {
                                 it.name.isLongClick()
                             }.singleOrNull()
                             "Swipe" -> {
@@ -355,7 +355,7 @@ abstract class AbstractStrategyTask(
                                 ExplorationTrace.widgetTargets.add(widget)
                                 Swipe(swipeData[0], swipeData[1], 25, true)
                             }
-                            else -> widget.availableActions(0, useCoordinateClicks).random()
+                            else -> widget.availableActions(delay, useCoordinateClicks).random()
                         }
                         if (action != null) {
                             actionList.add(action)
@@ -402,19 +402,19 @@ abstract class AbstractStrategyTask(
             outBoundLayout.visibleBounds.width
         val swipeAction = when (data) {
             "SwipeUp" -> {
-                val startY = outBoundLayout.visibleBounds.bottomY - screenHeight / 10
+                val startY = outBoundLayout.visibleBounds.bottomY - screenHeight / 4
                 ExplorationAction.swipe(Pair(screenWidth / 2, startY), Pair(screenWidth / 2, startY - screenHeight))
             }
             "SwipeDown" -> {
-                val startY = outBoundLayout.visibleBounds.topY + screenHeight / 10
+                val startY = outBoundLayout.visibleBounds.topY + screenHeight / 4
                 ExplorationAction.swipe(Pair(screenWidth / 2, startY), Pair(screenWidth / 2, startY + screenHeight))
             }
             "SwipeLeft" -> {
-                val startX = outBoundLayout.visibleBounds.rightX
+                val startX = outBoundLayout.visibleBounds.rightX - screenWidth / 4
                 ExplorationAction.swipe(Pair(startX, screenHeight / 2), Pair(startX - screenWidth, screenHeight / 2))
             }
             "SwipeRight" -> {
-                val startX = outBoundLayout.visibleBounds.leftX
+                val startX = outBoundLayout.visibleBounds.leftX + screenWidth / 4
                 ExplorationAction.swipe(Pair(startX, screenHeight / 2), Pair(startX + screenWidth, screenHeight / 2))
             }
             else -> {
@@ -467,7 +467,6 @@ abstract class AbstractStrategyTask(
                 return null
             }
             if (action == AbstractActionType.CLICK) {
-
                 if (data == "RandomMultiple") {
                     for (i in 0..10) {
                         actionList.add(childWidgets.random().click())
@@ -564,13 +563,28 @@ abstract class AbstractStrategyTask(
         abstractAction: AbstractAction?,
         currentAbstractState: AbstractState
     ): ExplorationAction? {
+        var scrollWidget = actionWidget
+        if (actionWidget.className == "androidx.viewpager.widget.ViewPager"
+            || actionWidget.className == "android.widget.ScrollView") {
+            var childWidget: Widget = actionWidget
+            while (childWidget.childHashes.size==1) {
+                childWidget = currentState.widgets.find { it.idHash == childWidget.childHashes.single()}!!
+                if (childWidget.visibleBounds.isNotEmpty() && childWidget.focused.isEnabled()) {
+                    scrollWidget = childWidget
+                    break
+                } else if (childWidget.childHashes.size>1) {
+                    scrollWidget = childWidget
+                    break
+                }
+            }
+        }
         val swipeAction =
             when (data) {
-                "SwipeUp" -> actionWidget.swipeUp()
-                "SwipeDown" -> actionWidget.swipeDown()
-                "SwipeLeft" -> actionWidget.swipeLeft()
-                "SwipeRight" -> actionWidget.swipeRight()
-                "SwipeTillEnd" -> doDeepSwipeUp(actionWidget, currentState).also {
+                "SwipeUp" -> scrollWidget.swipeUp()
+                "SwipeDown" -> scrollWidget.swipeDown()
+                "SwipeLeft" -> scrollWidget.swipeLeft()
+                "SwipeRight" -> scrollWidget.swipeRight()
+                "SwipeTillEnd" -> doDeepSwipeUp(scrollWidget, currentState).also {
                     if (abstractAction != null)
                         currentAbstractState.increaseActionCount2(abstractAction, false)
                 }
@@ -580,10 +594,10 @@ abstract class AbstractStrategyTask(
                         Swipe(swipeInfo[0], swipeInfo[1], 25, true)
                     } else {
                         arrayListOf(
-                            actionWidget.swipeUp(),
-                            actionWidget.swipeDown(),
-                            actionWidget.swipeLeft(),
-                            actionWidget.swipeRight()
+                            scrollWidget.swipeUp(),
+                            scrollWidget.swipeDown(),
+                            scrollWidget.swipeLeft(),
+                            scrollWidget.swipeRight()
                         ).random()
                     }
                 }

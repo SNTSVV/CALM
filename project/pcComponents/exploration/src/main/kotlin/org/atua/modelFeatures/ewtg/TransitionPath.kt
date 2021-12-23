@@ -117,7 +117,9 @@ class PathTraverser (val transitionPath: TransitionPath) {
                 return true
         }
         val nextInput = nextAbstractTransition!!.source.getInputsByAbstractAction(nextAction)
-        if (currentAppState.getAvailableInputs().intersect(nextInput).isNotEmpty()) {
+        val inputIntersection = currentAppState.getAvailableInputs().intersect(nextInput)
+        if (inputIntersection.isNotEmpty()) {
+            val potentialAbstractActions = inputIntersection.map { currentAppState.getAbstractActionsWithSpecificInputs(it) }.flatten().distinct()
             return true
         }
         return false

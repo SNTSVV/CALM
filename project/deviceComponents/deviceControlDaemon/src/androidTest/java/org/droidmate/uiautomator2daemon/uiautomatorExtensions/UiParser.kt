@@ -101,13 +101,17 @@ abstract class UiParser {
 			true
 		else
 			false*/
-		var isTransparent = if (!isFocusable && !isClickable && !isLongClickable &&!isCheckable && !isScrollable ) {
+		val selected = if(actionList.contains(AccessibilityNodeInfo.AccessibilityAction.ACTION_SELECT)&& markedAsOccupied) isSelected else null
+		val hasClickableDescendant1 = children.any(isClickableDescendant)
+		var isTransparent = if (!isFocusable && !isClickable && !isLongClickable &&!isCheckable && !isScrollable  ) {
 			if (layoutViewClasses.contains(className))
 				true
 			else if (children.isEmpty())
 				true
-			else
+			else if (hasClickableDescendant1)
 				false
+			else
+				true
 		}
 		else
 			false
@@ -151,7 +155,14 @@ abstract class UiParser {
 				visibleOuterBounds()
 			}
 		}
-		val selected = if(actionList.contains(AccessibilityNodeInfo.AccessibilityAction.ACTION_SELECT)&& markedAsOccupied) isSelected else null
+		val hasClickableDescendant2 = children.any(isClickableDescendant).let { hasClickableDescendant ->
+			// check if there are already 'selectable' items in the visible bounds of it, if so set clickable descendants to true
+			if (!hasClickableDescendant && selected.isEnabled()) {
+				// this visible area contains 'selectable/clickable' items therefore we want to mark this as having such descendants even if it is no direct parent but only an 'uncle' to these elements
+				processedNodes.any { visibleBounds.contains(it.visibleBounds) && isClickableDescendant(it) }
+			} else hasClickableDescendant
+		}
+
 		return UiElementProperties(
 				idHash = idHash,
 				imgId = computeImgId(img,visibleBounds),
@@ -178,13 +189,7 @@ abstract class UiParser {
 				focused = if (isFocusable) isFocused else null,
 				scrollable = isScrollable,
 				selected = selected, // ignore 'transparent' layouts
-				hasClickableDescendant = children.any(isClickableDescendant).let { hasClickableDescendant ->
-					// check if there are already 'selectable' items in the visible bounds of it, if so set clickable descendants to true
-					if (!hasClickableDescendant && selected.isEnabled()) {
-						// this visible area contains 'selectable/clickable' items therefore we want to mark this as having such descendants even if it is no direct parent but only an 'uncle' to these elements
-						processedNodes.any { visibleBounds.contains(it.visibleBounds) && isClickableDescendant(it) }
-					} else hasClickableDescendant
-				},
+				hasClickableDescendant = hasClickableDescendant2,
 				definedAsVisible = isVisibleToUser,
 				boundaries = nodeRect.toRectangle(),
 				visibleAreas = visibleAreas,

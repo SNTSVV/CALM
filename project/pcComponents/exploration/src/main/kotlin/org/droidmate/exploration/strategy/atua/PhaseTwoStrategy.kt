@@ -312,7 +312,10 @@ class PhaseTwoStrategy(
         val prevAbstractState = AbstractStateManager.INSTANCE.getAbstractState(atuaMF.appPrevState!!)
         if (currentAbState == null)
             return emptyList()
-        val windowTargetInputs = phase2TargetEvents.filter { it.key.sourceWindow == targetWindow }.keys
+        if (currentTargetInputs.isEmpty())
+            establishTargetInputsForWindow()
+        val windowTargetInputs = currentTargetInputs.distinct()
+//        val windowTargetInputs = phase2TargetEvents.filter { it.key.sourceWindow == targetWindow }.keys
         val inputScore = HashMap<Input,Double>()
         windowTargetInputs.forEach { input ->
             val score = computeInputScore(input)
@@ -358,10 +361,12 @@ class PhaseTwoStrategy(
         targetAbstractStatesPbMap.remove(currentAbState)*/
         val transitionPaths = ArrayList<TransitionPath>()
         getPathToStatesBasedOnPathType(pathType, transitionPaths, targetAbstractStatesPbMap, currentAbState, currentState,false,inputScore.isEmpty(),
-           targetAbstractStateWithGoals,maxCost)
+           targetAbstractStateWithGoals,maxCost,
+            emptyList(),false)
         if (transitionPaths.isEmpty()) {
             getPathToStatesBasedOnPathType(pathType, transitionPaths, targetAbstractStatesPbMap, currentAbState, currentState,false,true,
-                targetAbstractStateWithGoals,maxCost)
+                targetAbstractStateWithGoals,maxCost,
+                emptyList(),false)
         }
         return transitionPaths
     }
@@ -406,7 +411,9 @@ class PhaseTwoStrategy(
             currentState =  currentState,
             shortest =  true,
             goalByAbstractState = goalByAbstractState,
-            maxCost = maxCost
+            maxCost = maxCost,
+            abandonedAppStates = emptyList(),
+            forceLaunch = false
         )
         return transitionPaths
     }
@@ -415,7 +422,9 @@ class PhaseTwoStrategy(
         val targetEvents = ArrayList<Input>()
 
         val abstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)!!
-
+        if (currentTargetInputs.isEmpty()) {
+            establishTargetInputsForWindow()
+        }
         if (abstractState.window == targetWindow) {
             val availableInputs = abstractState.getAvailableInputs()
             targetEvents.addAll(currentTargetInputs.intersect(availableInputs))
@@ -431,9 +440,7 @@ class PhaseTwoStrategy(
         return targetEvents.toSet()
     }
 
-    private fun establishTargetInputsForWindow(
-        currentState: State<*>
-    ) {
+    private fun establishTargetInputsForWindow() {
         currentTargetInputs.clear()
         val windowTargetInputs = phase2TargetEvents.filter { it.key.sourceWindow == targetWindow }.keys
         val inputScore = HashMap<Input, Double>()
@@ -445,12 +452,13 @@ class PhaseTwoStrategy(
                     inputScore.put(input, score)
             }
         if (inputScore.isNotEmpty()) {
-            val exerciseCnt = if (budgetLeft > 0)
+            /*val exerciseCnt = if (budgetLeft > 0)
                 budgetLeft
             else
-                computeExerciseTestBudget(targetWindow!!)
+                computeExerciseTestBudget(targetWindow!!)*/
+            val targetInputSetCnt = 10
             val pb = ProbabilityDistribution<Input>(inputScore)
-            while (currentTargetInputs.size < exerciseCnt) {
+            while (currentTargetInputs.size < targetInputSetCnt) {
                 val selectedInput = pb.getRandomVariable()
                 currentTargetInputs.add(selectedInput)
             }
@@ -573,8 +581,8 @@ class PhaseTwoStrategy(
         }
         if (targetEventCount == 0)
             targetEventCount = 1
-        val abstractStateCnt = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.window == currentAppState.window
-                && it.guiStates.isNotEmpty()}.size
+        val abstractStateCnt = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.window == targetWindow
+                && it.guiStates.isNotEmpty()}.filter{ it.getAvailableInputs().intersect(targetEvents.keys).isNotEmpty() }. size
         val undiscoverdTargetHiddenHandlers = atuaMF.untriggeredTargetHiddenHandlers.filter {
             atuaMF.windowHandlersHashMap.get(targetWindow!!)?.contains(it) ?: false
         }
@@ -601,7 +609,7 @@ class PhaseTwoStrategy(
         if (targetEventCount == 0)
             targetEventCount = 1
         val abstractStateCnt = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.window == window
-                && it.guiStates.isNotEmpty()}.size
+                && it.guiStates.isNotEmpty()}.filter{ it.getAvailableInputs().intersect(targetEvents.keys).isNotEmpty() }. size
         val undiscoverdTargetHiddenHandlers = atuaMF.untriggeredTargetHiddenHandlers.filter {
             atuaMF.windowHandlersHashMap.get(targetWindow!!)?.contains(it) ?: false
         }
@@ -610,6 +618,7 @@ class PhaseTwoStrategy(
         //        else
         val exerciseTestBudget =
             ((targetEventCount * (userlikeInputsCnt + 1) + undiscoverdTargetHiddenHandlers.size+abstractStateCnt) * scaleFactor).toInt()
+
         return exerciseTestBudget
     }
 
@@ -939,7 +948,9 @@ class PhaseTwoStrategy(
                     windowAsTarget = true,
                     shortest = true,
                     transitionPaths = transitionPath,
-                    currentAbstractState = currentAbstractState
+                    currentAbstractState = currentAbstractState,
+                    abandonedAppStates = emptyList(),
+                    forceLaunch = true
                 )
                 transitionPath.isNotEmpty()
             }
@@ -965,7 +976,7 @@ class PhaseTwoStrategy(
         //setTestBudget = false
         attempt--
         atuaMF.updateMethodCovFromLastChangeCount = 0
-        establishTargetInputsForWindow(currentState)
+        establishTargetInputsForWindow()
     }
 
     fun computeAppStatesScore() {

@@ -247,7 +247,9 @@ class PhaseThreeStrategy(
             currentState,
             true,
             goalByAbstractState = goalByAbstractState,
-            maxCost = maxCost
+            maxCost = maxCost,
+            abandonedAppStates = emptyList(),
+            forceLaunch = false
         )
         return transitionPaths
     }
@@ -288,7 +290,9 @@ class PhaseThreeStrategy(
                 false,
                 false,
                 goalByAbstractState,
-                maxCost
+                maxCost,
+                emptyList(),
+                false
             )
         } else {
             getPathToStatesBasedOnPathType(
@@ -300,7 +304,9 @@ class PhaseThreeStrategy(
                 false,
                 true,
                 goalByAbstractState,
-                maxCost
+                maxCost,
+                emptyList(),
+                false
             )
         }
         return transitionPaths
@@ -1106,7 +1112,9 @@ class PhaseThreeStrategy(
                 shortest = true,
                 windowAsTarget = true,
                 goalByAbstractState = emptyMap(),
-                maxCost = ProbabilityBasedPathFinder.DEFAULT_MAX_COST
+                maxCost = ProbabilityBasedPathFinder.DEFAULT_MAX_COST,
+                abandonedAppStates = emptyList(),
+                forceLaunch = false
             )
             if (paths.isNotEmpty()) {
                 reachableWindows.add(it)

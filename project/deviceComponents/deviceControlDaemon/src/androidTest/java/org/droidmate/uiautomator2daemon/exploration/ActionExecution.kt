@@ -29,10 +29,7 @@ import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.core.content.FileProvider
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import org.droidmate.deviceInterface.DeviceConstants
 import org.droidmate.deviceInterface.exploration.*
 import org.droidmate.uiautomator2daemon.uiautomatorExtensions.*
@@ -88,6 +85,7 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 				delay(delay)
 			}*/
 			env.device.click(x, y, interactiveTimeout)
+			delay(delay)
 		}
 		is Tick -> {
 			var success = UiHierarchy.findAndPerform(env, idMatch(idHash)) {
@@ -116,7 +114,7 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 			nodeInfo.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK)}.also {
 			if(it) {
 				delay(delay)
-				env.waitForWindowUpdate()
+//				env.waitForWindowUpdate()
 			} // wait for display update
 			Log.d(logTag, "perform successful=$it")
 		}
@@ -127,7 +125,8 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 //				delay(delay)
 //			}
 			env.device.swipe(x,y,x,y,100).also {
-				env.waitForWindowUpdate()
+				delay(delay)
+//				env.waitForWindowUpdate()
 			}
 
 //			env.device.longClick(x, y, interactiveTimeout).apply {
@@ -182,7 +181,8 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 				else -> true
 			}.also {
 				if (it is Boolean && it) {
-					env.waitForWindowUpdate()
+					delay(200)
+//					env.waitForWindowUpdate()
 				}
 			}
 		//.also { if (it is Boolean && it) { delay(idleTimeout) } }// wait for display update (if no Fetch action)
@@ -208,8 +208,8 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 						Log.d(logTag, "trigger enter")
 						env.device.pressEnter()
 					}  // when doing multiple action sending enter may trigger a continue button but not all elements are yet filled
-
-					env.waitForWindowUpdate()
+					delay(delay)
+//					env.waitForWindowUpdate()
 				} }
 		is RotateUI -> env.device.rotate(rotation, env.automation).also {
 			env.waitForWindowUpdate()
@@ -256,7 +256,10 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 		}
 		is Swipe -> env.device.twoPointAction(start,end){
 			x0, y0, x1, y1 ->  env.device.swipe(x0, y0, x1, y1, stepSize).also {
-				env.waitForWindowUpdate()
+			runBlocking {
+				delay(200)
+			}
+			env.waitForWindowUpdate()
 			}
 		}
 		is CallIntent -> env.device.sendIntent(action, category, uriString,activityName, packageName,env)
@@ -296,6 +299,9 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 		}
 		else -> throw DeviceDaemonException("not implemented action $name was called in exploration/ActionExecution")
 	}
+	if (this.name != ActionType.FetchGUI.name) {
+		env.waitForWindowUpdate()
+	}
 	Log.d(logTag, "END execution of ${toString()} ($id)")
 	return result
 }
@@ -308,15 +314,14 @@ private suspend fun waitForSync(env: UiAutomationEnvironment, afterAction: Boole
 	else
 		env.idleTimeout
 	try {
-/*		if (afterAction) {
+		/*if (afterAction) {
 			env.lastWindows.firstOrNull { it.isApp() && !it.isKeyboard && !it.isLauncher }?.let {
 				env.device.waitForWindowUpdate(it.w.pkgName, env.interactiveTimeout) //wait sync on focused window
 			}
 		}*/
-
 		debugT("wait for IDLE avg = ${time / max(1, cnt)} ms", {
 			env.automation.waitForIdle(50,usingIdleTimeout)
-		//env.device.waitForIdle(env.idleTimeout) // this has a minimal delay of 500ms between events until the device is considered idle
+			//		env.device.waitForIdle(env.idleTimeout) // this has a minimal delay of 500ms between events until the device is considered idle
 		}, inMillis = true,
 				timer = {
 					Log.d(logTag, "time=${it} mms")
