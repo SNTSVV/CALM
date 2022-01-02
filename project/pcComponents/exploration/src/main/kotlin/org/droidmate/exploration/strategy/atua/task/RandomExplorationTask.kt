@@ -32,6 +32,7 @@ class RandomExplorationTask constructor(
     delay: Long, useCoordinateClicks: Boolean,
     private var randomScroll: Boolean,
     private var maximumAttempt: Int) : AbstractStrategyTask(atuaTestingStrategy, regressionTestingMF, delay, useCoordinateClicks) {
+    var stopGenerateUserlikeInput: Boolean = false
     private val MAX_ATTEMP_EACH_EXECUTION = (5*atuaTestingStrategy.scaleFactor).toInt()
     private var prevAbState: AbstractState? = null
     private val BACK_PROB = 0.1
@@ -210,8 +211,8 @@ class RandomExplorationTask constructor(
     override fun chooseAction(currentState: State<*>): ExplorationAction? {
         executedCount++
         val currentAbstractState = atuaMF.getAbstractState(currentState)!!
-        val unexercisedActions = currentAbstractState.getUnExercisedActions(currentState,atuaMF)
-        val widgetActions = unexercisedActions.filter {
+        val unexercisedActions1 = currentAbstractState.getUnExercisedActions(currentState,atuaMF)
+        val widgetActions1 = unexercisedActions1.filter {
             it.attributeValuationMap != null
         }
         if (!isOutOfAppState(currentAbstractState)) {
@@ -226,9 +227,9 @@ class RandomExplorationTask constructor(
         if (goToLockedWindowTask != null) {
             // should go back to target Window
             //reset data filling
-                if (lockedWindow!=null && currentAbstractState.window == lockedWindow && widgetActions.isNotEmpty()) {
+                if (lockedWindow!=null && currentAbstractState.window == lockedWindow && widgetActions1.isNotEmpty()) {
                     goToLockedWindowTask = null
-                } else if(lockedWindow == null && widgetActions.isNotEmpty()){
+                } else if(lockedWindow == null && widgetActions1.isNotEmpty()){
                     goToLockedWindowTask = null
                 } else if (!goToLockedWindowTask!!.isTaskEnd(currentState)) {
                     return goToLockedWindowTask!!.chooseAction(currentState)
@@ -358,7 +359,7 @@ class RandomExplorationTask constructor(
                 fillingData = false
             }
         }
-        if (!dataFilled && !fillingData) {
+        if (!dataFilled && !fillingData && !stopGenerateUserlikeInput) {
             val lastAction = atuaStrategy.eContext.getLastAction()
             if (!lastAction.actionType.isTextInsert() && !currentAbstractState.isOpeningKeyboard) {
                 if (fillDataTask.isAvailable(currentState, alwaysUseRandomInput)) {
@@ -373,7 +374,10 @@ class RandomExplorationTask constructor(
         }
         fillingData = false
         attemptCount++
-
+        val unexercisedActions = currentAbstractState.getUnExercisedActions(currentState,atuaMF)
+        val widgetActions = unexercisedActions.filter {
+            it.attributeValuationMap != null
+        }
         var randomAction: AbstractAction? = null
         if (qlearningRunning) {
             // have not tested

@@ -581,8 +581,9 @@ class PhaseTwoStrategy(
         }
         if (targetEventCount == 0)
             targetEventCount = 1
-        val abstractStateCnt = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.window == targetWindow
-                && it.guiStates.isNotEmpty()}.filter{ it.getAvailableInputs().intersect(targetEvents.keys).isNotEmpty() }. size
+        /*val abstractStateCnt = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.window == targetWindow
+                && it.guiStates.isNotEmpty()}.filter{ it.getAvailableInputs().intersect(targetEvents.keys).isNotEmpty() }. size*/
+
         val undiscoverdTargetHiddenHandlers = atuaMF.untriggeredTargetHiddenHandlers.filter {
             atuaMF.windowHandlersHashMap.get(targetWindow!!)?.contains(it) ?: false
         }
@@ -590,7 +591,7 @@ class PhaseTwoStrategy(
         //            budgetLeft = (targetEventCount * (inputWidgetCount+1)+ log2(undiscoverdTargetHiddenHandlers.size.toDouble()) * scaleFactor).toInt()
         //        else
         val exerciseTestBudget =
-            ((targetEventCount * (inputWidgetCount + 1) + undiscoverdTargetHiddenHandlers.size+abstractStateCnt) * scaleFactor).toInt()
+            ((targetEventCount * (inputWidgetCount + 1) + undiscoverdTargetHiddenHandlers.size) * scaleFactor).toInt()
         return exerciseTestBudget
     }
 
@@ -608,8 +609,8 @@ class PhaseTwoStrategy(
         }
         if (targetEventCount == 0)
             targetEventCount = 1
-        val abstractStateCnt = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.window == window
-                && it.guiStates.isNotEmpty()}.filter{ it.getAvailableInputs().intersect(targetEvents.keys).isNotEmpty() }. size
+//        val abstractStateCnt = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.window == window
+//                && it.guiStates.isNotEmpty()}.filter{ it.getAvailableInputs().intersect(targetEvents.keys).isNotEmpty() }. size
         val undiscoverdTargetHiddenHandlers = atuaMF.untriggeredTargetHiddenHandlers.filter {
             atuaMF.windowHandlersHashMap.get(targetWindow!!)?.contains(it) ?: false
         }
@@ -617,7 +618,7 @@ class PhaseTwoStrategy(
         //            budgetLeft = (targetEventCount * (inputWidgetCount+1)+ log2(undiscoverdTargetHiddenHandlers.size.toDouble()) * scaleFactor).toInt()
         //        else
         val exerciseTestBudget =
-            ((targetEventCount * (userlikeInputsCnt + 1) + undiscoverdTargetHiddenHandlers.size+abstractStateCnt) * scaleFactor).toInt()
+            ((targetEventCount * (userlikeInputsCnt + 1) + undiscoverdTargetHiddenHandlers.size) * scaleFactor).toInt()
 
         return exerciseTestBudget
     }

@@ -7,7 +7,6 @@ import org.droidmate.exploration.actions.pressBack
 import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractState
-import org.atua.modelFeatures.dstg.Cardinality
 import org.atua.modelFeatures.ewtg.Input
 import org.atua.modelFeatures.ewtg.window.Window
 import org.droidmate.exploration.strategy.atua.ATUATestingStrategy
@@ -25,6 +24,8 @@ class ExerciseTargetComponentTask private constructor(
     delay: Long, useCoordinateClicks: Boolean)
     : AbstractStrategyTask(atuaTestingStrategy, regressionWatcher, delay, useCoordinateClicks){
 
+    private var chosenTargetInput: Input? = null
+    private var injectingRandomAction: Boolean = false
     private var recentChangedSystemConfiguration: Boolean = false
     var environmentChange: Boolean = false
     val eventList:  ArrayList<Input> = ArrayList()
@@ -40,6 +41,8 @@ class ExerciseTargetComponentTask private constructor(
 
     private val fillDataTask = PrepareContextTask.getInstance(atuaMF,atuaTestingStrategy, delay, useCoordinateClicks)
     val targetItemEvents = HashMap<AbstractAction, HashMap<String,Int>>()
+    var recentlyExercisedTarget = false
+    var goToLockedWindowTask: GoToAnotherWindowTask? = null
 
     override fun chooseRandomOption(currentState: State<*>) {
         log.debug("Do nothing")
@@ -69,10 +72,12 @@ class ExerciseTargetComponentTask private constructor(
         if (isDoingRandomExplorationTask && !randomExplorationTask.isTaskEnd(currentState)) {
             return false
         }
+        if (goToLockedWindowTask != null)
+            return false
         if (currentAbstractState.window != targetWindow) {
-            /*if (randomBudget>=0)
-                return false*/
-            if (currentAbstractState.isRequireRandomExploration())
+            if (randomBudget>=0)
+                return false
+            else if (currentAbstractState.isRequireRandomExploration())
                 return false
             else
                 return true
@@ -91,7 +96,9 @@ class ExerciseTargetComponentTask private constructor(
     }
 
     private var mainTaskFinished:Boolean = false
-    private val randomExplorationTask = RandomExplorationTask(regressionWatcher,atuaTestingStrategy, delay,useCoordinateClicks,true,3)
+    private val randomExplorationTask = RandomExplorationTask(regressionWatcher,atuaTestingStrategy, delay,useCoordinateClicks,true,3).also {
+        it.stopGenerateUserlikeInput = false
+    }
 
     override fun initialize(currentState: State<*>) {
         randomExplorationTask.fillingData=false
@@ -144,6 +151,8 @@ class ExerciseTargetComponentTask private constructor(
         targetWindow = null
         randomBudget=3*atuaStrategy.scaleFactor.toInt()
         isDoingRandomExplorationTask = false
+        recentlyExercisedTarget = false
+        injectingRandomAction = false
     }
 
     var targetWindow: Window? = null
@@ -177,6 +186,8 @@ class ExerciseTargetComponentTask private constructor(
 
     override fun chooseAction(currentState: State<*>): ExplorationAction? {
         executedCount++
+        //TODO Maybe we need an extra task for returning to the target
+
         val currentAbstractState = atuaMF.getAbstractState(currentState)!!
         val availableActions = ArrayList<AbstractAction>()
         eventList.forEach {
@@ -207,11 +218,32 @@ class ExerciseTargetComponentTask private constructor(
             atuaMF.getAbstractState(atuaMF.appPrevState!!) ?: currentAbstractState
         else
             currentAbstractState
+        if (goToLockedWindowTask!=null) {
+            if (!goToLockedWindowTask!!.isTaskEnd(currentState)) {
+                return goToLockedWindowTask!!.chooseAction(currentState)
+            }
+            goToLockedWindowTask = null
+        }
         if (isCameraOpening(currentState) && currentAbstractState.window != targetWindow) {
             return doRandomExploration(currentState)
         }
         if (currentAbstractState.window != targetWindow) {
-            return doRandomExploration(currentState)
+            if (randomBudget>0)
+                return doRandomExploration(currentState)
+            else {
+                goToLockedWindowTask = GoToTargetWindowTask(atuaMF,atuaStrategy,delay, useCoordinateClicks)
+                if (goToLockedWindowTask!!.isAvailable(currentState,
+                        destWindow= targetWindow!!,
+                    includeResetApp = false,
+                    isWindowAsTarget = false,
+                    maxCost = 25.0,
+                    includePressback = true,
+                    isExploration = false
+                    )) {
+                    goToLockedWindowTask!!.initialize(currentState)
+                    return goToLockedWindowTask!!.chooseAction(currentState)
+                }
+            }
             /*if ( currentAbstractState.window is Dialog || currentAbstractState.window is OptionsMenu || currentAbstractState.window is OutOfApp) {
                 if (!isDoingRandomExplorationTask)
                     randomExplorationTask.initialize(currentState)
@@ -224,13 +256,7 @@ class ExerciseTargetComponentTask private constructor(
             if (keyboardAction != null)
                 return keyboardAction
         }
-       /* if (randomRefillingData
-                && originalEventList.size > eventList.size
-                && fillDataTask.isAvailable(currentState)) {
-            fillDataTask.initialize(currentState)
-            fillingData = true
-            return fillDataTask.chooseAction(currentState)
-        }*/
+
         //TODO check eventList is not empty
 
         if (availableActions.isEmpty()) {
@@ -290,54 +316,82 @@ class ExerciseTargetComponentTask private constructor(
                 }
             }
         }
-        var action: ExplorationAction? = null
-        if (fillingData && !fillDataTask.isTaskEnd(currentState)) {
-            action = fillDataTask.chooseAction(currentState)
-        }
-        if (action != null) {
-            return action
-        } else if(fillingData){
-            dataFilled = true
-            fillingData = false
-        }
-        if (dataFilled) {
-            val fillingTextTask = PrepareContextTask(atuaMF,atuaStrategy,delay,useCoordinateClicks)
-            if (fillingTextTask.isAvailable(currentState)) {
-                val currentUserlikeInputWidgets = fillingTextTask.inputFillDecision.keys.map { it.uid }
-                val beforeUserlikeInputWidgets = fillDataTask.inputFillDecision.map { it.key.uid }
-                if (currentUserlikeInputWidgets.subtract(beforeUserlikeInputWidgets).isNotEmpty()) {
-                    dataFilled = false
-                    fillingData = false
-                }
-            }
-        }
-        if (!dataFilled && !fillingData) {
-            val lastAction = atuaStrategy.eContext.getLastAction()
-            if (!lastAction.actionType.isTextInsert()) {
-                if (fillDataTask.isAvailable(currentState, alwaysUseRandomInput)) {
-                    fillDataTask.initialize(currentState)
-                    fillingData = true
-                    val action = fillDataTask.chooseAction(currentState)
-                    if (action!=null)
-                        return action
-                }
-            } else {
-                dataFilled = true
-            }
-        }
-
-        if (!availableActions.any { it.attributeValuationMap!=null && !it.attributeValuationMap.isInputField()  }) {
-            chosenAbstractAction = availableActions.random()
-        } else {
-            chosenAbstractAction = availableActions.filter { it.attributeValuationMap!=null && !it.attributeValuationMap.isInputField() }.random()
-        }
-        val unexercisedInputs = currentAbstractState.getAvailableInputs().filter { it.exerciseCount == 0 }
+        val unexercisedInputs = currentAbstractState.getAvailableInputs().filter {
+            it.exerciseCount == 0
+                    && it.eventType.isWidgetEvent()}
         if (unexercisedInputs.isEmpty()
             && atuaStrategy.phaseStrategy is PhaseTwoStrategy
-            && unexercisedInputs.intersect(currentAbstractState.getInputsByAbstractAction(chosenAbstractAction!!)).isNotEmpty()
+            && unexercisedInputs.intersect(eventList).isNotEmpty()
             && randomBudget>0) {
             return doRandomExploration(currentState)
         }
+        if (chosenTargetInput == null) {
+            selectFirstAvailableTargetAbstractAction(availableActions, currentAbstractState)
+        } else {
+            if (chosenAbstractAction!!.isWidgetAction()) {
+                if (chosenAbstractAction!!.attributeValuationMap!!.getGUIWidgets(currentState,currentAbstractState.window).isEmpty()) {
+                    selectFirstAvailableTargetAbstractAction(availableActions,currentAbstractState)
+                }
+            }
+        }
+
+        var action: ExplorationAction? = null
+
+        if (!chosenAbstractAction!!.isCheckableOrTextInput()) {
+            // Generate userlike inputs
+            if (fillingData && !fillDataTask.isTaskEnd(currentState)) {
+                action = fillDataTask.chooseAction(currentState)
+            }
+            if (action != null) {
+                return action
+            } else if(fillingData){
+                dataFilled = true
+                fillingData = false
+            }
+            if (dataFilled) {
+                val fillingTextTask = PrepareContextTask(atuaMF,atuaStrategy,delay,useCoordinateClicks)
+                if (fillingTextTask.isAvailable(currentState)) {
+                    val currentUserlikeInputWidgets = fillingTextTask.inputFillDecision.keys.map { it.uid }
+                    val beforeUserlikeInputWidgets = fillDataTask.inputFillDecision.map { it.key.uid }
+                    if (currentUserlikeInputWidgets.subtract(beforeUserlikeInputWidgets).isNotEmpty()) {
+                        dataFilled = false
+                        fillingData = false
+                    }
+                }
+            }
+            if (!dataFilled && !fillingData) {
+                val lastAction = atuaStrategy.eContext.getLastAction()
+                if (!lastAction.actionType.isTextInsert()) {
+                    if (fillDataTask.isAvailable(currentState, alwaysUseRandomInput)) {
+                        fillDataTask.initialize(currentState)
+                        fillingData = true
+                        val action = fillDataTask.chooseAction(currentState)
+                        if (action!=null)
+                            return action
+                    }
+                } else {
+                    dataFilled = true
+                }
+            }
+        }
+
+        if (atuaStrategy.phaseStrategy is PhaseTwoStrategy) {
+            if (injectingRandomAction && randomBudget>0) {
+                return doRandomExploration(currentState)
+            } else {
+                val existingTransition = currentAbstractState.abstractTransitions.find {
+                    it.abstractAction == chosenAbstractAction
+                            && it.interactions.isNotEmpty()
+                }
+                if (existingTransition != null && random.nextBoolean()) {
+                    if (randomBudget > 0)
+                        return doRandomExploration(currentState).also {
+                            injectingRandomAction = true
+                        }
+                }
+            }
+        }
+        injectingRandomAction = false
         /*val unexercisedActions = currentAbstractState.getUnExercisedActions(currentState,atuaMF).filter {
             it.isWidgetAction() }
         if (unexercisedActions.isNotEmpty()
@@ -346,13 +400,6 @@ class ExerciseTargetComponentTask private constructor(
             && randomBudget>0) {
             return doRandomExploration(currentState)
         }*/
-        randomBudget=3*atuaStrategy.scaleFactor.toInt()
-        val chosenInputs = currentAbstractState.getInputsByAbstractAction(chosenAbstractAction!!)
-
-        // Do not use removeAll because we want remove exercised input once.
-        chosenInputs.forEach {
-            eventList.remove(it)
-        }
 
         fillingData = false
         if (chosenAbstractAction!=null)
@@ -394,15 +441,34 @@ class ExerciseTargetComponentTask private constructor(
             }
             else
             {
+                recentlyExercisedTarget = true
+                randomBudget=3*atuaStrategy.scaleFactor.toInt()
                 atuaStrategy.phaseStrategy.registerTriggeredInputs(chosenAbstractAction!!,currentState)
-                exercisedInputs.addAll(chosenInputs)
+                exercisedInputs.add(chosenTargetInput!!)
+                eventList.remove(chosenTargetInput!!)
                 atuaMF.isAlreadyRegisteringEvent = true
                 dataFilled = false
+                chosenTargetInput = null
+                chosenAbstractAction = null
                 return chosenAction
             }
         }
         return ExplorationAction.pressBack()
 
+    }
+
+    private fun selectFirstAvailableTargetAbstractAction(
+        availableActions: ArrayList<AbstractAction>,
+        currentAbstractState: AbstractState
+    ) {
+        if (!availableActions.any { it.attributeValuationMap != null && !it.attributeValuationMap.isInputField() }) {
+            chosenAbstractAction = availableActions.first()
+        } else {
+            chosenAbstractAction =
+                availableActions.filter { it.attributeValuationMap != null && !it.attributeValuationMap.isInputField() }
+                    .first()
+        }
+        chosenTargetInput = currentAbstractState.getInputsByAbstractAction(chosenAbstractAction!!).first()
     }
 
     private fun doRandomExploration(currentState: State<*>): ExplorationAction? {

@@ -271,7 +271,6 @@ class Helper {
                 return visibileWidgetsByState.get(state)!!
             val result = ArrayList<Widget>()
             val originalVisibleWidgets = state.widgets.filter { isVisibleWidget(it) }
-            //TODO try recompute VisibleAreas
 /*            val visibleAreasByWidget = HashMap<Widget,List<Rectangle>> ()
             val topNodes = state.widgets.filter { !it.hasParent}
             val workingList = Stack<Widget>()
@@ -1029,7 +1028,11 @@ class Helper {
         }
 
         fun isOptionsMenuLayout(currentState: State<*>): Boolean {
-            val root = currentState.widgets.filter { it.isVisible }.find { it.parentId == null }
+            val roots = currentState.widgets.filter { it.parentId == null }
+            if (roots.size>1) {
+                return false
+            }
+            val root = currentState.widgets.find { it.parentId == null }
             if (root == null)
             //cannot detect
                 return false

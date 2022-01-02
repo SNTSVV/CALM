@@ -65,7 +65,7 @@ class ModelBackwardAdapter {
         }
         val obsoleteBaseAbstractTransitions =
             getObsoletReusedAbstractTransitions(abstractTransition, prevWindowAbstractState)
-        // TODO check
+
         obsoleteBaseAbstractTransitions.forEach {
             abstractTransition.source.abstractTransitions.remove(it)
             atuamf.dstg.removeAbstractActionEnabiblity(it,atuamf)
@@ -227,7 +227,6 @@ class ModelBackwardAdapter {
     }
 
     private fun registerBackwardEquivalence(guiState: State<*>, observedAbstractState: AbstractState, expected: AbstractState, atuamf: ATUAMF, matchedAVMs2: HashMap<AttributeValuationMap, ArrayList<AttributeValuationMap>>,otherSimilarAbstractStates: List<AbstractState>) {
-        // TODO this is for debug only
         // isBackwardEquivant(observedAbstractState,expected, HashMap(),HashMap(),false)
         backwardEquivalentByGUIState.putIfAbsent(guiState,HashSet())
         backwardEquivalentByGUIState[guiState]!!.add(expected)

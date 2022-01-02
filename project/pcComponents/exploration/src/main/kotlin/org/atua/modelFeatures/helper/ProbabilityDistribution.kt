@@ -37,7 +37,6 @@ class ProbabilityDistribution<T>(
         if (sum > 0.0) {
             var indice = 0.0
             population.forEach { t, u ->
-                //TODO round the length
                 val length = (u) / sum
                 distribution.add(Triple(t, indice, length + indice))
                 indice += length

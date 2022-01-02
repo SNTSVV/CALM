@@ -568,6 +568,7 @@ class PhaseOneStrategy(
             strategyTask!!.reset()
         strategyTask = null
         phaseState = PhaseState.P1_INITIAL
+        episodeCountDown = 5
         log.info("Reset the current task.")
     }
 
@@ -684,9 +685,10 @@ class PhaseOneStrategy(
         }
         //Current window has no more random exploration budget
         if (strategyTask !is GoToAnotherWindowTask ) {
-            if (exploreApp(currentState,goToExploreWindows))
-                return
+
         }
+        if (exploreApp(currentState,goToExploreWindows))
+            return
         setRandomExploration(randomExplorationTask, currentState, false, false)
         forceEnd = true
         return
@@ -711,7 +713,7 @@ class PhaseOneStrategy(
                 )
             ) {
                 if (goToTargetNodeTask.possiblePaths.any { isTargetAbstractState(it.getFinalDestination(), false) }) {
-                    setGoToTarget(goToTargetNodeTask, currentState, true)
+                    setGoToTarget(goToTargetNodeTask, currentState, false)
                     return
                 }
             }
@@ -736,7 +738,7 @@ class PhaseOneStrategy(
                 isExploration = false
             )
         ) {
-            setGoToTarget(goToTargetNodeTask, currentState, true)
+            setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
         unreachableWindows.add(targetWindow!!)
@@ -783,6 +785,7 @@ class PhaseOneStrategy(
                     return
                 }
             } else {
+                log.info("Switch target window to $targetWindow")
                 resetStrategyTask(currentState)
                 nextActionOnInitial(
                     currentAppState,
@@ -801,6 +804,7 @@ class PhaseOneStrategy(
         if (targetWindow == null)
             targetWindow = bkTargetWindow
         else {
+            log.info("Switch target window to $targetWindow")
             resetStrategyTask(currentState)
             nextActionOnInitial(
                 currentAppState,
@@ -899,6 +903,7 @@ class PhaseOneStrategy(
         val bkTargetWindow = targetWindow
         selectTargetWindow(currentState, true)
         if (targetWindow!=null && targetWindow!=bkTargetWindow) {
+            log.info("Switch target window to $targetWindow")
             resetStrategyTask(currentState)
             nextActionOnInitial(
                 currentAppState,
@@ -962,6 +967,7 @@ class PhaseOneStrategy(
         if (targetWindow == null)
             targetWindow = bkTargetWindow
         else {
+            log.info("Switch target window to $targetWindow")
             resetStrategyTask(currentState)
             nextActionOnInitial(
                 currentAppState,
@@ -1068,6 +1074,7 @@ class PhaseOneStrategy(
         if (targetWindow == null)
             targetWindow = bkTargetWindow
         else {
+            log.info("Switch target window to $targetWindow")
             resetStrategyTask(currentState)
             nextActionOnInitial(
                 currentAppState,
@@ -1236,6 +1243,7 @@ class PhaseOneStrategy(
         val bkTargetWindow = targetWindow
         selectTargetWindow(currentState, true)
         if (targetWindow != null) {
+            log.info("Switch target window to $targetWindow")
             resetStrategyTask(currentState)
             nextActionOnInitial(
                 currentAppState,
@@ -1556,6 +1564,9 @@ class PhaseOneStrategy(
             }
             goalByAbstractState.put(virtualAbstractState, toExploreInputs.distinct())
         }
+        if (goalByAbstractState.values.flatten().isEmpty()) {
+            return emptyList()
+        }
         val abstratStateCandidates = goalByAbstractState.keys
         val stateByActionCount = HashMap<AbstractState, Double>()
         abstratStateCandidates.forEach {
@@ -1571,6 +1582,7 @@ class PhaseOneStrategy(
             currentAbstractState,
             currentState,
             true,
+            windowAsTarget = false,
             goalByAbstractState = goalByAbstractState,
             maxCost = maxCost,
             abandonedAppStates = emptyList(),
@@ -1590,6 +1602,7 @@ class PhaseOneStrategy(
                 abandonedAppStates = emptyList(),
                 forceLaunch = false
             )
+            val pathFound = transitionPaths.isNotEmpty()
         }
         return transitionPaths
     }
@@ -1621,9 +1634,14 @@ class PhaseOneStrategy(
                                 || pathType == PathFindingHelper.PathType.WTG))
             ) {
             }*/
-            val allTargetInputs = it.getAvailableInputs().filter {
+            val targetInputsInAppState = it.getAvailableInputs().filter {
                 phaseTargetInputs.contains(it) && inputEffectiveness.containsKey(it) }
-            targetInputs.addAll(allTargetInputs.filter { inputEffectiveness[it]!!>0.0 })
+            targetInputsInAppState.filter { inputEffectiveness[it]!!>0.0 }.forEach {
+                if (!targetInputs.contains(it)) {
+                    targetInputs.add(it)
+                }
+            }
+
             /*if (allTargetInputs.isNotEmpty()) {
                 goalByAbstractState.put(it,allTargetInputs)
                 val targetScore = allTargetInputs.fold(0.1,{score,input ->
@@ -1632,6 +1650,7 @@ class PhaseOneStrategy(
                 stateScores.put(it,targetScore.toDouble())
             }*/
         }
+
         val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(targetWindow!!)!!
         stateScores.put(virtualAbstractState, 1.0)
         goalByAbstractState.put(virtualAbstractState, targetInputs.distinct())
@@ -1754,7 +1773,8 @@ class PhaseOneStrategy(
 
     private fun isAvailableTargetWindow(currentAppState: AbstractState): Boolean {
         return targetWindowTryCount.filterNot {
-            fullyCoveredWindows.contains(it.key)
+            fullyCoveredWindows.contains(it.key) ||
+            outofbudgetWindows.contains(it.key)
         }.any { it.key == currentAppState.window }
     }
 
@@ -1765,7 +1785,6 @@ class PhaseOneStrategy(
     }
 
     var numOfContinousTry = 0
-
 
     private fun shouldChangeTargetWindow() = atuaMF.updateMethodCovFromLastChangeCount > 25 * scaleFactor
 

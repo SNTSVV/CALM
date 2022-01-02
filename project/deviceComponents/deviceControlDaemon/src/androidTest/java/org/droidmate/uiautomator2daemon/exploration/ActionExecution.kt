@@ -17,16 +17,13 @@ import android.media.AudioManager
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Bundle
-import android.os.Environment
 import android.provider.Settings
 import android.support.test.uiautomator.By
 import android.support.test.uiautomator.UiDevice
-import android.support.test.uiautomator.UiSelector
 import android.support.test.uiautomator.Until
 import android.support.test.uiautomator.click
 import android.util.Log
 import android.view.KeyEvent
-import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.*
@@ -38,7 +35,6 @@ import org.droidmate.uiautomator2daemon.uiautomatorExtensions.UiSelector.actable
 import org.droidmate.uiautomator2daemon.uiautomatorExtensions.UiSelector.isWebView
 import java.io.File
 import java.io.FileOutputStream
-import java.nio.file.Files
 import kotlin.math.max
 import kotlin.system.measureNanoTime
 import kotlin.system.measureTimeMillis
@@ -85,7 +81,7 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 				delay(delay)
 			}*/
 			env.device.click(x, y, interactiveTimeout)
-			delay(delay)
+//			delay(delay)
 		}
 		is Tick -> {
 			var success = UiHierarchy.findAndPerform(env, idMatch(idHash)) {
@@ -113,8 +109,8 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 		is LongClickEvent -> UiHierarchy.findAndPerform(env, idMatch(idHash)) { nodeInfo ->				// do this for API Level above 19 (exclusive)
 			nodeInfo.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK)}.also {
 			if(it) {
-				delay(delay)
-//				env.waitForWindowUpdate()
+//				delay(delay)
+				env.waitForWindowUpdate()
 			} // wait for display update
 			Log.d(logTag, "perform successful=$it")
 		}
@@ -125,8 +121,8 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 //				delay(delay)
 //			}
 			env.device.swipe(x,y,x,y,100).also {
-				delay(delay)
-//				env.waitForWindowUpdate()
+//				delay(delay)
+				env.waitForWindowUpdate()
 			}
 
 //			env.device.longClick(x, y, interactiveTimeout).apply {
@@ -177,12 +173,11 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 				else true
 				ActionType.FetchGUI -> fetchDeviceData(env = env, afterAction = false)
 				ActionType.Terminate -> false /* should never be transferred to the device */
-
 				else -> true
 			}.also {
 				if (it is Boolean && it) {
-					delay(200)
-//					env.waitForWindowUpdate()
+//					delay(200)
+					env.waitForWindowUpdate()
 				}
 			}
 		//.also { if (it is Boolean && it) { delay(idleTimeout) } }// wait for display update (if no Fetch action)
@@ -208,8 +203,8 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 						Log.d(logTag, "trigger enter")
 						env.device.pressEnter()
 					}  // when doing multiple action sending enter may trigger a continue button but not all elements are yet filled
-					delay(delay)
-//					env.waitForWindowUpdate()
+//					delay(delay)
+					env.waitForWindowUpdate()
 				} }
 		is RotateUI -> env.device.rotate(rotation, env.automation).also {
 			env.waitForWindowUpdate()
@@ -256,10 +251,7 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 		}
 		is Swipe -> env.device.twoPointAction(start,end){
 			x0, y0, x1, y1 ->  env.device.swipe(x0, y0, x1, y1, stepSize).also {
-			runBlocking {
-				delay(200)
-			}
-			env.waitForWindowUpdate()
+				env.waitForWindowUpdate()
 			}
 		}
 		is CallIntent -> env.device.sendIntent(action, category, uriString,activityName, packageName,env)
@@ -273,7 +265,9 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 					Direction.RIGHT,Direction.DOWN -> nodeInfo.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
 				}
 			}.also {
-			if(it) { delay(idleTimeout) } // wait for display update
+			if(it) {
+				env.waitForWindowUpdate()
+			} // wait for display update
 			Log.d(logTag, "perform successful=$it")
 		}
 		is ActionQueue -> {
@@ -299,9 +293,6 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 		}
 		else -> throw DeviceDaemonException("not implemented action $name was called in exploration/ActionExecution")
 	}
-	if (this.name != ActionType.FetchGUI.name) {
-		env.waitForWindowUpdate()
-	}
 	Log.d(logTag, "END execution of ${toString()} ($id)")
 	return result
 }
@@ -320,6 +311,7 @@ private suspend fun waitForSync(env: UiAutomationEnvironment, afterAction: Boole
 			}
 		}*/
 		debugT("wait for IDLE avg = ${time / max(1, cnt)} ms", {
+//			env.device.waitForIdle(usingIdleTimeout)
 			env.automation.waitForIdle(50,usingIdleTimeout)
 			//		env.device.waitForIdle(env.idleTimeout) // this has a minimal delay of 500ms between events until the device is considered idle
 		}, inMillis = true,
@@ -370,9 +362,9 @@ private var wt = 0.0
 private var wc = 0
 private const val debugFetch = false
 private val isInteractive = { w: UiElementPropertiesI -> w.clickable || w.longClickable || w.checked!=null || w.isInputField}
-suspend fun fetchDeviceData(env: UiAutomationEnvironment, afterAction: Boolean = false, useDefault: Boolean=false): DeviceResponse = coroutineScope{
+suspend fun fetchDeviceData(env: UiAutomationEnvironment, afterAction: Boolean = false, useShortTimeout: Boolean=false): DeviceResponse = coroutineScope{
 	debugOut("start fetch execution",debugFetch)
-	waitForSync(env,afterAction,useDefault)
+	waitForSync(env,afterAction,useShortTimeout)
 
 	var windows: List<DisplayedWindow> = env.getDisplayedWindows()
 	var isSuccessful = true

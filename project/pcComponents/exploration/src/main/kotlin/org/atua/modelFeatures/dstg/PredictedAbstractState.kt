@@ -46,5 +46,5 @@ class PredictedAbstractState(
     rotation = rotation
 ) {
     val abstractActionsProbability = HashMap<AbstractAction,Double>()
-
+    val abstractActionsEffectivenss = HashMap<AbstractAction,Double>()
 }

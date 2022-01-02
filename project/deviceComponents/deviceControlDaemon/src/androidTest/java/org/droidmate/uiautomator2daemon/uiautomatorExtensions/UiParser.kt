@@ -104,14 +104,12 @@ abstract class UiParser {
 		val selected = if(actionList.contains(AccessibilityNodeInfo.AccessibilityAction.ACTION_SELECT)&& markedAsOccupied) isSelected else null
 		val hasClickableDescendant1 = children.any(isClickableDescendant)
 		var isTransparent = if (!isFocusable && !isClickable && !isLongClickable &&!isCheckable && !isScrollable  ) {
-			if (layoutViewClasses.contains(className))
+			if (children.isEmpty())
 				true
-			else if (children.isEmpty())
+			else if (!hasClickableDescendant1)
 				true
-			else if (hasClickableDescendant1)
-				false
 			else
-				true
+				false
 		}
 		else
 			false

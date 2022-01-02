@@ -46,11 +46,15 @@ class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.Pa
                 cost+=1
         }
         var finalReachPb = 1.0
+        var finalEffectiveness = 1.0
         path.values.drop(start).forEach {
             if (it.source is PredictedAbstractState) {
                 val reachPb = it.source.abstractActionsProbability[it.abstractAction]
                 if (reachPb != null)
                     finalReachPb = finalReachPb * reachPb
+                val effectiveness =  it.source.abstractActionsEffectivenss[it.abstractAction]
+                if (effectiveness != null)
+                    finalEffectiveness = finalEffectiveness + effectiveness
             }
         }
         val failurePb = 1.0 - finalReachPb
@@ -62,7 +66,9 @@ class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.Pa
         } else {
             cost += (cost/2 * failurePb)
         }
-        return cost
+
+        val finalCost = cost/finalEffectiveness
+        return finalCost
     }
 
 

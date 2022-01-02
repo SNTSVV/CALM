@@ -572,7 +572,7 @@ abstract class AbstractStrategyTask(
                 if (childWidget.visibleBounds.isNotEmpty() && childWidget.focused.isEnabled()) {
                     scrollWidget = childWidget
                     break
-                } else if (childWidget.childHashes.size>1) {
+                } else if (childWidget.childHashes.size>1 && childWidget.visibleBounds.isNotEmpty()) {
                     scrollWidget = childWidget
                     break
                 }

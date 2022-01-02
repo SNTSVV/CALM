@@ -118,7 +118,7 @@ class ProbabilityBasedPathFinder {
                     targetTraces = targetTraces,
                     currentAbstractStateStack = currentAbstractStateStack,
                     goalsByTarget = goalsByTarget,
-                    minCost = maxCost,
+                    maxCost = maxCost,
                     windowAsTarget = windowAsTarget,
                     abandonedAppStates = abandonedAppStates,
                     forceLaunch = forceLaunch
@@ -143,7 +143,7 @@ class ProbabilityBasedPathFinder {
                     targetTraces = targetTraces,
                     currentAbstractStateStack = currentAbstractStateStack,
                     goalsByTarget = goalsByTarget,
-                    minCost = maxCost,
+                    maxCost = maxCost,
                     windowAsTarget = windowAsTarget,
                     abandonedAppStates = abandonedAppStates,
                     forceLaunch = forceLaunch
@@ -168,7 +168,7 @@ class ProbabilityBasedPathFinder {
                     targetTraces = targetTraces,
                     currentAbstractStateStack = currentAbstractStateStack,
                     goalsByTarget = goalsByTarget,
-                    minCost = maxCost,
+                    maxCost = maxCost,
                     windowAsTarget = windowAsTarget,
                     abandonedAppStates = abandonedAppStates,
                     forceLaunch = forceLaunch
@@ -195,7 +195,7 @@ class ProbabilityBasedPathFinder {
             targetTraces: List<Int>,
             currentAbstractStateStack: List<AbstractState>,
             goalsByTarget: Map<AbstractState, List<Input>>,
-            minCost: Double,
+            maxCost: Double,
             abandonedAppStates: List<AbstractState>,
             forceLaunch: Boolean
         ) {
@@ -226,7 +226,7 @@ class ProbabilityBasedPathFinder {
                         targetTraces = targetTraces,
                         currentAbstractStateStack = currentAbstractStateStack,
                         goalsByTarget = goalsByTarget,
-                        minCost = minCost,
+                        maxCost = maxCost,
                         windowAsTarget = windowAsTarget,
                         abandonedAppStates = abandonedAppStates,
                         forceLaunch = forceLaunch
@@ -235,7 +235,7 @@ class ProbabilityBasedPathFinder {
                     return
                 }
             } else {
-                foundPaths.removeIf { it.cost() > minCost }
+                foundPaths.removeIf { it.cost() > maxCost }
                 for (traversing in prevEdgeIds) {
                     val source = traversedEdges[traversing]!!.first.dest
                     if (source.window is Launcher)
@@ -267,7 +267,7 @@ class ProbabilityBasedPathFinder {
                         targetTraces = targetTraces,
                         currentAbstractStateStack = currentAbstractStateStack,
                         goalsByTarget = goalsByTarget,
-                        minCost = minCost,
+                        maxCost = maxCost,
                         windowAsTarget = windowAsTarget,
                         abandonedAppStates = abandonedAppStates,
                         forceLaunch = forceLaunch
@@ -280,7 +280,7 @@ class ProbabilityBasedPathFinder {
                 && foundPaths.any { it.path.values.all { it.dest !is PredictedAbstractState } }) {
                 return
             }
-            val newMinCost = foundPaths.map { it.cost() }.min() ?: minCost
+            val newMinCost = foundPaths.map { it.cost() }.min() ?: maxCost
 //            foundPaths.removeIf { it.cost() > newMinCost }
 //            val newMinCost = minCost
             findPathToTargetComponentByBFS(
@@ -303,7 +303,7 @@ class ProbabilityBasedPathFinder {
                 targetTraces = targetTraces,
                 currentAbstractStateStack = currentAbstractStateStack,
                 goalsByTarget = goalsByTarget,
-                minCost = newMinCost,
+                maxCost = newMinCost,
                 windowAsTarget = windowAsTarget,
                 abandonedAppStates = abandonedAppStates,
                 forceLaunch = forceLaunch
@@ -331,7 +331,7 @@ class ProbabilityBasedPathFinder {
             currentAbstractStateStack: List<AbstractState>,
             goalsByTarget: Map<AbstractState, List<Input>>,
             abandonedAppStates: List<AbstractState>,
-            minCost: Double,
+            maxCost: Double,
             forceLaunch: Boolean
         ) {
             val prevAbstractTransitions = ArrayList<AbstractTransition>()
@@ -351,6 +351,7 @@ class ProbabilityBasedPathFinder {
                         false
                 }
             val traveredAbstractTransitions = traversedEdges.map { it.value.first }
+//            val traveredAbstractTransitions = prevAbstractTransitions
             val allAvailableActions = source.getAvailableActions()
             val validAbstractActions = allAvailableActions.filter {
                 (it.actionType != AbstractActionType.RESET_APP
@@ -367,15 +368,15 @@ class ProbabilityBasedPathFinder {
                             it.dependentAbstractStates.intersect(abstractStateStack.toList()).isNotEmpty())
                             && (includeWTG || !it.fromWTG)
                 }
-                val validAbstactTransitions = abstractTransitions.filter {
+                val goodAbstactTransitions = abstractTransitions.filter {
                     it.dest.window !is Launcher &&
                     it.dest !is PredictedAbstractState
                             && !traveredAbstractTransitions.map { it.source }.contains(it.dest)
                             && it.source != it.dest
                 }
                 var selectedExercisedAbstractTransition = false
-                if (validAbstactTransitions.isNotEmpty()) {
-                    validAbstactTransitions.forEach { abstractTransition ->
+                if (goodAbstactTransitions.isNotEmpty()) {
+                    goodAbstactTransitions.forEach { abstractTransition ->
                         selectedExercisedAbstractTransition = processAbstractTransition(
                             abstractTransition = abstractTransition,
                             traversedEdges = traversedEdges,
@@ -384,7 +385,7 @@ class ProbabilityBasedPathFinder {
                             prevEdgeId = prevEdgeId,
                             root = root,
                             pathTracking = pathTracking,
-                            minCost = minCost,
+                            minCost = maxCost,
                             foundPaths = foundPaths,
                             abstractStateStack = abstractStateStack,
                             source = source,
@@ -400,16 +401,16 @@ class ProbabilityBasedPathFinder {
                 val isTransitionsEmpty = abstractTransitions.isEmpty()
                 if (isConsideredForPredicting(abstractAction)
                     && ((!selectedExercisedAbstractTransition
-                            && ( isAllImplicitTransitions
-                            || isTransitionsEmpty))
+                            && ( isAllImplicitTransitions || isTransitionsEmpty))
                         || abstractAction.isItemAction())
-                        && pathType != PathFindingHelper.PathType.NORMAL
+                        && (pathType == PathFindingHelper.PathType.WIDGET_AS_TARGET || pathType == PathFindingHelper.PathType.WTG)
                         && (goalsByTarget.isNotEmpty() || windowAsTarget)
                 ) {
                     var predictedAction = false
                     if (traveredAbstractTransitions.any { it.dest is PredictedAbstractState && it.abstractAction == abstractAction }) {
                         predictedAction = true
                     }
+//                    predictedAction = false
                     if (!predictedAction) {
                         val exisitingPredictedTransitions =
                             abstractTransitions.filter { it.dest is PredictedAbstractState }
@@ -424,7 +425,7 @@ class ProbabilityBasedPathFinder {
                                         prevEdgeId = prevEdgeId,
                                         root = root,
                                         pathTracking = pathTracking,
-                                        minCost = minCost,
+                                        minCost = maxCost,
                                         foundPaths = foundPaths,
                                         abstractStateStack = abstractStateStack,
                                         source = source,
@@ -442,9 +443,10 @@ class ProbabilityBasedPathFinder {
                                     .goBackAbstractActions.contains(abstractAction) || true
                             ) {
                                 val reachableAbstractActions =
-                                    atuaMF.dstg.abstractActionEnables[abstractAction]?.second?.filter { it.key.actionType != AbstractActionType.RESET_APP }
+                                    atuaMF.dstg.abstractActionEnables[abstractAction]?.filter { it.key.actionType != AbstractActionType.RESET_APP }
                                 if (reachableAbstractActions != null) {
-                                    val totalcnt = atuaMF.dstg.abstractActionEnables[abstractAction]!!.first
+                                    val totalcnt = atuaMF.dstg.abstractActionCounts[abstractAction]!!
+                                    val reachableStates = atuaMF.dstg.abstractActionStateEnable[abstractAction]!!
                                     val abstractActionsByWindow = reachableAbstractActions.keys.groupBy { it.window }
                                     abstractActionsByWindow.filter { it.key !is Launcher }. forEach { window, abstractActions ->
                                         val activity = window.classType
@@ -480,12 +482,12 @@ class ProbabilityBasedPathFinder {
                                             inputs?.forEach {
                                                 predictAbstractState.associateAbstractActionWithInputs(action, it)
                                             }
-
                                             predictAbstractState.abstractActionsProbability.put(action, prob)
-                                            if (prob > 0.4) {
-                                            } else {
-                                                val faileur = 1.0 - prob
-                                            }
+
+                                            val effectiveness = if (totalcnt == 1) 0.0
+                                                                else  reachableStates.size.toDouble() / totalcnt
+                                            predictAbstractState.abstractActionsEffectivenss.put(action,effectiveness)
+
                                         }
                                         predictAbstractState.updateHashCode()
                                         val newAbstractTransition = AbstractTransition(
@@ -508,7 +510,7 @@ class ProbabilityBasedPathFinder {
                                             source = source,
                                             nextTransitions = nextTransitions,
                                             finalTargets = finalTargets,
-                                            minCost = minCost,
+                                            minCost = maxCost,
                                             goalsByTarget = goalsByTarget,
                                             atuaMF = atuaMF,
                                             abandonedAppStates = abandonedAppStates,

@@ -53,7 +53,6 @@ class AbstractionFunction2 (val root: DecisionNode2) {
                 && it.abstractAction == abstractTransition.abstractAction
                 && it.dest.window == abstractTransition.dest.window}
         return result
-        // TODO check
     }
 
     fun Widget.isInteractiveLeaf(guiState: State<*>): Boolean {

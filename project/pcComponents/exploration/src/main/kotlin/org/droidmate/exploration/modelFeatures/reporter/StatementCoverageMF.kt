@@ -681,6 +681,7 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                     widgetJSONObject.put("text", widget.text)
                     widgetJSONObject.put("contentDesc", widget.contentDesc)
                     widgetJSONObject.put("className", widget.className)
+                    widgetJSONObject.put("resourceId",widget.resourceId)
                     val visibleBounds = JSONObject()
                     visibleBounds.put("leftX", widget.visibleBounds.leftX)
                     visibleBounds.put("topY", widget.visibleBounds.topY)

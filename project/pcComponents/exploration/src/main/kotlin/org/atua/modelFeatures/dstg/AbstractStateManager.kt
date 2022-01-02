@@ -3072,7 +3072,6 @@ class AbstractStateManager() {
                 dest = backAbstractState
             )
             if (existingAT == null) {
-                // TODO check
                 val backAbstractInteraction = AbstractTransition(
                     abstractAction = backAbstractAction,
                     isImplicit = true,
@@ -3080,7 +3079,6 @@ class AbstractStateManager() {
                     source = currentAbstractState,
                     dest = backAbstractState!!
                 )
-                // TODO check
                 backAbstractInteraction.dependentAbstractStates.add(backAbstractState)
                 backAbstractInteraction.guardEnabled = true
                 atuaMF.dstg.add(currentAbstractState, backAbstractState, backAbstractInteraction)
@@ -3114,7 +3112,6 @@ class AbstractStateManager() {
                 source = abstractState,
                 dest = currentAbstractState
         )
-        // TODO check
         atuaMF.dstg.add(abstractState, currentAbstractState, implicitAbstractInteraction)
     }*/
 
@@ -3142,7 +3139,7 @@ class AbstractStateManager() {
                         && it.label.data == abstractTransition.data
                         && it.destination?.data == destinationAbstractState
             }
-            // TODO check
+
             if (existingEdge != null) {
                 return null
             }
@@ -3156,7 +3153,6 @@ class AbstractStateManager() {
                     dest = destinationAbstractState
                 )
             implicitAbstractTransition!!.guardEnabled = abstractTransition.guardEnabled
-// TODO check
         } else {
             //find Widgetgroup
             val widgetGroup = sourceAbstractState.attributeValuationMaps.find {
@@ -3170,7 +3166,6 @@ class AbstractStateManager() {
                             && it.label.data == abstractTransition.data
                             && destinationAbstractState == it.destination?.data
                 }
-                // TODO check
                 if (existingEdge.isNotEmpty()) {
                     return null
                 }
@@ -3188,7 +3183,6 @@ class AbstractStateManager() {
                         source = sourceAbstractState,
                         dest = destinationAbstractState
                     )
-                // TODO check
             } else {
                 implicitAbstractTransition = null
             }

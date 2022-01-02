@@ -1307,7 +1307,6 @@ class ATUAMF(
         existingTransition.activated = true
         if (interactionData != null) {
             existingTransition.data = interactionData
-            // TODO update data to array
         }
         if (prevWindowAbstractState != null && !existingTransition.dependentAbstractStates.contains(
                 prevWindowAbstractState

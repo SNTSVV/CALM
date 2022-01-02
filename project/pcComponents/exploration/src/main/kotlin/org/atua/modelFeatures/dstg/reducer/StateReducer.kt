@@ -45,7 +45,6 @@ class StateReducer
             val capturedAttributePaths = ArrayList<AttributePath>()
             val tempFullAttrPaths = HashMap<Widget,AttributePath>()
             val tempRelativeAttrPaths = HashMap<Widget,AttributePath>()
-            //TODO: Save all computed attributePath to prevent from recomputing
 
             val visibleWidgets = Helper.getVisibleWidgets(guiState)
             val visibleWidgetsForAbstraction = Helper.getVisibleWidgetsForAbstraction(guiState)

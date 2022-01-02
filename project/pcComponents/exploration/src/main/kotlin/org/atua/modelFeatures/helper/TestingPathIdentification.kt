@@ -245,7 +245,7 @@ class PathFindingHelper {
             pathCountLimitation: Int = 1,
             includeLaunchAction: Boolean,
             includeImplicitBackEvent: Boolean,
-            includeResetAction: Boolean,//TODO rename
+            includeResetAction: Boolean,
             includeImplicitInteraction: Boolean,
             followTrace: Boolean,
             pathType: PathType,
@@ -672,10 +672,10 @@ class PathFindingHelper {
                     }
                     else if (atuaMF.dstg.abstractActionEnables.containsKey(prevAction)) {
                         val enabledAbstractActions =
-                            atuaMF.dstg.abstractActionEnables[prevAction]!!.second
+                            atuaMF.dstg.abstractActionEnables[prevAction]!!
                         if (enabledAbstractActions.containsKey(t.abstractAction)) {
                             val reliability =
-                                enabledAbstractActions[t.abstractAction]!! * 1.0 / atuaMF.dstg.abstractActionEnables[prevAction]!!.first
+                                enabledAbstractActions[t.abstractAction]!! * 1.0 / atuaMF.dstg.abstractActionCounts[prevAction]!!
                             reachPb1 *= reliability
                         } else {
                             reachPb1 = 0.0

@@ -91,14 +91,12 @@ class AttributeValuationMap {
                 parentAttributeValuationMapId = newParentAttributeValuationSet.avmId
             }*/
         }
-        //TODO
 /*        if (attributePath.childAttributePathIds.isNotEmpty()) {
             attributePath.childAttributePathIds.map { AttributePath.getAttributePathById(it,activity) }.forEach {
                 val childAttributeValuationSet = AttributeValuationMap(it,Cardinality.ONE,activity, HashMap())
                 childAttributeValuationSetIds.add(childAttributeValuationSet.avsId)
             }
         }*/
-        //TODO
 
         ALL_ATTRIBUTE_VALUATION_MAP[window]!!.put(avmId,this)
         attributePath_AttributeValuationMap[window]!!.put(attributePath,this)
