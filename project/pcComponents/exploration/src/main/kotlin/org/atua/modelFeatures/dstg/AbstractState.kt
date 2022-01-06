@@ -21,6 +21,7 @@ import org.atua.modelFeatures.ewtg.window.Launcher
 import org.atua.modelFeatures.ewtg.window.OutOfApp
 import org.atua.modelFeatures.ewtg.window.Window
 import org.atua.calm.modelReuse.ModelVersion
+import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.mapping.EWTG_DSTGMapping
 import org.droidmate.explorationModel.emptyUUID
 import org.droidmate.explorationModel.interaction.State
@@ -309,7 +310,19 @@ open class AbstractState(
         return allActions
     }
 
-
+    fun getUnExercisedActions2(currentState: State<*>): List<AbstractAction> {
+        val potentialActions = getAvailableActions(currentState)
+            .filter { it.meaningfulScore>0
+                    && it.actionType != AbstractActionType.FAKE_ACTION
+                    && it.actionType != AbstractActionType.LAUNCH_APP
+                    && it.actionType != AbstractActionType.RESET_APP
+                    && it.actionType != AbstractActionType.ENABLE_DATA
+                    && it.actionType != AbstractActionType.DISABLE_DATA
+                    && it.actionType != AbstractActionType.WAIT
+                    && it.actionType != AbstractActionType.SEND_INTENT
+                    && !AbstractStateManager.INSTANCE.goBackAbstractActions.contains(it)}
+        return potentialActions
+    }
     fun getUnExercisedActions(currentState: State<*>?,
                               atuaMF: org.atua.modelFeatures.ATUAMF
                               ): List<AbstractAction> {
@@ -554,7 +567,7 @@ open class AbstractState(
         }
         localScore += this.getActionCountMap().map { it.value }.sum()
         this.guiStates.forEach {
-            localScore += autautMF.actionCount.getUnexploredWidget(it).size
+            localScore += autautMF.actionCount.getUnexploredWidget2(it).size
         }
         /* actions.forEach {action ->
              autautMF.abstractTransitionGraph.edges(this).filter { edge->

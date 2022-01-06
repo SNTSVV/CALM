@@ -40,7 +40,7 @@ data class ConcreteId(val uid: UUID, val configId: UUID): Serializable {
 	}
 }
 
-internal operator fun UUID.plus(uuid: UUID?): UUID {
+operator fun UUID.plus(uuid: UUID?): UUID {
 	return if(uuid == null) this
 	else UUID(this.mostSignificantBits + uuid.mostSignificantBits, this.leastSignificantBits + uuid.mostSignificantBits)
 }

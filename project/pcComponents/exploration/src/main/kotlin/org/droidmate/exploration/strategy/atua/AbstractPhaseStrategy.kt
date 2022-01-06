@@ -74,14 +74,14 @@ abstract class AbstractPhaseStrategy(
                         || it.isAppHasStoppedDialogBox
                         || it.attributeValuationMaps.isEmpty()
                         || it.guiStates.isEmpty()
-                        || it.guiStates.all { atuaMF.actionCount.getUnexploredWidget(it).isEmpty() }
+                        || it.guiStates.all { atuaMF.actionCount.getUnexploredWidget2(it).isEmpty() }
 
             }
         return runtimeAbstractStates
     }
 
     fun hasUnexploreWidgets(currentState: State<*>): Boolean {
-        return atuaMF.actionCount.getUnexploredWidget(currentState).isNotEmpty()
+        return atuaMF.actionCount.getUnexploredWidget2(currentState).isNotEmpty()
     }
 
     open fun getPathsToWindowToExplore(

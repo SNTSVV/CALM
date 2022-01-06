@@ -167,7 +167,7 @@ open class GoToAnotherWindowTask constructor(
                 else
                     AbstractStateManager.INSTANCE.getVirtualAbstractState(currentPath!!.getFinalDestination().window)
 //                val minCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!!)
-                val minCost = DEFAULT_MAX_COST
+                val minCost = currentPath!!.cost()
                 if (finalTarget != null) {
                     ProbabilityBasedPathFinder.findPathToTargetComponent(
                         currentState = currentState,
@@ -214,6 +214,7 @@ open class GoToAnotherWindowTask constructor(
                 actionTryCount = 0
                 expectedNextAbState = pathTraverser!!.getCurrentTransition()?.dest
                 if (transitionPaths.isNotEmpty()) {
+                    log.info("Change path to the target")
                     possiblePaths.clear()
                     possiblePaths.addAll(transitionPaths)
                     initialize(currentState)
@@ -291,6 +292,7 @@ open class GoToAnotherWindowTask constructor(
                 }
             }
             if (transitionPaths.isNotEmpty()) {
+                log.info("Change path to the target")
                 possiblePaths.clear()
                 possiblePaths.addAll(transitionPaths)
                 initialize(currentState)
@@ -299,11 +301,12 @@ open class GoToAnotherWindowTask constructor(
 //            AbstractStateManager.INSTANCE.unreachableAbstractState.add(finalTarget!!)
         }
         val retryBudget = if (includeResetAction) {
-            (3 * atuaStrategy.scaleFactor).toInt()
+            (10 * atuaStrategy.scaleFactor).toInt()
         } else
-            (3 * atuaStrategy.scaleFactor).toInt()
+            (10 * atuaStrategy.scaleFactor).toInt()
         if (retryTimes < retryBudget) {
             retryTimes += 1
+            log.debug("Retry-time: $retryTimes")
             identifyPossiblePaths(currentState, true)
             if (possiblePaths.isNotEmpty() ) {
                 val minCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!! + 1)
@@ -453,6 +456,7 @@ open class GoToAnotherWindowTask constructor(
     }
 
     var useTrace: Boolean = true
+
     override fun isAvailable(currentState: State<*>): Boolean {
         reset()
         isExploration = true
@@ -466,6 +470,7 @@ open class GoToAnotherWindowTask constructor(
     }
 
     var isWindowAsTarget: Boolean = false
+
     open fun isAvailable(
         currentState: State<*>,
         destWindow: Window,

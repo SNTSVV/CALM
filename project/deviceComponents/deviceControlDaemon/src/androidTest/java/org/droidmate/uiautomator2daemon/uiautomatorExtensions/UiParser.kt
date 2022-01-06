@@ -103,10 +103,15 @@ abstract class UiParser {
 			false*/
 		val selected = if(actionList.contains(AccessibilityNodeInfo.AccessibilityAction.ACTION_SELECT)&& markedAsOccupied) isSelected else null
 		val hasClickableDescendant1 = children.any(isClickableDescendant)
+
+		// In case of Citymapper, there is a transparent layer with children inside
+
 		var isTransparent = if (!isFocusable && !isClickable && !isLongClickable &&!isCheckable && !isScrollable  ) {
 			if (children.isEmpty())
 				true
 			else if (!hasClickableDescendant1)
+				true
+			else if (layoutViewClasses.contains(className))
 				true
 			else
 				false

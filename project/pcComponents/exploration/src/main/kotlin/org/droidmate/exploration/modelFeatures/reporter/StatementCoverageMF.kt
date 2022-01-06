@@ -30,6 +30,7 @@ import org.droidmate.explorationModel.interaction.Interaction
 import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
 import org.droidmate.explorationModel.retention.StringCreator
+import org.droidmate.explorationModel.sanitize
 import org.droidmate.legacy.Resource
 import org.droidmate.legacy.getExtension
 import org.droidmate.misc.deleteDir
@@ -202,6 +203,7 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
         actionUpdatedCoverageTracking.put(lastActionId,executedUpdatedStatements)
         actionIncreasingUpdatedCoverageTracking.put(lastActionId,newUpdatedExecutedStatements)
     }
+
     /**
      * Fetch the statement data form the device. Afterwards, it parses the data and updates [executedStatementsMap].
      */
@@ -558,11 +560,12 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
     fun dumpActionTraceWithCoverage(context: ExplorationContext<*, *, *>) {
         runBlocking {
             val outputFile = File(context.model.config.baseDir.resolve("actionCoverage_${context.explorationTrace.id}.csv").toAbsolutePath().toString()).bufferedWriter()
-            outputFile.write("ActionId[0];ActionType[1];SourceState[2];ResultState[3];Data[4];CoverageHash[5];ExecutedStatements[6];NewExecutedStatements[7];ExecutedUpdatedStatements[8];NewUpdatedExecutedStatements[9]")
+            outputFile.write("ActionId[0];ActionType[1];WidgetUUID[2];WidgetType[3];WidgetResourceId[4];WidgetText[5];WidgetContentDesc[6];SourceState[7];ResultState[8];Data[9];CoverageHash[10];ExecutedStatements[11];NewExecutedStatements[12];ExecutedUpdatedStatements[13];NewUpdatedExecutedStatements[14]")
             outputFile.newLine()
             val actions = context.explorationTrace.P_getActions()
             actions.forEach { action ->
-                outputFile.write("${action.actionId.toString()};${action.actionType};${action.prevState};${action.resState};\"${action.data}\";")
+                outputFile.write("${action.actionId.toString()};${action.actionType};" +
+                        "${action.targetWidget?.uid};${action.targetWidget?.className};${action.targetWidget?.resourceId};${action.targetWidget?.text?.sanitize()};${action.targetWidget?.contentDesc?.sanitize()};${action.prevState};${action.resState};\"${action.data}\";")
                 outputFile.write("${actionCoverageTracking.get(action.actionId.toString())?.hashCode()} ;${actionCoverageTracking.get(action.actionId.toString())?.size};${actionIncreasingCoverageTracking.get(action.actionId.toString())?.size};${actionUpdatedCoverageTracking.get(action.actionId.toString())?.size};${actionIncreasingUpdatedCoverageTracking.get(action.actionId.toString())?.size};")
                 outputFile.newLine()
             }
@@ -612,8 +615,8 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
         var prevActionId: Int = 0
         actions.forEach {
             val actionIdStr = it.actionId.toString()
-            if (actionIncreasingUpdatedCoverageTracking.containsKey(actionIdStr)
-                && actionIncreasingUpdatedCoverageTracking.get(actionIdStr)!!.size>0) {
+            if (actionUpdatedCoverageTracking.containsKey(actionIdStr)
+                && actionUpdatedCoverageTracking.get(actionIdStr)!!.size>0) {
                 val actionJSONObject = JSONObject()
                 dataJson.put(actionIdStr, actionJSONObject)
                 actionJSONObject.put("from", it.prevState.uid)
@@ -653,6 +656,7 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                         Files.copy(screenshotFile, newScreenshotFile)
                     actionJSONObject.put("image", actionCoverageHTMLFolderPath.relativize(newScreenshotFile).toString())
                 }
+                actionJSONObject.put("coverageHash", actionCoverageTracking.get(actionIdStr)?.hashCode())
                 actionJSONObject.put("executedStatements", actionCoverageTracking.get(actionIdStr)?.size ?: 0)
                 actionJSONObject.put(
                     "newExecutedStatements",
@@ -678,8 +682,8 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                     widgetJSONObject.put("id", widget.id)
                     widgetJSONObject.put("uid", widget.uid)
                     widgetJSONObject.put("configId", widget.configId)
-                    widgetJSONObject.put("text", widget.text)
-                    widgetJSONObject.put("contentDesc", widget.contentDesc)
+                    widgetJSONObject.put("text", widget.text.sanitize())
+                    widgetJSONObject.put("contentDesc", widget.contentDesc.sanitize())
                     widgetJSONObject.put("className", widget.className)
                     widgetJSONObject.put("resourceId",widget.resourceId)
                     val visibleBounds = JSONObject()

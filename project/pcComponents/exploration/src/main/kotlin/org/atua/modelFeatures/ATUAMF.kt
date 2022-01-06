@@ -77,10 +77,13 @@ import org.droidmate.exploration.modelFeatures.explorationWatchers.CrashListMF
 import org.droidmate.exploration.modelFeatures.graph.Edge
 import org.droidmate.exploration.modelFeatures.graph.StateGraphMF
 import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF
+import org.droidmate.explorationModel.ConcreteId
 import org.droidmate.explorationModel.ExplorationTrace
+import org.droidmate.explorationModel.emptyUUID
 import org.droidmate.explorationModel.interaction.Interaction
 import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
+import org.droidmate.explorationModel.plus
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.awt.image.BufferedImage
@@ -156,7 +159,8 @@ class ATUAMF(
     var internetStatus = true
     val abstractStateVisitCount = HashMap<AbstractState, Int>()
     private val windowVisitCount = HashMap<Window, Int>()
-    private val stateVisitCount = HashMap<State<*>, Int>()
+    private val stateVisitCount = HashMap<UUID, Int>()
+    private val stateStructureHashMap = HashMap<UUID,UUID>()
     var appPrevState: State<*>? = null
     var windowStack: Stack<Window> = Stack()
     private var abstractStateStack: Stack<AbstractState> = Stack()
@@ -1775,8 +1779,27 @@ class ATUAMF(
             val currentAbstractState = computeAbstractState(newState, context)
             AbstractStateManager.INSTANCE.unreachableAbstractState.remove(currentAbstractState)
             stateList.add(newState)
-            stateVisitCount.putIfAbsent(newState, 0)
-            stateVisitCount[newState] = stateVisitCount[newState]!! + 1
+
+
+            val structureHashUUID = if (!stateStructureHashMap.containsKey(newState.uid)) {
+                newState.widgets.distinctBy { it.uid }.fold(emptyUUID, { id, widget ->
+                    // e.g. keyboard elements are ignored for uid computation within [addRelevantId]
+                    // however different selectable auto-completion proposes are only 'rendered'
+                    // such that we have to include the img id (part of configId) to ensure different state configuration id's if these are different
+                    if (!widget.isKeyboard && !newState.isHomeScreen
+                        && (widget.nlpText.isNotBlank() || widget.isInteractive || widget.isLeaf())) {
+                        id + widget.id.uid
+                    } else
+                        id
+                }).also {
+                    stateStructureHashMap.putIfAbsent(newState.uid, it)
+                }
+            } else
+                stateStructureHashMap[newState.uid]!!
+
+            stateVisitCount.putIfAbsent(structureHashUUID, 0)
+            stateVisitCount[structureHashUUID] = stateVisitCount[structureHashUUID]!! + 1
+
             actionCount.initWidgetActionCounterForNewState(newState)
             val actionId = lastInteractions.last().actionId
             val screenshotFile = eContext!!.model.config.imgDst.resolve("$actionId.jpg")
@@ -1958,6 +1981,13 @@ class ATUAMF(
                 edge.label.userInputs.add(condition)
             }
         }
+
+        if (prevState == newState)
+            abstractInteraction.abstractAction.meaningfulScore -= 100
+        else if (stateVisitCount[stateStructureHashMap[newState.uid]]==1)
+            abstractInteraction.abstractAction.meaningfulScore += 50
+        else
+            abstractInteraction.abstractAction.meaningfulScore -= 50
         //if (!abstractInteraction.abstractAction.isActionQueue())
         updateCoverage(prevAbstractState, newAbstractState, abstractInteraction, lastInteractions.first())
         //create StaticEvent if it dose not exist in case this abstract Interaction triggered modified methods
@@ -2176,6 +2206,12 @@ class ATUAMF(
                 recentExecutedMethods.addAll(statementMF!!.recentExecutedMethods)
             }
         }
+
+        if (statementMF!!.actionIncreasingCoverageTracking[interaction.actionId.toString()]?.isNotEmpty()?:false)
+                abstractTransition.abstractAction.meaningfulScore+=50
+        else
+            abstractTransition.abstractAction.meaningfulScore-=50
+
         recentExecutedStatements.forEach { statementId ->
             if (!interactionCoverage.contains(statementId)) {
                 interactionCoverage.add(statementId)

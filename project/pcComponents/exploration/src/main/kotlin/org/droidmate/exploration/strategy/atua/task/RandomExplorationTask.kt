@@ -211,8 +211,8 @@ class RandomExplorationTask constructor(
     override fun chooseAction(currentState: State<*>): ExplorationAction? {
         executedCount++
         val currentAbstractState = atuaMF.getAbstractState(currentState)!!
-        val unexercisedActions1 = currentAbstractState.getUnExercisedActions(currentState,atuaMF)
-        val widgetActions1 = unexercisedActions1.filter {
+        val unexercisedActions = currentAbstractState.getUnExercisedActions(currentState,atuaMF)
+        val widgetActions1 = unexercisedActions.filter {
             it.attributeValuationMap != null
         }
         if (!isOutOfAppState(currentAbstractState)) {
@@ -226,7 +226,7 @@ class RandomExplorationTask constructor(
             currentAbstractState
         if (goToLockedWindowTask != null) {
             // should go back to target Window
-            //reset data filling
+            // reset data filling
                 if (lockedWindow!=null && currentAbstractState.window == lockedWindow && widgetActions1.isNotEmpty()) {
                     goToLockedWindowTask = null
                 } else if(lockedWindow == null && widgetActions1.isNotEmpty()){
@@ -234,7 +234,6 @@ class RandomExplorationTask constructor(
                 } else if (!goToLockedWindowTask!!.isTaskEnd(currentState)) {
                     return goToLockedWindowTask!!.chooseAction(currentState)
                 }
-                recentGoToExploreState = true
         } else {
             if (isCameraOpening(currentState)) {
                 return dealWithCamera(currentState)
@@ -243,7 +242,8 @@ class RandomExplorationTask constructor(
                     && lockedWindow != currentAbstractState.window) {
                 /*dataFilled = false
                 fillingData = false*/
-                if (!currentAbstractState.isRequireRandomExploration() && !Helper.isOptionsMenuLayout(currentState)
+                if (!currentAbstractState.isRequireRandomExploration()
+                    && !Helper.isOptionsMenuLayout(currentState)
                     || actionOnOutOfAppCount >= 5 // to avoid the case that we are in outOfApp too long
                 ) {
                     if (currentAbstractState.isOpeningKeyboard) {
@@ -258,7 +258,6 @@ class RandomExplorationTask constructor(
                             includeResetApp = false,
                             isExploration = false)) {
                         if (goToLockedWindowTask!!.possiblePaths.any { it.cost()<=5*atuaStrategy.scaleFactor }) {
-                            recentGoToExploreState = true
                             goToLockedWindowTask!!.initialize(currentState)
                             return goToLockedWindowTask!!.chooseAction(currentState)
                         } else {
@@ -374,7 +373,8 @@ class RandomExplorationTask constructor(
         }
         fillingData = false
         attemptCount++
-        val unexercisedActions = currentAbstractState.getUnExercisedActions(currentState,atuaMF)
+//        val unexercisedActions = currentAbstractState.getUnExercisedActions(currentState,atuaMF)
+
         val widgetActions = unexercisedActions.filter {
             it.attributeValuationMap != null
         }
@@ -425,42 +425,48 @@ class RandomExplorationTask constructor(
                     unexercisedActions.random()
                 }
             } else {
-                val swipeActions = currentAbstractState.getActionCountMap().map { it.key }. filter {
-                    !it.isWebViewAction()
-                            && it.isWidgetAction()
-                            && it.actionType == AbstractActionType.SWIPE }
-                val unexercisedActionsInCurrentState = swipeActions.filter { action->
-                    !currentAbstractState.abstractTransitions.any {
-                        it.abstractAction == action &&
-                                (it.dest !is VirtualAbstractState
-                                        && it.dest !is PredictedAbstractState)} }
-                if (unexercisedActionsInCurrentState.isNotEmpty()) {
-                    randomAction = unexercisedActionsInCurrentState.random()
-                } else if (!isPureRandom && !recentGoToExploreState && canGoToUnexploredStates(
-                        currentAbstractState,
-                        currentState
-                    )
-                ) {
-                    return goToLockedWindowTask!!.chooseAction(currentState)
-                } else if (random.nextDouble() < 0.1) {
-                    val abstractActions = currentAbstractState.getAvailableActions().filter {
-                        !it.isWidgetAction() && !recentActions.contains(it) && !it.isLaunchOrReset()
-                    }
-                    if (abstractActions.isNotEmpty()) {
-                        randomAction = abstractActions.random()
-                    }
+                val unexercisedActions2 = currentAbstractState.getUnExercisedActions2(currentState)
+                if (unexercisedActions2.isNotEmpty()) {
+                    randomAction = unexercisedActions2.maxBy { it.getScore() }
                 } else {
-                    val visibleTargets = ArrayList(Helper.getActionableWidgetsWithoutKeyboard(currentState))
-                    val unexploredWidgets = atuaMF.actionCount.getUnexploredWidget(currentState).filter {
-                        /*it.clickable || it.scrollable || (!it.clickable && it.longClickable)*/
-                        it.clickable
-                    }.filterNot { Helper.isUserLikeInput(it) }
-                    if (unexploredWidgets.isNotEmpty() /*|| isPureRandom*/ ) {
-                        recentGoToExploreState = false
-                        return randomlyExploreLessExercisedWidgets(unexploredWidgets, currentState)
-                    }  else {
-                        recentGoToExploreState = false
-                        return randomlyExploreLessExercisedWidgets(visibleTargets,currentState)
+                    val swipeActions = currentAbstractState.getActionCountMap().map { it.key }. filter {
+                        !it.isWebViewAction()
+                                && it.isWidgetAction()
+                                && it.actionType == AbstractActionType.SWIPE }
+                    val unexercisedActionsInCurrentState = swipeActions.filter { action->
+                        !currentAbstractState.abstractTransitions.any {
+                            it.abstractAction == action &&
+                                    (it.dest !is VirtualAbstractState
+                                            && it.dest !is PredictedAbstractState)} && action.meaningfulScore > 0}
+                    if (unexercisedActionsInCurrentState.isNotEmpty()) {
+                        randomAction = unexercisedActionsInCurrentState.random()
+                    } else if (!isPureRandom && !recentGoToExploreState
+                        && canGoToUnexploredStates(
+                            currentAbstractState,
+                            currentState
+                        )
+                    ) {
+                        return goToLockedWindowTask!!.chooseAction(currentState)
+                    } else if (random.nextDouble() < 0.1) {
+                        val abstractActions = currentAbstractState.getAvailableActions().filter {
+                            !it.isWidgetAction() && !recentActions.contains(it) && !it.isLaunchOrReset()
+                        }
+                        if (abstractActions.isNotEmpty()) {
+                            randomAction = abstractActions.random()
+                        }
+                    } else {
+                        val visibleTargets = ArrayList(Helper.getActionableWidgetsWithoutKeyboard(currentState))
+                        val unexploredWidgets = atuaMF.actionCount.getUnexploredWidget2(currentState).filter {
+                            /*it.clickable || it.scrollable || (!it.clickable && it.longClickable)*/
+                            it.clickable
+                        }.filterNot { Helper.isUserLikeInput(it) }
+                        if (unexploredWidgets.isNotEmpty() /*|| isPureRandom*/ ) {
+                            recentGoToExploreState = false
+                            return randomlyExploreLessExercisedWidgets(unexploredWidgets, currentState)
+                        }  else {
+                            recentGoToExploreState = false
+                            return randomlyExploreLessExercisedWidgets(visibleTargets,currentState)
+                        }
                     }
                 }
             }
@@ -588,7 +594,7 @@ class RandomExplorationTask constructor(
                 unexploredWidgets.filter { lessExercisedWidgets.contains(it) }.random()
             else
                 lessExercisedWidgets.random()
-            log.info("Widget: $chosenWidget")
+                log.info("Widget: $chosenWidget")
             return doRandomActionOnWidget(chosenWidget, currentState)
         }
 

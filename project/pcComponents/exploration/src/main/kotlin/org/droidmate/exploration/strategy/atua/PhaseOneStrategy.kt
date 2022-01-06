@@ -1258,10 +1258,8 @@ class PhaseOneStrategy(
             targetWindow = bkTargetWindow
         }
 //        unreachableWindows.add(targetWindow!!)
-        if (hasBudgetLeft(currentAppState.window)
-            || currentAppState.getUnExercisedActions(currentState, atuaMF)
-                .isNotEmpty()
-        ) {
+        val unExercisedActions = currentAppState.getUnExercisedActions(currentState,atuaMF)
+        if (hasBudgetLeft(currentAppState.window) && unExercisedActions.isNotEmpty()) {
             setRandomExploration(randomExplorationTask, currentState, false, false)
             return
         }

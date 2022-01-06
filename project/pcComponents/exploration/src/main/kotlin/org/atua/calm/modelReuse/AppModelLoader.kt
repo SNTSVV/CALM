@@ -267,25 +267,27 @@ class AppModelLoader {
                     }
                 }
             }
-            val coveredMethods = splitCSVLineToField(data[6])
-            val coveredMethodsId = coveredMethods.map { autMF.statementMF!!.getMethodId(it) }
-            coveredMethodsId.forEach { methodId ->
-                if (methodId.isNotBlank()) {
-                    event.coveredMethods.put(methodId, false)
-                    if (autMF.statementMF!!.isModifiedMethod(methodId)) {
-                        event.modifiedMethods.putIfAbsent(methodId, false)
-                    }
-                    autMF.modifiedMethodWithTopCallers
-                        .filter { it.value.contains(methodId) }
-                        .forEach { updatedMethod, callers ->
-                            if (!event.modifiedMethods.containsKey(updatedMethod)) {
-                                event.modifiedMethods.putIfAbsent(updatedMethod, false)
-                                val updatedStatements = autMF.statementMF!!.getMethodStatements(methodId)
-                                updatedStatements.forEach {
-                                    event.modifiedMethodStatement.put(it, false)
+            if (data.size>6) {
+                val coveredMethods = splitCSVLineToField(data[6])
+                val coveredMethodsId = coveredMethods.map { autMF.statementMF!!.getMethodId(it) }
+                coveredMethodsId.forEach { methodId ->
+                    if (methodId.isNotBlank()) {
+                        event.coveredMethods.put(methodId, false)
+                        if (autMF.statementMF!!.isModifiedMethod(methodId)) {
+                            event.modifiedMethods.putIfAbsent(methodId, false)
+                        }
+                        autMF.modifiedMethodWithTopCallers
+                            .filter { it.value.contains(methodId) }
+                            .forEach { updatedMethod, callers ->
+                                if (!event.modifiedMethods.containsKey(updatedMethod)) {
+                                    event.modifiedMethods.putIfAbsent(updatedMethod, false)
+                                    val updatedStatements = autMF.statementMF!!.getMethodStatements(methodId)
+                                    updatedStatements.forEach {
+                                        event.modifiedMethodStatement.put(it, false)
+                                    }
                                 }
                             }
-                        }
+                    }
                 }
             }
 /*            val modifiedMethods = splitCSVLineToField(data[5])

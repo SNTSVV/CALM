@@ -461,32 +461,36 @@ class ProbabilityBasedPathFinder {
                                             inputMappings = HashMap()
                                         )
                                         abstractActions.forEach { action ->
+
                                             val prob =
                                                 reachableAbstractActions[action]!! * 1.0 / totalcnt
-                                            if (!action.isWidgetAction()) {
-                                                if (!predictAbstractState.containsActionCount(action))
-                                                    predictAbstractState.setActionCount(action, 0)
-                                            }
-                                            if (action.attributeValuationMap != null && !predictAbstractState.attributeValuationMaps.contains(
-                                                    action.attributeValuationMap
-                                                )
-                                            ) {
-                                                predictAbstractState.attributeValuationMaps.add(action.attributeValuationMap)
-                                                predictAbstractState.avmCardinalities.putIfAbsent(
-                                                    action.attributeValuationMap,
-                                                    Cardinality.ONE
-                                                )
-                                            }
-                                            val inputs =
-                                                EWTG_DSTGMapping.INSTANCE.inputsByAbstractActions.get(action)
-                                            inputs?.forEach {
-                                                predictAbstractState.associateAbstractActionWithInputs(action, it)
-                                            }
-                                            predictAbstractState.abstractActionsProbability.put(action, prob)
+                                            if (prob>0.3){
+                                                if (!action.isWidgetAction()) {
+                                                    if (!predictAbstractState.containsActionCount(action))
+                                                        predictAbstractState.setActionCount(action, 0)
+                                                }
+                                                if (action.attributeValuationMap != null && !predictAbstractState.attributeValuationMaps.contains(
+                                                        action.attributeValuationMap
+                                                    )
+                                                ) {
+                                                    predictAbstractState.attributeValuationMaps.add(action.attributeValuationMap)
+                                                    predictAbstractState.avmCardinalities.putIfAbsent(
+                                                        action.attributeValuationMap,
+                                                        Cardinality.ONE
+                                                    )
+                                                }
+                                                val inputs =
+                                                    EWTG_DSTGMapping.INSTANCE.inputsByAbstractActions.get(action)
+                                                inputs?.forEach {
+                                                    predictAbstractState.associateAbstractActionWithInputs(action, it)
+                                                }
+                                                predictAbstractState.abstractActionsProbability.put(action, prob)
 
-                                            val effectiveness = if (totalcnt == 1) 0.0
-                                                                else  reachableStates.size.toDouble() / totalcnt
-                                            predictAbstractState.abstractActionsEffectivenss.put(action,effectiveness)
+                                                val effectiveness = if (totalcnt == 1) 0.0
+                                                else  reachableStates.size.toDouble() / totalcnt
+                                                predictAbstractState.abstractActionsEffectivenss.put(action,effectiveness)
+                                            }
+
 
                                         }
                                         predictAbstractState.updateHashCode()

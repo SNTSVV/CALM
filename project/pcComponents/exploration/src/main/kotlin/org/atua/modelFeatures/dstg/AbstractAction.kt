@@ -13,12 +13,7 @@
 package org.atua.modelFeatures.dstg
 
 import org.atua.modelFeatures.ewtg.Helper
-import org.atua.modelFeatures.ewtg.window.Launcher
 import org.atua.modelFeatures.ewtg.window.Window
-import org.droidmate.exploration.actions.swipeDown
-import org.droidmate.exploration.actions.swipeLeft
-import org.droidmate.exploration.actions.swipeRight
-import org.droidmate.exploration.actions.swipeUp
 import org.droidmate.explorationModel.interaction.Interaction
 import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
@@ -34,6 +29,7 @@ class AbstractAction private constructor (
             return false
         return this.hashCode() == other.hashCode()
     }*/
+    var meaningfulScore = 100
     fun isItemAction(): Boolean {
         return when(actionType) {
             AbstractActionType.ITEM_CLICK,AbstractActionType.ITEM_LONGCLICK,AbstractActionType.ITEM_SELECTED -> true
@@ -77,8 +73,8 @@ class AbstractAction private constructor (
             else -> 1.0
         }
         if (attributeValuationMap == null)
-            return actionScore
-        return actionScore
+            return actionScore*meaningfulScore
+        return actionScore*meaningfulScore
     }
 
     fun validateSwipeAction(abstractAction: AbstractAction, guiState: State<*>): Boolean {

@@ -59,6 +59,23 @@ class ActionCount  {
         return unexploredWidget
     }
 
+    fun getUnexploredWidget2(guiState: State<Widget>): List<Widget> {
+        val unexploredWidget = ArrayList<Widget>()
+        val abstractState = AbstractStateManager.INSTANCE.getAbstractState(guiState)!!
+        val activity = abstractState.window.classType
+        Helper.getActionableWidgetsWithoutKeyboard(guiState).forEach {
+            val widgetUid = it.id
+            if (widgetCount.containsKey(widgetUid)) {
+                if (widgetCount.get(widgetUid)!!.containsKey(activity)) {
+                    if (widgetCount.get(widgetUid)!!.get(activity) == 0) {
+                        unexploredWidget.add(it)
+                    }
+                }
+            }
+        }
+        return unexploredWidget
+    }
+
      fun initWidgetActionCounterForNewState(newState: State<*>) {
         val newAbstractState: AbstractState = AbstractStateManager.INSTANCE.getAbstractState(newState)!!
         Helper.getActionableWidgetsWithoutKeyboard(newState).filter { it.clickable }. forEach {

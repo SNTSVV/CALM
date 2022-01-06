@@ -47,7 +47,11 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
         if (enableAbstractActions == null)
             return
         val totalCnt = abstractActionCount
-        if (totalCnt <= 1) {
+        val bonus = if (abstractTransition.interactions.isEmpty() && abstractTransition.modelVersion == ModelVersion.BASE)
+            1
+        else
+            2
+        if (totalCnt <= bonus) {
             abstractActionEnables.remove(abstractAction)
             abstractActionCounts.remove(abstractAction)
             abstractActionStateEnable.remove(abstractAction)
@@ -62,12 +66,13 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
                     if (enabled <= 1) {
                         enableAbstractActions.remove(it)
                     } else {
-                        enableAbstractActions.put(it,enabled - 1)
+                        enableAbstractActions.put(it,enabled - bonus)
                 }
             }
         }
-        abstractActionCounts.put(abstractAction,totalCnt-1)
+        abstractActionCounts.put(abstractAction,totalCnt-bonus)
     }
+
     fun updateAbstractActionEnability(
         abstractTransition: AbstractTransition,
         atua: ATUAMF
@@ -88,15 +93,19 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
         val availableActions = newAbstractState.getAvailableActions()
         val prevAvailableActions = prevAbstractState.getAvailableActions()
         val availableAbstractActions = availableActions.subtract(prevAvailableActions)
+        val bonus = if (abstractTransition.interactions.isNotEmpty())
+            2
+        else
+            1
         availableAbstractActions.forEach {
             if (!enableAbstractActions.containsKey(it))
-                enableAbstractActions.putIfAbsent(it, 1)
+                enableAbstractActions.putIfAbsent(it, bonus)
             else {
                 val enabled = enableAbstractActions[it]!!
-                enableAbstractActions.put(it, enabled+1)
+                enableAbstractActions.put(it, enabled+bonus)
             }
         }
-        abstractActionCounts.put(abstractAction,totalCnt+1)
+        abstractActionCounts.put(abstractAction,totalCnt+bonus)
 
         abstractActionStateEnable.putIfAbsent(abstractAction, HashSet())
         val enabledState = abstractActionStateEnable[abstractAction]!!
