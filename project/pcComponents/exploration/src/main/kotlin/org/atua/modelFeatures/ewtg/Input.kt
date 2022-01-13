@@ -49,6 +49,7 @@ open class Input{
     var isUseless: Boolean? = null
     var mappingActionIds = HashMap<String,ArrayList<String>>()
     val modelVersion: ModelVersion
+    var exercisedInThePast: Boolean = false
 
     private constructor(eventType: EventType, eventHandlers: Set<String>, widget: EWTGWidget?,sourceWindow: Window,createdAtRuntime: Boolean=false, modelVersion: ModelVersion) {
        this.eventType = eventType

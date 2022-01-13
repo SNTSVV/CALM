@@ -23,13 +23,14 @@ import org.atua.modelFeatures.dstg.DSTG
 import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.calm.ewtgdiff.AdditionSet
 import org.atua.calm.ewtgdiff.EWTGDiff
+import org.atua.calm.ewtgdiff.Replacement
+import org.atua.calm.ewtgdiff.ReplacementSet
 import org.atua.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.dstg.AttributeType
 import org.atua.modelFeatures.ewtg.EWTGWidget
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.Input
-import org.droidmate.exploration.modelFeatures.graph.Edge
 import org.droidmate.explorationModel.interaction.State
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
@@ -126,7 +127,7 @@ class ModelBackwardAdapter {
                 matchedAVMs2.clear()
                 unmatchedAVMs1.clear()
                 unmatchedAVMs2.clear()
-                if (isBackwardEquivant(observedAbstractState, expectedAbstractState,matchedAVMs1,matchedAVMs2,unmatchedAVMs1,unmatchedAVMs2, false)) {
+                if (isBackwardEquivant(observedAbstractState, expectedAbstractState,matchedAVMs1,matchedAVMs2,unmatchedAVMs1,unmatchedAVMs2, false,atuamf)) {
                     registerBackwardEquivalence(guiState, observedAbstractState, expectedAbstractState, atuamf, matchedAVMs2,candidates)
                     backwardEquivalenceFound = true
                 } else {
@@ -150,7 +151,7 @@ class ModelBackwardAdapter {
                     unmatchedAVMs2.clear()
                     if (observedAbstractState == expected) {
                         backwardEquivalenceFound = true
-                    } else if (isBackwardEquivant(observedAbstractState, expected,matchedAVMs1,matchedAVMs2,unmatchedAVMs1,unmatchedAVMs2, false)) {
+                    } else if (isBackwardEquivant(observedAbstractState, expected,matchedAVMs1,matchedAVMs2,unmatchedAVMs1,unmatchedAVMs2, false,atuamf)) {
                         registerBackwardEquivalence(guiState, observedAbstractState, expected, atuamf, matchedAVMs2,candidates)
                         backwardEquivalenceFound = true
                         backwardEquivalentAbstractTransitionMapping.putIfAbsent(abstractTransition,HashSet())
@@ -175,7 +176,7 @@ class ModelBackwardAdapter {
                     matchedAVMs2.clear()
                     unmatchedAVMs1.clear()
                     unmatchedAVMs2.clear()
-                    if (isBackwardEquivant(observedAbstractState, it, matchedAVMs1, matchedAVMs2,unmatchedAVMs1,unmatchedAVMs2,  true)) {
+                    if (isBackwardEquivant(observedAbstractState, it, matchedAVMs1, matchedAVMs2,unmatchedAVMs1,unmatchedAVMs2,  true,atuamf)) {
                         registerBackwardEquivalence(guiState, observedAbstractState, it, atuamf, matchedAVMs2,candidates)
                         backwardEquivalenceFound = true
                     }
@@ -468,7 +469,8 @@ class ModelBackwardAdapter {
                                    matchedAVMs2: HashMap<AttributeValuationMap,ArrayList<AttributeValuationMap>>,
                                    unmatchedAVMs1: ArrayList<AttributeValuationMap>,
                                    unmatchedAVMs2: ArrayList<AttributeValuationMap>,
-                                   strict: Boolean): Boolean {
+                                   strict: Boolean,
+    atuaMF: ATUAMF): Boolean {
         if (observedAbstractState.window != expectedAbstractState.window)
             return false
         if (observedAbstractState.isOpeningKeyboard != expectedAbstractState.isOpeningKeyboard)
@@ -487,7 +489,8 @@ class ModelBackwardAdapter {
             matchedAVMs1,
             matchedAVMs2,
             unmatchedAVMs1,
-            unmatchedAVMs2
+            unmatchedAVMs2,
+            atuaMF
         )
         if (unmatchedAVMs1.size == 0 && unmatchedAVMs2.size == 0) {
             return true
@@ -549,7 +552,8 @@ class ModelBackwardAdapter {
         matchedAVMs1: HashMap<AttributeValuationMap, ArrayList<AttributeValuationMap>>,
         matchedAVMs2: HashMap<AttributeValuationMap, ArrayList<AttributeValuationMap>>,
         unmatchedAVMs1: ArrayList<AttributeValuationMap>,
-        unmatchedAVMs2: ArrayList<AttributeValuationMap>
+        unmatchedAVMs2: ArrayList<AttributeValuationMap>,
+        atuaMF: ATUAMF
     ) {
         observedAbstractState.EWTGWidgetMapping.forEach { avm, widget ->
             if (addedWidgets.contains(widget)) {
@@ -566,18 +570,29 @@ class ModelBackwardAdapter {
             unmatchedAVMs2
         )
         phase2MatchingAVMs(observedAbstractState,expectedAbstractState, unmatchedAVMs1, unmatchedAVMs2, matchedAVMs1, matchedAVMs2)
-        phase3MatchingAVMs(unmatchedAVMs1, unmatchedAVMs2, matchedAVMs1, matchedAVMs2)
+        phase3MatchingAVMs(observedAbstractState,expectedAbstractState, unmatchedAVMs1, unmatchedAVMs2, matchedAVMs1, matchedAVMs2, atuaMF)
     }
 
+    // This phase is reserved for matching specifically the EWTGWidget not detected by GATOR (i.e., the EWTGWidget created at runtime)
     private fun phase3MatchingAVMs(
+        observedAbstractState: AbstractState,
+        expectedAbstractState: AbstractState,
         unmatchedAVMs1: ArrayList<AttributeValuationMap>,
         unmatchedAVMs2: ArrayList<AttributeValuationMap>,
         matchedAVMs1: HashMap<AttributeValuationMap, ArrayList<AttributeValuationMap>>,
-        matchedAVMs2: HashMap<AttributeValuationMap, ArrayList<AttributeValuationMap>>
+        matchedAVMs2: HashMap<AttributeValuationMap, ArrayList<AttributeValuationMap>>,
+        atuaMF: ATUAMF
     ) {
-        unmatchedAVMs1.forEach { avm1 ->
-            val matches = unmatchedAVMs2.filter { avm2 -> isEquivalentAttributeValuationMaps(avm1, avm2) }
+        val refinedUnmatchedAVMs1 = unmatchedAVMs1.filter { observedAbstractState.EWTGWidgetMapping[it]?.createdAtRuntime?:false }
+         val refinedUnmatchedAVMs2 = unmatchedAVMs2.filter { expectedAbstractState.EWTGWidgetMapping[it]?.createdAtRuntime?:false }
+        refinedUnmatchedAVMs1.forEach { avm1 ->
+            val newEWTGWidget = observedAbstractState.EWTGWidgetMapping[avm1]!!
+
+            // Consider only different EWTGWidget
+            val matches = refinedUnmatchedAVMs2.filterNot{ avm2 -> expectedAbstractState.EWTGWidgetMapping[avm2] == newEWTGWidget }
+                .filter { avm2 -> isEquivalentAttributeValuationMaps(avm1, avm2) }
             if (matches.isNotEmpty()) {
+
                 matchedAVMs1.putIfAbsent(avm1, ArrayList())
                 val matchedList = matchedAVMs1.get(avm1)!!
                 matches.forEach {
@@ -586,6 +601,17 @@ class ModelBackwardAdapter {
                     matchedAVMs2.putIfAbsent(it, ArrayList())
                     if (!matchedAVMs2.get(it)!!.contains(avm1))
                         matchedAVMs2.get(it)!!.add(avm1)
+                    if (EWTGDiff.instance.widgetDifferentSets.get("ReplacementSet") != null) {
+                        val oldEWTGWidget = expectedAbstractState.EWTGWidgetMapping[it]!!
+                        val replacement = Replacement<EWTGWidget>(oldEWTGWidget,newEWTGWidget)
+                        val replacementSet = (EWTGDiff.instance.widgetDifferentSets.get("ReplacementSet")!! as ReplacementSet<EWTGWidget>)
+                        if (!replacementSet.replacedElements.contains(replacement)) {
+                            replacementSet.replacedElements.add(replacement)
+                            EWTGDiff.instance.updateInputs(replacement, true, atuaMF)
+                        }
+                    }
+
+
                 }
             }
         }
@@ -617,7 +643,7 @@ class ModelBackwardAdapter {
         matchedAVMs1: HashMap<AttributeValuationMap, ArrayList<AttributeValuationMap>>,
         matchedAVMs2: HashMap<AttributeValuationMap, ArrayList<AttributeValuationMap>>
     ) {
-        val replacedWidgets = EWTGDiff.instance.getWidgetReplacement()
+        val replacedWidgets = EWTGDiff.instance.getReplacingWidget()
         unmatchedAVMs1.forEach { avm1 ->
             val associatedWidget = observedAbstractState.EWTGWidgetMapping.get(avm1)
             if (replacedWidgets.contains(associatedWidget)) {
@@ -640,8 +666,6 @@ class ModelBackwardAdapter {
                     }
                 }
             }
-
-
         }
         unmatchedAVMs1.removeIf { matchedAVMs1.containsKey(it) }
         unmatchedAVMs2.removeIf { matchedAVMs2.containsKey(it) }
@@ -754,9 +778,9 @@ class ModelBackwardAdapter {
             return false*/
         if (scoreDetails.any { it.value == -1.0f})
             return false
-        if (scoreDetails.any { it.value == 1.0f })
+        if (scoreDetails.any { it.value == 1.0f } && scoreDetails.all { it.value > 0.4f })
             return true
-        if (scoreDetails.any { it.value > 0.95f })
+        if (scoreDetails.any { it.value > 0.95f } && scoreDetails.all { it.value > 0.4f })
             return true
        return false
     }

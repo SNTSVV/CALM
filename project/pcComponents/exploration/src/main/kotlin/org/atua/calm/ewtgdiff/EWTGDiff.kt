@@ -45,24 +45,26 @@ class EWTGDiff private constructor(){
     val widgetDifferentSets: HashMap<String, DifferentSet<EWTGWidget>> = HashMap()
     val transitionDifferentSets: HashMap<String, DifferentSet<Edge<Window, WindowTransition>>> = HashMap()
     val removedAbstractStates = ArrayList<AbstractState>()
+    val replacingInputs = ArrayList<Input>()
 
-    fun getWidgetAdditions(): List<EWTGWidget> {
+    fun getAddedWidgets(): List<EWTGWidget> {
         if (widgetDifferentSets.containsKey("AdditionSet")) {
             return (widgetDifferentSets["AdditionSet"]!! as AdditionSet<EWTGWidget>).addedElements
         }
         return emptyList<EWTGWidget>()
     }
 
-    fun getWidgetReplacement(): List<EWTGWidget> {
+    fun getReplacingWidget(): List<EWTGWidget> {
         val replacementWidgets = ArrayList<EWTGWidget>()
         if (widgetDifferentSets.containsKey("ReplacementSet")) {
             replacementWidgets.addAll ((widgetDifferentSets["ReplacementSet"]!! as ReplacementSet<EWTGWidget>).replacedElements.map { it.new })
         }
-        if (widgetDifferentSets.containsKey("RetainerSet")) {
+        /*if (widgetDifferentSets.containsKey("RetainerSet")) {
             replacementWidgets.addAll ((widgetDifferentSets["RetainerSet"]!! as RetainingSet<EWTGWidget>).replacedElements.map { it.new })
-        }
+        }*/
         return replacementWidgets
     }
+
 
     fun loadFromFile(filePath: Path, atuamf: org.atua.modelFeatures.ATUAMF) {
         if (!Files.exists(filePath))
@@ -152,18 +154,7 @@ class EWTGDiff private constructor(){
                 // update EWTGWidget structure
                 updateWindowHierarchy(replacement)
                 updateEWTGWidgetAVMMapping(replacement)
-                ModelHistoryInformation.INSTANCE.inputUsefulness.filter {
-                    it.key.widget == replacement.old
-                }.forEach {
-                    val newInput = replacement.new.window.inputs.find { input->
-                        input.eventType == it.key.eventType
-                                && input.widget == replacement.new
-                    }
-                    if (newInput != null) {
-                        ModelHistoryInformation.INSTANCE.inputUsefulness.put(newInput,it.value)
-                    }
-                    ModelHistoryInformation.INSTANCE.inputUsefulness.remove(it.key)
-                }
+
             }
         }
 
@@ -174,18 +165,6 @@ class EWTGDiff private constructor(){
                 updateWindowHierarchy(replacement)
                 updateAbstractionFunction(replacement)
                 updateEWTGWidgetAVMMapping(replacement)
-                ModelHistoryInformation.INSTANCE.inputUsefulness.filter {
-                    it.key.widget == replacement.old
-                }.forEach {
-                    val newInput = replacement.new.window.inputs.find { input->
-                        input.eventType == it.key.eventType
-                                && input.widget == replacement.new
-                    }
-                    if (newInput != null) {
-                        ModelHistoryInformation.INSTANCE.inputUsefulness.put(newInput,it.value)
-                    }
-                    ModelHistoryInformation.INSTANCE.inputUsefulness.remove(it.key)
-                }
             }
         }
         if (transitionDifferentSets.containsKey("RetainerSet")) {
@@ -287,7 +266,7 @@ class EWTGDiff private constructor(){
         replacement.old.window.widgets.remove(replacement.old)
     }
 
-    private fun updateInputs(replacement: Replacement<EWTGWidget>, isReplaced: Boolean, atuamf: ATUAMF) {
+    fun updateInputs(replacement: Replacement<EWTGWidget>, isReplaced: Boolean, atuamf: ATUAMF) {
         replacement.old.window.inputs.filter { it.widget == replacement.old }.forEach { oldInput ->
             var existingInputInUpdateVers = replacement.new.window.inputs
                     .find { it.widget == replacement.new && it.eventType == oldInput.eventType }
@@ -326,7 +305,21 @@ class EWTGDiff private constructor(){
                 existingInputInUpdateVers.modifiedMethods.putAll(oldInput.modifiedMethods)
                 val afterCnt = existingInputInUpdateVers.modifiedMethods.size
                 existingInputInUpdateVers.coveredMethods.putAll(oldInput.coveredMethods)
+                existingInputInUpdateVers.exercisedInThePast = oldInput.exercisedInThePast
             }
+        }
+
+        ModelHistoryInformation.INSTANCE.inputUsefulness.filter {
+            it.key.widget == replacement.old
+        }.forEach {
+            val newInput = replacement.new.window.inputs.find { input->
+                input.eventType == it.key.eventType
+                        && input.widget == replacement.new
+            }
+            if (newInput != null) {
+                ModelHistoryInformation.INSTANCE.inputUsefulness.put(newInput,it.value)
+            }
+            ModelHistoryInformation.INSTANCE.inputUsefulness.remove(it.key)
         }
     }
 
@@ -550,11 +543,17 @@ class EWTGDiff private constructor(){
             if (oldTransition != null && newTransition!=null) {
                 transitionReplacementSet.replacedElements.add(Replacement(oldTransition,newTransition))
                 newTransition.label.input.eventHandlers.addAll(oldTransition.label.input.eventHandlers)
+                if (!replacingInputs.contains(newTransition.label.input)) {
+                    replacingInputs.add(newTransition.label.input)
+                }
             } else {
                 val oldInput = parseInput(oldTransitionFullId,atuamf,WindowManager.instance.baseModelWindows)
                 val newInput = parseInput(newTransitionFullId,atuamf,WindowManager.instance.updatedModelWindows)
                 if (oldInput!=null && newInput!=null) {
                     newInput.eventHandlers.addAll(oldInput.eventHandlers)
+                    if (!replacingInputs.contains(newInput)) {
+                        replacingInputs.add(newInput)
+                    }
                 }
             }
         }

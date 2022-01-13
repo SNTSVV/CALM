@@ -222,6 +222,7 @@ class AppModelLoader {
                     } else
                         existingEvent
                     if (event != null) {
+                        event.exercisedInThePast = true
                         updateHandlerAndModifiedMethods(event, data, window, autautMF)
                         val isTargetInput = event?.modifiedMethods.isNotEmpty()
                         if (!ModelHistoryInformation.INSTANCE.inputUsefulness.containsKey(event)) {

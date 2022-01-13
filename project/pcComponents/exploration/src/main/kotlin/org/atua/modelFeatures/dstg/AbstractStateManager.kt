@@ -123,7 +123,7 @@ class AbstractStateManager() {
             if (matchedAVMs.contains(avm)) {
                 continue
             }
-            if (EWTGDiff.instance.getWidgetAdditions().contains(ewtgWidget)) {
+            if (EWTGDiff.instance.getAddedWidgets().contains(ewtgWidget)) {
                 addedAVMs.add(avm)
             } else {
                 unmatchedAVMs.add(avm)

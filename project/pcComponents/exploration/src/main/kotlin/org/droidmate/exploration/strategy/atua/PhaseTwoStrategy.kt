@@ -473,7 +473,7 @@ class PhaseTwoStrategy(
         val usefulness = ModelHistoryInformation.INSTANCE.inputUsefulness[input]
         val score = if (usefulness != null) {
             (usefulness.second * 1.0 / (usefulness.first + 1)) * notFullyCoveredMethods.size
-        } else if (input.widget!=null && !EWTGDiff.instance.getWidgetAdditions().contains(input.widget!!)) {
+        } else if (input.widget!=null && !EWTGDiff.instance.getAddedWidgets().contains(input.widget!!)) {
             0.0
         }
         else {
