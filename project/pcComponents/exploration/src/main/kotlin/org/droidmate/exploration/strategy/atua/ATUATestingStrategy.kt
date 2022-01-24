@@ -54,6 +54,7 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
     lateinit var phaseStrategy2: AbstractPhaseStrategy
     lateinit var phaseStrategy3: AbstractPhaseStrategy
     var currentPhase: Int = 1
+
     //lateinit var phaseTwoStrategy: AbstractPhaseStrategy
     /**
      * Mutex for synchronization
@@ -72,6 +73,7 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
 /*        if (!phaseStrategy.fullControl && handleTargetAbsent.hasNext(eContext)) {
             return handleTargetAbsent.nextAction(eContext)
         }*/
+        atuaMF.actionProcessedByATUAStrategy = true
         var chosenAction: ExplorationAction = ExplorationAction.pressBack()
         ExplorationTrace.widgetTargets.clear()
         val currentState = eContext.getCurrentState()

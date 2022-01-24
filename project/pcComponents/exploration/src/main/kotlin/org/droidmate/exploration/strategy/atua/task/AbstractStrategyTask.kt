@@ -684,8 +684,8 @@ abstract class AbstractStrategyTask(
             return null
         }
         val currentAbstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)!!
-        if (abstractAction != null)
-            currentAbstractState.increaseActionCount2(abstractAction, false)
+       /* if (abstractAction != null)
+            currentAbstractState.increaseActionCount2(abstractAction, false)*/
         if (chosenWidget.className == "android.webkit.WebView") {
             if (data is String && data != "") {
                 val targetChildWidgets = candidateWidgets.filter { it.nlpText == data || StringComparison.compareStringsLevenshtein(it.nlpText,data)>0.4 }

@@ -11,6 +11,7 @@ import org.atua.modelFeatures.ewtg.window.Dialog
 import org.atua.modelFeatures.ewtg.window.Launcher
 import org.atua.modelFeatures.ewtg.window.OutOfApp
 import org.atua.modelFeatures.ewtg.window.Window
+import org.atua.modelFeatures.helper.PathConstraint
 import org.atua.modelFeatures.helper.PathFindingHelper
 import org.atua.modelFeatures.helper.ProbabilityBasedPathFinder
 import org.droidmate.deviceInterface.exploration.ExplorationAction
@@ -38,13 +39,15 @@ abstract class AbstractPhaseStrategy(
     abstract fun getPathsToExploreStates(
         currentState: State<*>,
         pathType: PathFindingHelper.PathType,
-        maxCost: Double
+        maxCost: Double,
+        pathConstraints: Map<PathConstraint, Boolean>
     ): List<TransitionPath>
 
     abstract fun getPathsToTargetWindows(
         currentState: State<*>,
         pathType: PathFindingHelper.PathType,
-        maxCost: Double
+        maxCost: Double,
+        pathConstraint: Map<PathConstraint,Boolean>
     ): List<TransitionPath>
 
     fun needReset(currentState: State<*>): Boolean {
@@ -74,7 +77,7 @@ abstract class AbstractPhaseStrategy(
                         || it.isAppHasStoppedDialogBox
                         || it.attributeValuationMaps.isEmpty()
                         || it.guiStates.isEmpty()
-                        || it.guiStates.all { atuaMF.actionCount.getUnexploredWidget2(it).isEmpty() }
+                        || it.getUnExercisedActions2(null).isEmpty()
 
             }
         return runtimeAbstractStates
@@ -89,7 +92,8 @@ abstract class AbstractPhaseStrategy(
         targetWindow: Window,
         pathType: PathFindingHelper.PathType,
         explore: Boolean,
-        maxCost: Double
+        maxCost: Double,
+        pathConstraints: Map<PathConstraint, Boolean>
     ): List<TransitionPath> {
         val transitionPaths = ArrayList<TransitionPath>()
         val currentAbstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)
@@ -105,7 +109,7 @@ abstract class AbstractPhaseStrategy(
                     || !AbstractStateManager.INSTANCE.unreachableAbstractState.contains(it))
                     && it != currentAbstractState
                     && (it is VirtualAbstractState ||
-                    (it.attributeValuationMaps.isNotEmpty() && it.guiStates.isNotEmpty()))
+                    (it.getUnExercisedActions(null,atuaMF).isNotEmpty()))
         }.toHashSet()
         if (explore) {
             targetStates.removeIf {
@@ -153,7 +157,7 @@ abstract class AbstractPhaseStrategy(
             goalByAbstractState,
             maxCost,
             emptyList(),
-            false
+            pathConstraints
         )
         return transitionPaths
     }
@@ -169,99 +173,21 @@ abstract class AbstractPhaseStrategy(
         goalByAbstractState: Map<AbstractState, List<Input>>,
         maxCost: Double,
         abandonedAppStates: List<AbstractState>,
-        forceLaunch: Boolean
+        pathConstraints: Map<PathConstraint,Boolean>
     ) {
-        if (pathType != PathFindingHelper.PathType.ANY) {
-            getPathToStates(
-                transitionPaths = transitionPaths,
-                stateByScore = statesWithScore,
-                currentAbstractState = currentAbstractState,
-                currentState = currentState,
-                pathType = pathType,
-                shortest = shortest,
-                windowAsTarget = windowAsTarget,
-                goalByAbstractState = goalByAbstractState,
-                maxCost = maxCost,
-                abandonedAppStates = abandonedAppStates,
-                forceLaunch = forceLaunch
-            )
-        } else {
-            getPathToStates(
-                transitionPaths = transitionPaths,
-                stateByScore = statesWithScore,
-                currentAbstractState = currentAbstractState,
-                currentState = currentState,
-                pathType = PathFindingHelper.PathType.NORMAL,
-                shortest = shortest,
-                windowAsTarget = windowAsTarget,
-                goalByAbstractState = goalByAbstractState,
-                maxCost = maxCost,
-                abandonedAppStates = abandonedAppStates,
-                forceLaunch = forceLaunch
-            )
-            if (transitionPaths.isEmpty() &&
-                (windowAsTarget || goalByAbstractState.isNotEmpty())
-            ) {
-                getPathToStates(
-                    transitionPaths = transitionPaths,
-                    stateByScore = statesWithScore,
-                    currentAbstractState = currentAbstractState,
-                    currentState = currentState,
-                    pathType = PathFindingHelper.PathType.WIDGET_AS_TARGET,
-                    shortest = shortest,
-                    windowAsTarget = windowAsTarget,
-                    goalByAbstractState = goalByAbstractState,
-                    maxCost = maxCost,
-                    abandonedAppStates = abandonedAppStates,
-                    forceLaunch = forceLaunch
-                )
-            }
-            if (transitionPaths.isEmpty() && windowAsTarget) {
-                getPathToStates(
-                    transitionPaths = transitionPaths,
-                    stateByScore = statesWithScore,
-                    currentAbstractState = currentAbstractState,
-                    currentState = currentState,
-                    pathType = PathFindingHelper.PathType.WTG,
-                    shortest = shortest,
-                    windowAsTarget = windowAsTarget,
-                    goalByAbstractState = goalByAbstractState,
-                    maxCost = maxCost,
-                    abandonedAppStates = abandonedAppStates,
-                    forceLaunch = forceLaunch
-                )
-            }
-            if (transitionPaths.isEmpty()) {
-                getPathToStates(
-                    transitionPaths = transitionPaths,
-                    stateByScore = statesWithScore,
-                    currentAbstractState = currentAbstractState,
-                    currentState = currentState,
-                    pathType = PathFindingHelper.PathType.PARTIAL_TRACE,
-                    shortest = shortest,
-                    windowAsTarget = windowAsTarget,
-                    goalByAbstractState = goalByAbstractState,
-                    maxCost = maxCost,
-                    abandonedAppStates = abandonedAppStates,
-                    forceLaunch = forceLaunch
-                )
-            }
-            if (transitionPaths.isEmpty()) {
-                getPathToStates(
-                    transitionPaths = transitionPaths,
-                    stateByScore = statesWithScore,
-                    currentAbstractState = currentAbstractState,
-                    currentState = currentState,
-                    pathType = PathFindingHelper.PathType.FULLTRACE,
-                    shortest = shortest,
-                    windowAsTarget = windowAsTarget,
-                    goalByAbstractState = goalByAbstractState,
-                    maxCost = maxCost,
-                    abandonedAppStates = abandonedAppStates,
-                    forceLaunch = false
-                )
-            }
-        }
+        getPathToStates(
+            transitionPaths = transitionPaths,
+            stateByScore = statesWithScore,
+            currentAbstractState = currentAbstractState,
+            currentState = currentState,
+            pathType = pathType,
+            shortest = shortest,
+            windowAsTarget = windowAsTarget,
+            goalByAbstractState = goalByAbstractState,
+            maxCost = maxCost,
+            abandonedAppStates = abandonedAppStates,
+            pathConstraints = pathConstraints
+        )
     }
 
     abstract fun getCurrentTargetInputs(currentState: State<*>): Set<Input>
@@ -283,7 +209,7 @@ abstract class AbstractPhaseStrategy(
         goalByAbstractState: Map<AbstractState, List<Input>>,
         maxCost: Double,
         abandonedAppStates: List<AbstractState>,
-        forceLaunch: Boolean
+        pathConstraints: Map<PathConstraint,Boolean>
     ) {
 
         val candidateStates = HashMap(stateByScore)
@@ -304,7 +230,7 @@ abstract class AbstractPhaseStrategy(
                 windowAsTarget = windowAsTarget,
                 maxCost = maxCost,
                 abandonedAppStates = abandonedAppStates,
-                forceLaunch = forceLaunch)
+                constraints = pathConstraints)
             abstractStates.forEach { candidateStates.remove(it) }
         }
 //        LoggerFactory.getLogger(this::class.simpleName).debug("Paths count: ${transitionPaths.size}")
@@ -317,6 +243,8 @@ abstract class AbstractPhaseStrategy(
         if (abstractState == currentAbstractState)
             return false
         abstractStates.put(abstractState, 1.0)
+        val pathConstraints = HashMap<PathConstraint,Boolean>()
+        pathConstraints.put(PathConstraint.INCLUDE_RESET,true)
         getPathToStates(
             transitionPaths = transitionPath,
             stateByScore = abstractStates,
@@ -328,7 +256,7 @@ abstract class AbstractPhaseStrategy(
             goalByAbstractState = mapOf(),
             maxCost = ProbabilityBasedPathFinder.DEFAULT_MAX_COST,
             abandonedAppStates = emptyList(),
-            forceLaunch = false
+            pathConstraints = pathConstraints
         )
         if (transitionPath.isNotEmpty())
             return false

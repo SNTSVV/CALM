@@ -88,8 +88,6 @@ open class AbstractState(
     }
 
     fun associateAbstractActionWithInputs(abstractAction: AbstractAction, input: Input) {
-        if (!getAvailableActions().contains(abstractAction))
-            return
         inputMappings.putIfAbsent(abstractAction, HashSet())
         EWTG_DSTGMapping.INSTANCE.inputsByAbstractActions.putIfAbsent(abstractAction, ArrayList())
         if (!inputMappings[abstractAction]!!.contains(input)) {
@@ -98,6 +96,16 @@ open class AbstractState(
         }
         if (!EWTG_DSTGMapping.INSTANCE.inputsByAbstractActions[abstractAction]!!.contains(input))
             EWTG_DSTGMapping.INSTANCE.inputsByAbstractActions[abstractAction]!!.add(input)
+        if (this !is VirtualAbstractState) {
+            input.witnessed = true
+        }
+    }
+
+    private fun isValidAction(abstractAction: AbstractAction): Boolean {
+        if (!abstractAction.isWidgetAction()) {
+            return actionCount.containsKey(abstractAction)
+        }
+        return abstractAction.attributeValuationMap!!.containsAction(abstractAction)
     }
 
     fun isAbstractActionMappedWithInputs(abstractAction: AbstractAction):Boolean {
@@ -297,8 +305,8 @@ open class AbstractState(
 
     fun getAvailableActions(currentState: State<*>?=null): List<AbstractAction> {
         val allActions = ArrayList<AbstractAction>()
-        allActions.addAll(actionCount.keys)
-        allActions.addAll(attributeValuationMaps.map { it.getAvailableActions() }.flatten())
+        allActions.addAll(inputMappings.keys)
+        //allActions.addAll(attributeValuationMaps.map { it.getAvailableActions() }.flatten())
         //
         if (currentState!=null) {
             allActions.removeIf { abstractAction ->
@@ -310,7 +318,7 @@ open class AbstractState(
         return allActions
     }
 
-    fun getUnExercisedActions2(currentState: State<*>): List<AbstractAction> {
+    fun getUnExercisedActions2(currentState: State<*>?): List<AbstractAction> {
         val potentialActions = getAvailableActions(currentState)
             .filter { it.meaningfulScore>0
                     && it.actionType != AbstractActionType.FAKE_ACTION
@@ -321,8 +329,10 @@ open class AbstractState(
                     && it.actionType != AbstractActionType.WAIT
                     && it.actionType != AbstractActionType.SEND_INTENT
                     && !AbstractStateManager.INSTANCE.goBackAbstractActions.contains(it)}
+            .filterNot { (it.actionType == AbstractActionType.CLICK &&  !it.isWidgetAction()) }
         return potentialActions
     }
+
     fun getUnExercisedActions(currentState: State<*>?,
                               atuaMF: org.atua.modelFeatures.ATUAMF
                               ): List<AbstractAction> {
@@ -398,7 +408,7 @@ open class AbstractState(
             }
         }
         unexcerisedActions.removeIf { abstractAction ->
-            inputMappings[abstractAction]?.any { it.isUseless==true }?:false
+            inputMappings[abstractAction]?.any { it.isUseless==true }?:true
         }
         return unexcerisedActions.toList()
     }
@@ -447,7 +457,7 @@ open class AbstractState(
 
     fun increaseActionCount2(abstractAction: AbstractAction, updateSimilarAbstractStates: Boolean) {
         this.increaseActionCount(abstractAction)
-        if (updateSimilarAbstractStates) {
+       /* if (updateSimilarAbstractStates) {
             if (!abstractAction.isWidgetAction()) {
                 AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
                     it != this
@@ -456,7 +466,7 @@ open class AbstractState(
                     it.increaseActionCount(abstractAction)
                 }
             }
-        }
+        }*/
     }
 
     private fun increaseActionCount(action: AbstractAction) {
@@ -521,11 +531,7 @@ open class AbstractState(
     }
 
     fun removeAction(action: AbstractAction) {
-        if (action.attributeValuationMap == null) {
-            actionCount.remove(action)
-            return
-        }
-        action.attributeValuationMap!!.removeAction(action)
+        inputMappings.remove(action)
     }
 
     fun getActionCount(action: AbstractAction): Int {

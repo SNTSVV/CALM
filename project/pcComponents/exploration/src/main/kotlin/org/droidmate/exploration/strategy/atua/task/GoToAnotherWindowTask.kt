@@ -15,6 +15,7 @@ import org.atua.modelFeatures.ewtg.PathTraverser
 import org.atua.modelFeatures.ewtg.TransitionPath
 import org.atua.modelFeatures.ewtg.WindowManager
 import org.atua.modelFeatures.ewtg.window.Window
+import org.atua.modelFeatures.helper.PathConstraint
 import org.atua.modelFeatures.helper.PathFindingHelper
 import org.atua.modelFeatures.helper.ProbabilityBasedPathFinder
 import org.droidmate.deviceInterface.exploration.ActionType
@@ -169,6 +170,8 @@ open class GoToAnotherWindowTask constructor(
 //                val minCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!!)
                 val minCost = currentPath!!.cost()
                 if (finalTarget != null) {
+                    val pathConstraint = HashMap<PathConstraint,Boolean>()
+                    pathConstraint.put(PathConstraint.INCLUDE_RESET,includeResetAction)
                     ProbabilityBasedPathFinder.findPathToTargetComponent(
                         currentState = currentState,
                         root = currentAppState,
@@ -182,7 +185,7 @@ open class GoToAnotherWindowTask constructor(
                         windowAsTarget = (finalTarget is VirtualAbstractState && pathTraverser!!.transitionPath.goal.isEmpty()),
                         maxCost = minCost,
                         abandonedAppStates = emptyList(),
-                        forceLaunch = false
+                        constraints = pathConstraint
                     )
                     if (transitionPaths.any { it.path.values.map { it.abstractAction }.equals(currentPath!!.path.values.map { it.abstractAction }) }) {
                         transitionPaths.removeIf {
@@ -270,7 +273,9 @@ open class GoToAnotherWindowTask constructor(
             else
                 AbstractStateManager.INSTANCE.getVirtualAbstractState(currentPath!!.getFinalDestination().window)
             val minCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!!)
-            if (finalTarget != null)
+            if (finalTarget != null) {
+                val pathConstraints = HashMap<PathConstraint, Boolean>()
+                pathConstraints.put(PathConstraint.INCLUDE_RESET, false)
                 ProbabilityBasedPathFinder.findPathToTargetComponent(
                     currentState = currentState,
                     root = currentAppState,
@@ -280,12 +285,13 @@ open class GoToAnotherWindowTask constructor(
                     pathCountLimitation = 1,
                     autautMF = atuaMF,
                     pathType = currentPath!!.pathType,
-                    goalsByTarget = mapOf(Pair(finalTarget,currentPath!!.goal)),
+                    goalsByTarget = mapOf(Pair(finalTarget, currentPath!!.goal)),
                     windowAsTarget = (currentPath!!.destination is VirtualAbstractState && currentPath!!.goal.isEmpty()),
                     maxCost = minCost,
                     abandonedAppStates = emptyList(),
-                    forceLaunch = false
-                )
+                    constraints = pathConstraints
+                    )
+            }
             if (transitionPaths.any { it.path.values.map { it.abstractAction }.equals(currentPath!!.path.values.map { it.abstractAction }) }) {
                 transitionPaths.removeIf {
                     it.path.values.map { it.abstractAction }.equals(currentPath!!.path.values.map { it.abstractAction })
@@ -351,7 +357,7 @@ open class GoToAnotherWindowTask constructor(
             expectedNextAbState = pathTraverser!!.getCurrentTransition()!!.dest
             expectedAbstractState = expectedNextAbState!!
         }
-        if (pathTraverser!!.getCurrentTransition()!!.abstractAction.actionType == AbstractActionType.WAIT) {
+        if (expectedAbstractState.ignored) {
             pathTraverser!!.next()
             expectedNextAbState = pathTraverser!!.getCurrentTransition()!!.dest
             expectedAbstractState = expectedNextAbState!!
@@ -396,7 +402,10 @@ open class GoToAnotherWindowTask constructor(
             if (currentTransition == null)
                 break
             val expectedAbstractState1 = currentTransition.dest
-
+            if (expectedAbstractState1!!.ignored) {
+                tmpPathTraverser.next()
+                continue
+            }
             if (expectedAbstractState1!!.window != currentAppState!!.window) {
                 tmpPathTraverser.next()
                 continue
@@ -521,15 +530,24 @@ open class GoToAnotherWindowTask constructor(
                 PathFindingHelper.PathType.NORMAL
         else
             computeNextPathType(currentPath!!.pathType,includeResetAction)*/
+        val pathConstraints = HashMap<PathConstraint,Boolean>()
+        pathConstraints.put(PathConstraint.INCLUDE_RESET,includeResetAction)
+        pathConstraints.put(PathConstraint.INCLUDE_LAUNCH,true)
         if (useInputTargetWindow && destWindow != null) {
             while (possiblePaths.isEmpty()) {
+                if (nextPathType == PathFindingHelper.PathType.WTG) {
+                    pathConstraints.put(PathConstraint.INCLUDE_WTG,true)
+                } else {
+                    pathConstraints.put(PathConstraint.INCLUDE_WTG,false)
+                }
                 possiblePaths.addAll(
                     atuaStrategy.phaseStrategy.getPathsToWindowToExplore(
                         currentState =  currentState,
                         targetWindow =  destWindow!!,
                         pathType =  nextPathType,
                         explore =  isExploration || !isWindowAsTarget,
-                        maxCost = maxCost
+                        maxCost = maxCost,
+                        pathConstraints = pathConstraints
                     )
                 )
                 if (computeNextPathType(nextPathType, includeResetAction) == PathFindingHelper.PathType.WIDGET_AS_TARGET)
@@ -538,7 +556,16 @@ open class GoToAnotherWindowTask constructor(
             }
         } else {
             while (possiblePaths.isEmpty()) {
-                possiblePaths.addAll(atuaStrategy.phaseStrategy.getPathsToExploreStates(currentState, nextPathType,maxCost))
+                if (nextPathType == PathFindingHelper.PathType.WTG) {
+                    pathConstraints.put(PathConstraint.INCLUDE_WTG,true)
+                } else {
+                    pathConstraints.put(PathConstraint.INCLUDE_WTG,false)
+                }
+                possiblePaths.addAll(atuaStrategy.phaseStrategy.getPathsToExploreStates(
+                    currentState = currentState,
+                    pathType = nextPathType,
+                    maxCost = maxCost,
+                    pathConstraints = pathConstraints))
                 if (computeNextPathType(nextPathType, includeResetAction) == PathFindingHelper.PathType.WIDGET_AS_TARGET)
                     break
                 nextPathType = computeNextPathType(nextPathType, includeResetAction)
@@ -565,12 +592,12 @@ open class GoToAnotherWindowTask constructor(
                     PathFindingHelper.PathType.NORMAL
             PathFindingHelper.PathType.FULLTRACE -> PathFindingHelper.PathType.NORMAL*/
             PathFindingHelper.PathType.NORMAL ->
-            if (isWindowAsTarget)
-                PathFindingHelper.PathType.WTG
-            else
-                PathFindingHelper.PathType.WIDGET_AS_TARGET
+                if (isWindowAsTarget)
+                    PathFindingHelper.PathType.WTG
+                else
+                    PathFindingHelper.PathType.WIDGET_AS_TARGET
             PathFindingHelper.PathType.WTG -> PathFindingHelper.PathType.WIDGET_AS_TARGET
-            else -> PathFindingHelper.PathType.ANY
+            else -> PathFindingHelper.PathType.WIDGET_AS_TARGET
         }
     }
 

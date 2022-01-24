@@ -1344,8 +1344,7 @@ class PathFindingHelper {
         WIDGET_AS_TARGET,
         FULLTRACE,
         PARTIAL_TRACE,
-        WTG,
-        ANY
+        WTG
     }
 }
 

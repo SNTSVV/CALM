@@ -698,7 +698,7 @@ class StaticAnalysisJSONParser() {
                                     )
                                     if (event != null) {
                                         val methods = jsonEvent["modMethods"] as JSONArray
-                                        val methodIds = methods.map { statementCoverageMF.getMethodId(it as String) }
+                                        val methodIds = methods.map { statementCoverageMF.getMethodId(it as String) }.filter { it.isNotBlank() }
                                         val methodStatements =
                                             methodIds.map { statementCoverageMF.getMethodStatements(it) }.flatten()
                                         event.modifiedMethods.putAll(methodIds.associateWith { false })

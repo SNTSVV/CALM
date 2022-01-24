@@ -52,9 +52,9 @@ class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.Pa
                 val reachPb = it.source.abstractActionsProbability[it.abstractAction]
                 if (reachPb != null)
                     finalReachPb = finalReachPb * reachPb
-                val effectiveness =  it.source.abstractActionsEffectivenss[it.abstractAction]
+                /*val effectiveness =  it.source.abstractActionsEffectivenss[it.abstractAction]
                 if (effectiveness != null)
-                    finalEffectiveness = finalEffectiveness + effectiveness
+                    finalEffectiveness = finalEffectiveness + effectiveness*/
             }
         }
         val failurePb = 1.0 - finalReachPb
@@ -122,10 +122,10 @@ class PathTraverser (val transitionPath: TransitionPath) {
             if (it.isDerivedFrom(targetAVM,currentAppState.window))
                 return true
         }
-        val nextInput = nextAbstractTransition!!.source.getInputsByAbstractAction(nextAction)
-        val inputIntersection = currentAppState.getAvailableInputs().intersect(nextInput)
+        val nextInputs = nextAbstractTransition!!.source.getInputsByAbstractAction(nextAction)
+        val inputIntersection = currentAppState.getAvailableInputs().intersect(nextInputs)
         if (inputIntersection.isNotEmpty()) {
-            val potentialAbstractActions = inputIntersection.map { currentAppState.getAbstractActionsWithSpecificInputs(it) }.flatten().distinct()
+//            val potentialAbstractActions = inputIntersection.map { currentAppState.getAbstractActionsWithSpecificInputs(it) }.flatten().distinct()
             return true
         }
         return false

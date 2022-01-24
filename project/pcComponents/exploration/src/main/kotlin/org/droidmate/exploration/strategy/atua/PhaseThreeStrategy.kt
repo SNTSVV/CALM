@@ -22,6 +22,7 @@ import org.atua.modelFeatures.ewtg.window.Window
 import org.atua.modelFeatures.ewtg.WindowManager
 import org.atua.modelFeatures.ewtg.window.Dialog
 import org.atua.modelFeatures.ewtg.window.Launcher
+import org.atua.modelFeatures.helper.PathConstraint
 import org.atua.modelFeatures.helper.PathFindingHelper
 import org.atua.modelFeatures.helper.ProbabilityBasedPathFinder
 import org.atua.modelFeatures.informationRetrieval.InformationRetrieval
@@ -203,7 +204,10 @@ class PhaseThreeStrategy(
                     && !chosenAction.name.isLaunchApp()
                     && chosenAction !is Swipe
 
-    override fun getPathsToExploreStates(currentState: State<*>, pathType: PathFindingHelper.PathType, maxCost: Double): List<TransitionPath> {
+    override fun getPathsToExploreStates(currentState: State<*>,
+                                         pathType: PathFindingHelper.PathType,
+                                         maxCost: Double,
+                                        pathConstraints: Map<PathConstraint,Boolean>): List<TransitionPath> {
         if (targetWindow==null)
             return emptyList()
         val transitionPaths = ArrayList<TransitionPath>()
@@ -213,7 +217,10 @@ class PhaseThreeStrategy(
         val runtimeAbstractStates = getUnexhaustedExploredAbstractState(currentState)
         val goalByAbstractState = HashMap<AbstractState, List<Input>>()
         runtimeAbstractStates.groupBy { it.window }.forEach { window, appStates ->
-            val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window)!!
+            var virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window)
+            if (virtualAbstractState == null) {
+                virtualAbstractState = AbstractStateManager.INSTANCE.createVirtualAbstractState(window,appStates.first().activity,appStates.first().isHomeScreen)
+            }
             val toExploreInputs = ArrayList<Input>()
             appStates.forEach {
                 it.getUnExercisedActions(null, atuaMF).forEach { action ->
@@ -249,12 +256,15 @@ class PhaseThreeStrategy(
             goalByAbstractState = goalByAbstractState,
             maxCost = maxCost,
             abandonedAppStates = emptyList(),
-            forceLaunch = false
+            pathConstraints = pathConstraints
         )
         return transitionPaths
     }
 
-    override fun getPathsToTargetWindows(currentState: State<*>, pathType: PathFindingHelper.PathType,maxCost: Double): List<TransitionPath> {
+    override fun getPathsToTargetWindows(currentState: State<*>,
+                                         pathType: PathFindingHelper.PathType,
+                                         maxCost: Double,
+                                         pathConstraints: Map<PathConstraint, Boolean>): List<TransitionPath> {
         val currentAbState = AbstractStateManager.INSTANCE.getAbstractState(currentState)
         val prevAbstractState = AbstractStateManager.INSTANCE.getAbstractState(atuaMF.appPrevState!!)
         if (currentAbState==null)
@@ -278,6 +288,10 @@ class PhaseThreeStrategy(
         val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(targetWindow!!)!!
 
         targetScores.put(virtualAbstractState,1.0)
+
+        val newPathConstraints = HashMap(pathConstraints)
+        newPathConstraints.put(PathConstraint.INCLUDE_LAUNCH,false)
+        newPathConstraints.put(PathConstraint.INCLUDE_RESET,false)
         val transitionPaths = ArrayList<TransitionPath>()
         if (targetEvent != null) {
             goalByAbstractState.put(virtualAbstractState, listOf(targetEvent!!))
@@ -292,7 +306,7 @@ class PhaseThreeStrategy(
                 goalByAbstractState,
                 maxCost,
                 emptyList(),
-                false
+                newPathConstraints
             )
         } else {
             getPathToStatesBasedOnPathType(
@@ -306,7 +320,7 @@ class PhaseThreeStrategy(
                 goalByAbstractState,
                 maxCost,
                 emptyList(),
-                false
+                newPathConstraints
             )
         }
         return transitionPaths
@@ -532,13 +546,6 @@ class PhaseThreeStrategy(
                 // if random can be still run, keep running
                 log.info("Continue filling data")
                 return
-            }
-            if (currentAppState.window == targetWindow) {
-                if (exerciseTargetComponentTask.isAvailable(currentState)) {
-                    setExerciseTarget(exerciseTargetComponentTask, currentState)
-                    phaseState = PhaseState.P3_EXERCISE_TARGET_NODE
-                    return
-                }
             }
             if (!strategyTask!!.isTaskEnd(currentState)) {
                 log.info("Continue ${strategyTask!!.javaClass.name}")
@@ -1026,9 +1033,21 @@ class PhaseThreeStrategy(
     private fun setRandomExplorationBudget(currentState: State<*>) {
         if (budgetCalculated)
             return
-        val inputWidgetCount = Helper.getUserInputFields(currentState).size
-        val relatedWindowBudget = log2((Helper.getActionableWidgetsWithoutKeyboard(currentState).size-inputWidgetCount)*2.toDouble())
-        randomBudgetLeft = (relatedWindowBudget * scaleFactor).toInt()
+        val abstractState = atuaMF.getAbstractState(currentState)!!
+        val inputCount = abstractState.window.inputs.filter { it.witnessed }
+        var budget = 0
+        inputCount.forEach {
+            if (it.widget == null) {
+                budget += 1
+            } else {
+                if (it.eventType.isItemEvent) {
+                    budget+=3
+                } else {
+                    budget+=1
+                }
+            }
+        }
+        randomBudgetLeft = (log2(budget.toDouble()) * scaleFactor).toInt()
         budgetCalculated = true
     }
 
@@ -1097,6 +1116,9 @@ class PhaseThreeStrategy(
         currentState: State<*>,
         reachableWindows: ArrayList<Window>
     ) {
+        val pathConstraints = HashMap<PathConstraint,Boolean>()
+        pathConstraints.put(PathConstraint.INCLUDE_RESET,true)
+        pathConstraints.put(PathConstraint.INCLUDE_LAUNCH,true)
         windows.forEach {
             val paths = ArrayList<TransitionPath>()
             val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(it)!!
@@ -1114,7 +1136,7 @@ class PhaseThreeStrategy(
                 goalByAbstractState = emptyMap(),
                 maxCost = ProbabilityBasedPathFinder.DEFAULT_MAX_COST,
                 abandonedAppStates = emptyList(),
-                forceLaunch = false
+                pathConstraints = pathConstraints
             )
             if (paths.isNotEmpty()) {
                 reachableWindows.add(it)

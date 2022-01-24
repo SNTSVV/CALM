@@ -247,7 +247,8 @@ class ModelBackwardAdapter {
                     fromWTG = at.fromWTG,
                     interactions = at.interactions
                 )
-                atuamf.dstg.updateAbstractActionEnability(newAbstractTransition,atuamf)
+                if (at.dest.ignored == false)
+                    atuamf.dstg.updateAbstractActionEnability(newAbstractTransition,atuamf)
                 newAbstractTransition.copyPotentialInfoFrom(at)
                 appState.abstractTransitions.remove(at)
                 atuamf.dstg.removeAbstractActionEnabiblity(at,atuamf)
@@ -423,7 +424,8 @@ class ModelBackwardAdapter {
             newAbstractTransition.guardEnabled = baseTransition.guardEnabled
             dstg.add(newAbstractTransition.source, newAbstractTransition.dest, newAbstractTransition)
             newAbstractTransition.userInputs.addAll(baseTransition.userInputs)
-            if (newAbstractTransition.source != newAbstractTransition.dest)
+            if (newAbstractTransition.source != newAbstractTransition.dest
+                && newAbstractTransition.dest.ignored == false)
                 atuamf.dstg.updateAbstractActionEnability(newAbstractTransition,atuamf)
             baseTransition.handlers.forEach { handler, _ ->
                 newAbstractTransition.handlers.putIfAbsent(handler, false)
@@ -433,11 +435,18 @@ class ModelBackwardAdapter {
             val inputs = updatedAbstractState.getInputsByAbstractAction(updatedAbstractAction)
             inputs.forEach { it ->
                 it.modifiedMethods.putAll(possiblyCoveredUpdatedMethods.associateWith { false })
-                if (it.modifiedMethods.isNotEmpty()
-                    && !it.modifiedMethods.all { atuamf.statementMF!!.fullyCoveredMethods.contains(it.key) }
-                    && !atuamf.notFullyExercisedTargetInputs.contains(it)) {
-                    atuamf.notFullyExercisedTargetInputs.add(it)
-                    TargetInputReport.INSTANCE.targetIdentifiedByBaseModel.add(it)
+                if ( (it.eventHandlers.isNotEmpty()
+                            && it.eventHandlers.intersect(atuamf.allTargetHandlers).isNotEmpty())
+                    || (it.modifiedMethods.isNotEmpty())) {
+                    if (!TargetInputReport.INSTANCE.targetIdentifiedByStaticAnalysis.contains(it)) {
+                        TargetInputReport.INSTANCE.targetIdentifiedByBaseModel.add(it)
+                    }
+                    if (it.modifiedMethods.isEmpty() ||
+                        !it.modifiedMethods.all { atuamf.statementMF!!.fullyCoveredMethods.contains(it.key) }) {
+                        if (!atuamf.notFullyExercisedTargetInputs.contains(it)) {
+                            atuamf.notFullyExercisedTargetInputs.add(it)
+                        }
+                    }
                 }
             }
             backwardEquivalentAbstractTransitionMapping.put(newAbstractTransition, HashSet())
@@ -451,11 +460,18 @@ class ModelBackwardAdapter {
             val inputs = updatedAbstractState.getInputsByAbstractAction(updatedAbstractAction)
             inputs.forEach { it ->
                 it.modifiedMethods.putAll(possiblyCoveredUpdatedMethods.associateWith { false })
-                if (it.modifiedMethods.isNotEmpty()
-                    && !it.modifiedMethods.all { atuamf.statementMF!!.fullyCoveredMethods.contains(it.key) }
-                    && !atuamf.notFullyExercisedTargetInputs.contains(it)) {
-                    atuamf.notFullyExercisedTargetInputs.add(it)
-                    TargetInputReport.INSTANCE.targetIdentifiedByBaseModel.add(it)
+                if ( (it.eventHandlers.isNotEmpty()
+                            && it.eventHandlers.intersect(atuamf.allTargetHandlers).isNotEmpty())
+                    || (it.modifiedMethods.isNotEmpty())) {
+                    if (!TargetInputReport.INSTANCE.targetIdentifiedByStaticAnalysis.contains(it)) {
+                        TargetInputReport.INSTANCE.targetIdentifiedByBaseModel.add(it)
+                    }
+                    if (it.modifiedMethods.isEmpty() ||
+                        !it.modifiedMethods.all { atuamf.statementMF!!.fullyCoveredMethods.contains(it.key) }) {
+                        if (!atuamf.notFullyExercisedTargetInputs.contains(it)) {
+                            atuamf.notFullyExercisedTargetInputs.add(it)
+                        }
+                    }
                 }
             }
             backwardEquivalentAbstractTransitionMapping.putIfAbsent(existingAbstractTransition, HashSet())
@@ -603,12 +619,15 @@ class ModelBackwardAdapter {
                         matchedAVMs2.get(it)!!.add(avm1)
                     if (EWTGDiff.instance.widgetDifferentSets.get("ReplacementSet") != null) {
                         val oldEWTGWidget = expectedAbstractState.EWTGWidgetMapping[it]!!
-                        val replacement = Replacement<EWTGWidget>(oldEWTGWidget,newEWTGWidget)
-                        val replacementSet = (EWTGDiff.instance.widgetDifferentSets.get("ReplacementSet")!! as ReplacementSet<EWTGWidget>)
-                        if (!replacementSet.replacedElements.contains(replacement)) {
-                            replacementSet.replacedElements.add(replacement)
-                            EWTGDiff.instance.updateInputs(replacement, true, atuaMF)
+                        if (oldEWTGWidget != newEWTGWidget) {
+                            val replacement = Replacement<EWTGWidget>(oldEWTGWidget,newEWTGWidget)
+                            val replacementSet = (EWTGDiff.instance.widgetDifferentSets.get("ReplacementSet")!! as ReplacementSet<EWTGWidget>)
+                            if (!replacementSet.replacedElements.contains(replacement)) {
+                                replacementSet.replacedElements.add(replacement)
+                                EWTGDiff.instance.updateInputs(replacement, true, atuaMF)
+                            }
                         }
+
                     }
 
 

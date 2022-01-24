@@ -31,16 +31,23 @@ import org.atua.modelFeatures.ewtg.window.OptionsMenu
 import org.atua.modelFeatures.ewtg.window.OutOfApp
 import org.atua.modelFeatures.mapping.EWTG_DSTGMapping
 import org.droidmate.exploration.modelFeatures.graph.Edge
+import org.droidmate.exploration.strategy.atua.PhaseOneStrategy
 import org.droidmate.explorationModel.interaction.State
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import java.util.*
 
 class ProbabilityBasedPathFinder {
     companion object {
+        @JvmStatic
+        private val log: Logger by lazy { LoggerFactory.getLogger(this::class.java) }
+
         val DEFAULT_MAX_COST: Double = 15.0
         val allAvailableTransitionPaths = HashMap<Pair<AbstractState, AbstractState>, ArrayList<TransitionPath>>()
         private val disableEdges = HashSet<Edge<AbstractState, AbstractTransition>>()
         private val disablePaths = HashSet<Pair<List<AbstractTransition>, DisablePathType>>()
         val disableActionSequences = HashMap<AbstractState, ArrayList<LinkedList<AbstractAction>>>()
+
         fun findPathToTargetComponent(
             autautMF: org.atua.modelFeatures.ATUAMF,
             currentState: State<*>,
@@ -54,7 +61,7 @@ class ProbabilityBasedPathFinder {
             goalsByTarget: Map<AbstractState, List<Input>>,
             maxCost: Double,
             abandonedAppStates: List<AbstractState>,
-            forceLaunch: Boolean
+            constraints: Map<PathConstraint, Boolean>
         ) {
             val targetTraces =
                 if (pathType == PathFindingHelper.PathType.PARTIAL_TRACE || pathType == PathFindingHelper.PathType.FULLTRACE) {
@@ -108,11 +115,9 @@ class ProbabilityBasedPathFinder {
                     foundPaths = foundPaths,
                     pathTracking = HashMap(),
                     depth = 0,
-                    includeWTG = false,
                     stopWhenHavingUnexercisedAction = false,
                     shortest = shortest,
                     pathCountLimitation = pathCountLimitation,
-                    includeResetAction = true,
                     followTrace = false,
                     pathType = pathType,
                     targetTraces = targetTraces,
@@ -121,7 +126,7 @@ class ProbabilityBasedPathFinder {
                     maxCost = maxCost,
                     windowAsTarget = windowAsTarget,
                     abandonedAppStates = abandonedAppStates,
-                    forceLaunch = forceLaunch
+                    pathContraints = constraints
                 )
                 PathFindingHelper.PathType.WIDGET_AS_TARGET -> findPathToTargetComponentByBFS(
                     autautMF = autautMF,
@@ -133,11 +138,9 @@ class ProbabilityBasedPathFinder {
                     foundPaths = foundPaths,
                     pathTracking = HashMap(),
                     depth = 0,
-                    includeWTG = false,
                     stopWhenHavingUnexercisedAction = false,
                     shortest = shortest,
                     pathCountLimitation = pathCountLimitation,
-                    includeResetAction = true,
                     followTrace = false,
                     pathType = pathType,
                     targetTraces = targetTraces,
@@ -146,7 +149,7 @@ class ProbabilityBasedPathFinder {
                     maxCost = maxCost,
                     windowAsTarget = windowAsTarget,
                     abandonedAppStates = abandonedAppStates,
-                    forceLaunch = forceLaunch
+                    pathContraints = constraints
                 )
                 PathFindingHelper.PathType.WTG -> findPathToTargetComponentByBFS(
                     autautMF = autautMF,
@@ -158,11 +161,9 @@ class ProbabilityBasedPathFinder {
                     foundPaths = foundPaths,
                     pathTracking = HashMap(),
                     depth = 0,
-                    includeWTG = true,
                     stopWhenHavingUnexercisedAction = false,
                     shortest = shortest,
                     pathCountLimitation = pathCountLimitation,
-                    includeResetAction = true,
                     followTrace = false,
                     pathType = pathType,
                     targetTraces = targetTraces,
@@ -171,7 +172,7 @@ class ProbabilityBasedPathFinder {
                     maxCost = maxCost,
                     windowAsTarget = windowAsTarget,
                     abandonedAppStates = abandonedAppStates,
-                    forceLaunch = forceLaunch
+                    pathContraints = constraints
                 )
             }
         }
@@ -184,12 +185,10 @@ class ProbabilityBasedPathFinder {
             traversedEdges: HashMap<Int, Pair<AbstractTransition, Stack<AbstractState>>>,
             pathTracking: HashMap<Int, Int>,
             depth: Int,
-            includeWTG: Boolean,
             windowAsTarget: Boolean,
             stopWhenHavingUnexercisedAction: Boolean = false,
             shortest: Boolean = true,
             pathCountLimitation: Int = 1,
-            includeResetAction: Boolean,
             followTrace: Boolean,
             pathType: PathFindingHelper.PathType,
             targetTraces: List<Int>,
@@ -197,8 +196,9 @@ class ProbabilityBasedPathFinder {
             goalsByTarget: Map<AbstractState, List<Input>>,
             maxCost: Double,
             abandonedAppStates: List<AbstractState>,
-            forceLaunch: Boolean
+            pathContraints: Map<PathConstraint, Boolean>
         ) {
+            log.debug("Depth: $depth")
             val graph = autautMF.dstg
             val nextTransitions = ArrayList<Int>()
             if (prevEdgeIds.isEmpty()) {
@@ -219,8 +219,6 @@ class ProbabilityBasedPathFinder {
                         foundPaths = foundPaths,
                         nextTransitions = nextTransitions,
                         stopWhenHavingUnexercisedAction = stopWhenHavingUnexercisedAction,
-                        includeWTG = includeWTG,
-                        includeResetAction = includeResetAction,
                         followTrace = followTrace,
                         pathType = pathType,
                         targetTraces = targetTraces,
@@ -229,7 +227,7 @@ class ProbabilityBasedPathFinder {
                         maxCost = maxCost,
                         windowAsTarget = windowAsTarget,
                         abandonedAppStates = abandonedAppStates,
-                        forceLaunch = forceLaunch
+                        pathContraints = pathContraints
                     )
                 } else {
                     return
@@ -240,7 +238,7 @@ class ProbabilityBasedPathFinder {
                     val source = traversedEdges[traversing]!!.first.dest
                     if (source.window is Launcher)
                         continue
-                    if (source is VirtualAbstractState && !includeWTG) {
+                    if (source is VirtualAbstractState && !(pathContraints[PathConstraint.INCLUDE_WTG]?:false)) {
                         continue
                     }
                     val windowStack = traversedEdges[traversing]!!.second
@@ -260,8 +258,6 @@ class ProbabilityBasedPathFinder {
                         foundPaths = foundPaths,
                         nextTransitions = nextTransitions,
                         stopWhenHavingUnexercisedAction = stopWhenHavingUnexercisedAction,
-                        includeWTG = includeWTG,
-                        includeResetAction = includeResetAction,
                         followTrace = followTrace,
                         pathType = pathType,
                         targetTraces = targetTraces,
@@ -270,7 +266,7 @@ class ProbabilityBasedPathFinder {
                         maxCost = maxCost,
                         windowAsTarget = windowAsTarget,
                         abandonedAppStates = abandonedAppStates,
-                        forceLaunch = forceLaunch
+                        pathContraints = pathContraints
                     )
                 }
             }
@@ -293,11 +289,9 @@ class ProbabilityBasedPathFinder {
                 foundPaths = foundPaths,
                 pathTracking = pathTracking,
                 depth = depth + 1,
-                includeWTG = includeWTG,
                 stopWhenHavingUnexercisedAction = stopWhenHavingUnexercisedAction,
                 shortest = shortest,
                 pathCountLimitation = pathCountLimitation,
-                includeResetAction = includeResetAction,
                 followTrace = followTrace,
                 pathType = pathType,
                 targetTraces = targetTraces,
@@ -306,7 +300,7 @@ class ProbabilityBasedPathFinder {
                 maxCost = newMinCost,
                 windowAsTarget = windowAsTarget,
                 abandonedAppStates = abandonedAppStates,
-                forceLaunch = forceLaunch
+                pathContraints = pathContraints
             )
         }
 
@@ -321,10 +315,8 @@ class ProbabilityBasedPathFinder {
             root: AbstractState,
             foundPaths: ArrayList<TransitionPath>,
             nextTransitions: ArrayList<Int>,
-            includeWTG: Boolean,
             windowAsTarget: Boolean,
             stopWhenHavingUnexercisedAction: Boolean,
-            includeResetAction: Boolean,
             followTrace: Boolean,
             pathType: PathFindingHelper.PathType,
             targetTraces: List<Int>,
@@ -332,7 +324,7 @@ class ProbabilityBasedPathFinder {
             goalsByTarget: Map<AbstractState, List<Input>>,
             abandonedAppStates: List<AbstractState>,
             maxCost: Double,
-            forceLaunch: Boolean
+            pathContraints: Map<PathConstraint,Boolean>
         ) {
             val prevAbstractTransitions = ArrayList<AbstractTransition>()
             var traverseEdgeId = prevEdgeId
@@ -352,26 +344,29 @@ class ProbabilityBasedPathFinder {
                 }
             val traveredAbstractTransitions = traversedEdges.map { it.value.first }
 //            val traveredAbstractTransitions = prevAbstractTransitions
+            val traveredAppStates = traveredAbstractTransitions.map { it.source }
             val allAvailableActions = source.getAvailableActions()
             val validAbstractActions = allAvailableActions.filter {
                 (it.actionType != AbstractActionType.RESET_APP
-                        || depth == 0)
+                        || (depth == 0 && pathContraints[PathConstraint.INCLUDE_RESET]?:false ))
                         && it.actionType != AbstractActionType.ACTION_QUEUE
                         && it.actionType != AbstractActionType.UNKNOWN
-                        && (!forceLaunch || depth!=0 || it.actionType == AbstractActionType.LAUNCH_APP)
+                        && (!(pathContraints[PathConstraint.FORCING_LAUNCH]?:false) || depth!=0 || it.actionType == AbstractActionType.LAUNCH_APP)
             }
+
             validAbstractActions.forEach { abstractAction ->
                 val abstractTransitions = source.abstractTransitions.filter {
                     it.abstractAction == abstractAction
                             && it.activated == true
                             && (!considerGuardedTransitions || !it.guardEnabled ||
                             it.dependentAbstractStates.intersect(abstractStateStack.toList()).isNotEmpty())
-                            && (includeWTG || !it.fromWTG)
+                            && (pathContraints[PathConstraint.INCLUDE_WTG]?:false || !it.fromWTG)
                 }
                 val goodAbstactTransitions = abstractTransitions.filter {
+
                     it.dest.window !is Launcher &&
                     it.dest !is PredictedAbstractState
-                            && !traveredAbstractTransitions.map { it.source }.contains(it.dest)
+                            && !traveredAppStates.contains(it.dest)
                             && it.source != it.dest
                 }
                 var selectedExercisedAbstractTransition = false
@@ -487,7 +482,7 @@ class ProbabilityBasedPathFinder {
                                                 predictAbstractState.abstractActionsProbability.put(action, prob)
 
                                                 val effectiveness = if (totalcnt == 1) 0.0
-                                                else  reachableStates.size.toDouble() / totalcnt
+                                                    else  reachableStates.size.toDouble() / totalcnt
                                                 predictAbstractState.abstractActionsEffectivenss.put(action,effectiveness)
                                             }
 
@@ -658,6 +653,8 @@ class ProbabilityBasedPathFinder {
             }
             if (abandonedAppStates.contains(destination))
                 return false
+            if (destination.ignored)
+                return false
             if (finalTargets.map { it.window }.contains(destination.window)) {
                 val goals = goalsByTarget.filter { it.key.window == destination.window && it.value.isNotEmpty() }
                 if (goals.isEmpty() || windowAsTarget) {
@@ -696,4 +693,12 @@ class ProbabilityBasedPathFinder {
             return newWindowStack
         }
     }
+}
+
+enum class PathConstraint {
+    INCLUDE_RESET,
+    FORCING_LAUNCH,
+    FORCING_RESET,
+    INCLUDE_LAUNCH,
+    INCLUDE_WTG
 }

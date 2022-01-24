@@ -12,6 +12,7 @@
 
 package org.atua.calm.ewtgdiff
 
+import org.atua.calm.TargetInputReport
 import org.atua.calm.modelReuse.ModelHistoryInformation
 import org.atua.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.ATUAMF
@@ -88,6 +89,7 @@ class EWTGDiff private constructor(){
                 WindowManager.instance.baseModelWindows.filter {
                     it is Dialog && it.ownerActivitys.contains(deleted) }.forEach {
                         removeWindow(it,atuamf)
+                        AbstractAction.abstractActionsByWindow.remove(it)
                 }
 
             }
@@ -306,6 +308,9 @@ class EWTGDiff private constructor(){
                 val afterCnt = existingInputInUpdateVers.modifiedMethods.size
                 existingInputInUpdateVers.coveredMethods.putAll(oldInput.coveredMethods)
                 existingInputInUpdateVers.exercisedInThePast = oldInput.exercisedInThePast
+                if (oldInput.modifiedMethods.isNotEmpty()) {
+                    TargetInputReport.INSTANCE.targetIdentifiedByBaseModel.add(existingInputInUpdateVers)
+                }
             }
         }
 
@@ -351,9 +356,11 @@ class EWTGDiff private constructor(){
 
     private fun replaceWindow(replacement: Replacement<Window>, atuamf: org.atua.modelFeatures.ATUAMF) {
         val oldWindowAVMs = AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP.get(replacement.old)
+
         if (oldWindowAVMs!=null) {
             AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP.put(replacement.new, oldWindowAVMs)
         }
+
         val oldWindowAttributePaths = AttributePath.allAttributePaths.get(replacement.old)
         if (oldWindowAttributePaths!=null) {
             AttributePath.allAttributePaths.put(replacement.new,oldWindowAttributePaths )
@@ -361,10 +368,19 @@ class EWTGDiff private constructor(){
                 u.window = replacement.new
             }
         }
+
         val oldWindowAttributePathsByAVM = AttributeValuationMap.attributePath_AttributeValuationMap.get(replacement.old)
         if (oldWindowAttributePathsByAVM!=null) {
             AttributeValuationMap.attributePath_AttributeValuationMap.put(replacement.new,oldWindowAttributePathsByAVM )
         }
+        val oldWindowAbstractActions = AbstractAction.abstractActionsByWindow.get(replacement.old)
+        if (oldWindowAbstractActions != null) {
+            AbstractAction.abstractActionsByWindow.put(replacement.new,oldWindowAbstractActions)
+            oldWindowAbstractActions.forEach {
+                it.window = replacement.new
+            }
+        }
+
         atuamf.modifiedMethodsByWindow.remove(replacement.old)
         replacement.old.widgets.forEach {
             replacement.new.widgets.add(it)

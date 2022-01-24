@@ -280,7 +280,17 @@ object DefaultStrategies: Logging {
 				}
 				// by default, if it cannot explore, presses back
 				else -> {
-					if (s.visibleTargets.isEmpty() && waitCnt <= 3 ) {
+					if (s.widgets.all { it.boundaries.equals(s.widgets.first().boundaries) } || !clickScreen)   {
+						log.debug("Click on Screen")
+						val largestWidget = s.widgets.maxBy { it.boundaries.width+it.boundaries.height }
+						if (largestWidget !=null) {
+							clickScreen = true
+							largestWidget.click()
+						} else {
+							pressEnter = true
+							ExplorationAction.pressEnter()
+						}
+					} else if (s.visibleTargets.isEmpty() && waitCnt <= 3 ) {
 						delay(maxWaitTime)
 						waitCnt++
 						if (waitCnt < 2)

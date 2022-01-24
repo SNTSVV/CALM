@@ -900,7 +900,9 @@ class Helper {
             parent.childHashes.forEach {
                 val childWidget = allWidgets.firstOrNull { w -> w.idHash == it && w.isVisible }
                 if (childWidget != null) {
-                    if (isInteractiveWidgetButNotKeyboard(childWidget) && isVisibleWidget(childWidget)) {
+                    if (isInteractiveWidgetButNotKeyboard(childWidget)
+                        && isVisibleWidget(childWidget)
+                        && childWidget.className != "android.webkit.WebView") {
                         interactiveWidgets.add(childWidget)
                     }
                     interactiveWidgets.addAll(getAllInteractiveChild(allWidgets, childWidget))

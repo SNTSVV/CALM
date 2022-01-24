@@ -14,29 +14,41 @@ package org.atua.calm
 
 import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.ewtg.Input
+import org.atua.modelFeatures.ewtg.WindowManager
 import java.nio.file.Files
 import java.nio.file.Paths
 
 class TargetInputReport {
     val targetIdentifiedByStaticAnalysis = HashSet<Input>()
     val targetIdentifiedByBaseModel = HashSet<Input>()
+    val targetRemovedByBaseModel = HashSet<Input>()
     val praticalTargets = HashSet<Input>()
 
     fun writeReport(filePathString: String) {
         ATUAMF.log.info("Producing Target Identification report...")
+        val allInputs = WindowManager.instance.updatedModelWindows.map { it.inputs }.flatten()
         val sb = StringBuilder()
-        sb.appendln("input;witnessed;identifiedByStaticAnalysis;identifiedByBaseModel;isPractical")
+        sb.appendln("input;version;createdAtRunTime;witnessed;identifiedByStaticAnalysis;identifiedByBaseModel;removedByBaseModel;isPractical")
         praticalTargets.forEach {
             val identifiedByStaticAnalysis = targetIdentifiedByStaticAnalysis.contains(it)
             val identifiedByBaseModel = targetIdentifiedByBaseModel.contains(it)
-            sb.appendln("$it;${it.witnessed};$identifiedByStaticAnalysis;$identifiedByBaseModel;true")
+            val removedByBaseModel = targetRemovedByBaseModel.contains(it)
+            sb.appendln("$it;${it.modelVersion};${it.createdAtRuntime};${it.witnessed};$identifiedByStaticAnalysis;$identifiedByBaseModel;$removedByBaseModel;true")
         }
         targetIdentifiedByStaticAnalysis.subtract(praticalTargets).forEach {
             val identifiedByBaseModel = targetIdentifiedByBaseModel.contains(it)
-            sb.appendln("$it;${it.witnessed};true;$identifiedByBaseModel;false")
+            val removedByBaseModel = targetRemovedByBaseModel.contains(it)
+            sb.appendln("$it;${it.modelVersion};${it.createdAtRuntime};${it.witnessed};true;$identifiedByBaseModel;$removedByBaseModel;false")
         }
         targetIdentifiedByBaseModel.subtract(targetIdentifiedByStaticAnalysis.union(praticalTargets)).forEach {
-            sb.appendln("$it;${it.witnessed};false;true;false")
+            val removedByBaseModel = targetRemovedByBaseModel.contains(it)
+            sb.appendln("$it;${it.modelVersion};${it.createdAtRuntime};${it.witnessed};false;true;$removedByBaseModel;false")
+        }
+        targetRemovedByBaseModel.subtract(targetIdentifiedByStaticAnalysis.union(targetIdentifiedByBaseModel).union(praticalTargets)).forEach {
+            sb.appendln("$it;${it.modelVersion};${it.createdAtRuntime};${it.witnessed};false;false;true;false")
+        }
+        allInputs.subtract(praticalTargets.union(targetIdentifiedByStaticAnalysis).union(targetRemovedByBaseModel).union(targetIdentifiedByBaseModel)).forEach {
+            sb.appendln("$it;${it.modelVersion};${it.createdAtRuntime};${it.witnessed};false;false;false;false")
         }
         Files.write(Paths.get(filePathString), sb.lines())
         ATUAMF.log.info("Finished writing target identification report in ${Paths.get(filePathString).fileName}")

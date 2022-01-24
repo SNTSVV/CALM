@@ -12,8 +12,10 @@
 
 package org.atua.modelFeatures.dstg
 
+import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.window.Window
+import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF
 import org.droidmate.explorationModel.interaction.Interaction
 import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
@@ -21,7 +23,7 @@ import org.droidmate.explorationModel.interaction.Widget
 class AbstractAction private constructor (
         val actionType: AbstractActionType,
         val attributeValuationMap: AttributeValuationMap?=null,
-        val window: Window,
+        var window: Window,
         val extra: Any?=null
     ) {
     /*override fun equals(other: Any?): Boolean {
@@ -107,6 +109,23 @@ class AbstractAction private constructor (
         return false
     }
 
+    fun updateMeaningfulScore(
+        lastInteraction: Interaction<*>,
+        newState: State<*>,
+        prevState: State<*>,
+        atuaMF: ATUAMF
+    ) {
+        val actionId = lastInteraction.actionId
+        val structureUuid = atuaMF.stateStructureHashMap[newState.uid]
+        if (atuaMF.statementMF!!.actionIncreasingCoverageTracking[actionId.toString()]?.isNotEmpty() ?: false
+            || atuaMF.stateVisitCount[structureUuid] == 1)
+            meaningfulScore += 50
+        else if (prevState == newState || newState.isHomeScreen)
+            meaningfulScore -= 100
+        else
+            meaningfulScore -= 50
+    }
+
     override fun toString(): String {
         return "$actionType - $attributeValuationMap - $window"
     }
@@ -129,6 +148,8 @@ class AbstractAction private constructor (
                     val clickCoordination = Helper.parseCoordinationData(interaction.data)
                     if (clickCoordination.first < guiDimension.leftX || clickCoordination.second < guiDimension.topY) {
                         abstractActionType = AbstractActionType.CLICK_OUTBOUND
+                    } else {
+                        abstractActionType = AbstractActionType.CLICK
                     }
                 }
             }
@@ -159,11 +180,12 @@ class AbstractAction private constructor (
         ): AbstractAction {
             val abstractAction: AbstractAction
             abstractActionsByWindow.putIfAbsent(window, ArrayList())
-            val availableAction = abstractActionsByWindow[window]!!.find {
+            val availableActions = abstractActionsByWindow[window]!!.filter {
                 it.actionType == actionType
                         && it.attributeValuationMap == attributeValuationMap
                         && it.extra == extra
             }
+            val availableAction = availableActions.firstOrNull()
             if (availableAction == null) {
                 abstractAction = AbstractAction(
                     actionType = actionType,
@@ -188,11 +210,12 @@ class AbstractAction private constructor (
             val abstractAction: AbstractAction
             val actionData = computeAbstractActionExtraData(actionType, interaction, guiState, abstractState, atuaMF)
             abstractActionsByWindow.putIfAbsent(abstractState.window, ArrayList())
-            val availableAction = abstractActionsByWindow[abstractState.window]!!.find {
+            val availableActions = abstractActionsByWindow[abstractState.window]!!.filter {
                 it.actionType == actionType
                         && it.attributeValuationMap == attributeValuationMap
                         && it.extra == actionData
             }
+            val availableAction = availableActions.firstOrNull()
             if (availableAction == null) {
                 abstractAction = AbstractAction(
                         actionType = actionType,

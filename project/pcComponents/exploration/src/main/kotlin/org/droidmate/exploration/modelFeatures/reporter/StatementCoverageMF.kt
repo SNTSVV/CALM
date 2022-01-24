@@ -242,7 +242,10 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
         val modifiedMethodsJson = jObj.getJSONArray("modifiedMethods")
         if (modifiedMethodsJson!=null) {
             modifiedMethodsJson.forEach {
-                modifiedMethodsList.add(it.toString())
+                if (methodIdByMethodName.containsKey(it))
+                    modifiedMethodsList.add(it.toString())
+                else
+                    log.warn("NOT registered method")
             }
         }
     }
