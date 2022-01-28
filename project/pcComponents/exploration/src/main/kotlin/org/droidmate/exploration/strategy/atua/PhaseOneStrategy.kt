@@ -1492,7 +1492,7 @@ class PhaseOneStrategy(
             pathConstraints = pathConstraints
         )
         if (shorestPaths.isNotEmpty()) {
-            val minPath = shorestPaths.minBy { it.cost() }
+            val minPath = shorestPaths.minByOrNull { it.cost() }
             targetWindow = minPath!!.destination.window
         } else if (candidates.isNotEmpty()) {
             targetWindow = candidates.random()

@@ -227,7 +227,7 @@ abstract class AbstractStrategyTask(
                 AbstractActionType.PRESS_HOME -> ExplorationAction.minimizeMaximize()
                 AbstractActionType.MINIMIZE_MAXIMIZE -> ExplorationAction.minimizeMaximize()
                 AbstractActionType.ROTATE_UI -> {
-                    if (currentAbstactState == org.atua.modelFeatures.Rotation.PORTRAIT) {
+                    if (currentAbstactState.rotation == org.atua.modelFeatures.Rotation.PORTRAIT) {
                         ExplorationAction.rotate(90)
                     } else {
                         ExplorationAction.rotate(-90)

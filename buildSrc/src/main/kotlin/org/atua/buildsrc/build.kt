@@ -1,33 +1,20 @@
-// DroidMate, an automated execution generator for Android apps.
-// Copyright (C) 2012-2018. Saarland University
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
-//
-// Current Maintainers:
-// Nataniel Borges Jr. <nataniel dot borges at cispa dot saarland>
-// Jenny Hotzkow <jenny dot hotzkow at cispa dot saarland>
-//
-// Former Maintainers:
-// Konrad Jamrozik <jamrozik at st dot cs dot uni-saarland dot de>
-//
-// web: www.droidmate.org
+/*
+ * ATUA is a test automation tool for mobile Apps, which focuses on testing methods updated in each software release.
+ * Copyright (C) 2019 - 2021 University of Luxembourg
+ *
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
 
 // "unused" warning is suppressed because vals in this project are being used in the 'droidmate' project gradle build scripts
 // as well as in the 'droidmate' project itself. The "unused" warning doesn't properly recognize some of the usages.
 @file:Suppress("unused")
 //TODO ensure all gradle scripts using these constants get cleaned up and that they are only derived/used at runtime, then remove buildSrc alltogether
-package org.droidmate.buildsrc
+package org.atua.buildsrc
 
 import com.konradjamrozik.*
 import org.zeroturnaround.exec.ProcessExecutor
@@ -54,12 +41,12 @@ var max:Pair<String,Int> = Pair("",0)
 val buildTools = Files.list(android_sdk_dir.resolve("build-tools")).use { file ->
 	println("available build-tools: ")
 	file.forEach {
-	val fileName = it.fileName.toString()
-	println("\t$fileName")
-	val versionCmp = fileName.replace(".","").toIntOrNull()
-	if(versionCmp!=null && versionCmp > max.second)
-		max = Pair(fileName,versionCmp)
-} }
+		val fileName = it.fileName.toString()
+		println("\t$fileName")
+		val versionCmp = fileName.replace(".","").toIntOrNull()
+		if(versionCmp!=null && versionCmp > max.second)
+			max = Pair(fileName,versionCmp)
+	} }
 
 private val build_tools_version = max.first
 val aapt_command_relative = "build-tools/$build_tools_version/aapt$exeExt"
@@ -127,7 +114,7 @@ val test_temp_dir_name = "out${File.separator}temp_dir_for_tests"
  */
 const val dir_name_temp_extracted_resources = "temp_extracted_resources"
 
-// !!! DUPLICATION WARNING !!! with org.droidmate.MonitorConstants.monitor_time_formatter_locale 
+// !!! DUPLICATION WARNING !!! with org.droidmate.MonitorConstants.monitor_time_formatter_locale
 val locale = Locale.US
 
 fun executeCommand(commandName: String, commandContent: String): Int {
@@ -143,10 +130,10 @@ fun executeCommand(commandName: String, commandContent: String): Int {
 	val err = ByteArrayOutputStream()
 	val out = ByteArrayOutputStream()
 	val process = ProcessExecutor()
-			.readOutput(true)
-			.redirectOutput(out)
-			.redirectError(err)
-			.timeout(120, TimeUnit.SECONDS)
+		.readOutput(true)
+		.redirectOutput(out)
+		.redirectError(err)
+		.timeout(120, TimeUnit.SECONDS)
 
 	print("executing...")
 	val result = process.commandSplit(commandString).execute()
@@ -177,3 +164,6 @@ fun executeCommand(commandName: String, commandContent: String): Int {
 	println("=========================")
 	return result.exitValue
 }
+
+
+

@@ -981,10 +981,6 @@ class ATUAMF(
             AbstractActionType.RESET_APP -> {
                 AbstractStateManager.INSTANCE.launchStates[AbstractStateManager.LAUNCH_STATE.RESET_LAUNCH] =
                     currentState
-                if (AbstractStateManager.INSTANCE.launchStates[AbstractStateManager.LAUNCH_STATE.NORMAL_LAUNCH] == null) {
-                    AbstractStateManager.INSTANCE.launchStates[AbstractStateManager.LAUNCH_STATE.NORMAL_LAUNCH] =
-                        currentState
-                }
                 currentAbstractState.isInitalState = true
             }
             else -> {
@@ -1444,7 +1440,7 @@ class ATUAMF(
             }
             if (currentStateWidgetScores.isNotEmpty())
                 maxCurrentStateScore =
-                    currentStateWidgetScores.map { it.value.get(currentAbstractState.window)!! }.max()!!
+                    currentStateWidgetScores.map { it.value.get(currentAbstractState.window)!! }.maxOrNull()!!
             else
                 maxCurrentStateScore = 0.0
             val newScore = currentScore + 0.5 * (reward + 0.9 * maxCurrentStateScore - currentScore)
@@ -1460,7 +1456,7 @@ class ATUAMF(
                     } else {
                         val maxCurrentStateScore = actionScore2.filter {
                             currentAbstractState.getAvailableInputs().contains(it.key)
-                        }.entries.maxBy { it.value }
+                        }.entries.maxByOrNull { it.value }
                         val newScore =
                             currentScore1 + 0.5 * (reward + 0.9 * (maxCurrentStateScore?.value ?: 0.0) - currentScore1)
                         actionScore2[it] = newScore
@@ -2847,7 +2843,7 @@ class ATUAMF(
                 break
             }
             val maxCurrentStateScore = if (Random.nextDouble() < 0.5) {
-                availableCurrentStateScores.maxBy { it.value }!!.key
+                availableCurrentStateScores.maxByOrNull { it.value }!!.key
             } else {
                 val pb = ProbabilityDistribution<Triple<UUID?, String, String>>(availableCurrentStateScores)
                 pb.getRandomVariable()

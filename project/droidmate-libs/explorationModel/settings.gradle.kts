@@ -1,6 +1,6 @@
 
 pluginManagement {
-	val kotlinVersion = "1.3.41"  // need at least 1.3.20 to avoid error 'command line is too long'
+	val kotlinVersion = "1.5.31"  // need at least 1.3.20 to avoid error 'command line is too long'
 	repositories {
 		gradlePluginPortal()
 		jcenter()

@@ -314,7 +314,7 @@ class HandleTargetAbsent():  AExplorationStrategy() {
                     } else
                     {
                         log.debug("Click on Screen")
-                        val largestWidget = s.widgets.maxBy { it.boundaries.width+it.boundaries.height }
+                        val largestWidget = s.widgets.maxByOrNull { it.boundaries.width+it.boundaries.height }
                         if (largestWidget !=null) {
                             clickScreen = true
                             largestWidget.click()

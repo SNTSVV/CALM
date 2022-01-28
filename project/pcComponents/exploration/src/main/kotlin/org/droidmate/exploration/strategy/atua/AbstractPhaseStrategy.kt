@@ -216,7 +216,7 @@ abstract class AbstractPhaseStrategy(
         while (candidateStates.isNotEmpty()) {
             if (transitionPaths.isNotEmpty())
                 break
-            val maxValue = candidateStates.maxBy { it.value }!!.value
+            val maxValue = candidateStates.maxByOrNull { it.value }!!.value
             val abstractStates = candidateStates.filter { it.value == maxValue }.keys
             ProbabilityBasedPathFinder.findPathToTargetComponent(currentState = currentState,
                 root = currentAbstractState,

@@ -38,8 +38,10 @@ dependencies {
 		exclude( module: "droidmate-common" )
 		exclude( module: "com.github.hotzkow:platformInterfaceLib" )
 	}
-	compile project(":common")
-	compile project(":project:pcComponents:exploration")
+	implementation project(":common")
+	implementation project(":deviceDaemonLib")
+	implementation project(":explorationModel")
+	implementation project(":project:pcComponents:exploration")
 
 	implementation 'com.natpryce:konfig:1.6.6.0'  // configuration library
 

@@ -28,8 +28,9 @@
 */
 
 dependencies {
-	compile project(":explorationModel")
-	compile project(":common")
+	implementation project(":common")
+	implementation project(":deviceDaemonLib")
+	implementation project(":explorationModel")
 /*	compile (project.ext.dmExplorationModel) {
 		// includes platformInterfaceLib
 	}

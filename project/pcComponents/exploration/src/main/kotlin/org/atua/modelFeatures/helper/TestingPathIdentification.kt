@@ -343,7 +343,7 @@ class PathFindingHelper {
             if (nextTransitions.isEmpty())
                 return
             if (shortest && allPaths.isNotEmpty()) {
-                val maxLength = allPaths.map { it.path.size }.max()!!
+                val maxLength = allPaths.map { it.path.size }.maxOrNull()!!
                 if ((depth + 1) >= maxLength) {
                     return
                 }
@@ -639,7 +639,7 @@ class PathFindingHelper {
                                 val key = if (traversedEdges.isEmpty())
                                     0
                                 else
-                                    traversedEdges.keys.max()!! + 1
+                                    traversedEdges.keys.maxOrNull()!! + 1
                                 traversedEdges.put(key, Pair(it.label, nextAbstateStack))
                                 if (prevEdgeId != null)
                                     pathTracking.put(key, prevEdgeId)

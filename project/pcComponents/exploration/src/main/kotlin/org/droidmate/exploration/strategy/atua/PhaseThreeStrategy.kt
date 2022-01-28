@@ -115,6 +115,7 @@ class PhaseThreeStrategy(
             allTargetInputs.putIfAbsent(it,0)
             allTargetInputs[it] = allTargetInputs[it]!! + 1
         }
+
     }
 
     override fun hasNextAction(currentState: State<*>): Boolean {
@@ -338,7 +339,7 @@ class PhaseThreeStrategy(
                 if (abstractActions.isNotEmpty()) {
                     targetEvents.add(targetEvent!!)
                 }
-            } else {
+            }/* else {
                 val availableEvents = abstractState.getAvailableInputs()
                 val windowTargetInputs = atuaMF.notFullyExercisedTargetInputs.filter {
                     it.sourceWindow == targetWindow!!
@@ -361,7 +362,7 @@ class PhaseThreeStrategy(
                         targetEvents.add(selectedInput)
                     }
                 }
-            }
+            }*/
         }
         return targetEvents.toSet()
     }

@@ -487,7 +487,7 @@ class Helper {
                     if (matchingScores.isEmpty()) {
                         matchedEWTGWidgets.clear()
                     } else {
-                        val minScore = matchingScores.minBy { it.value }!!.value
+                        val minScore = matchingScores.minByOrNull { it.value }!!.value
                         matchedEWTGWidgets.removeIf { matchingScores[it] != minScore }
                     }
                 }
@@ -945,7 +945,7 @@ class Helper {
         fun computeGuiTreeDimension(guiState: State<*>): Rectangle {
             val outboundViews = guiState.widgets.filter { !it.hasParent && !it.isKeyboard }
             if (outboundViews.isNotEmpty()) {
-                val outBound = outboundViews.maxBy { it.boundaries.height + it.boundaries.width }!!.boundaries
+                val outBound = outboundViews.maxByOrNull { it.boundaries.height + it.boundaries.width }!!.boundaries
                 return outBound
             }
             val bound = guiState.widgets.sortedBy { it.boundaries.width + it.boundaries.height }.last().boundaries
@@ -955,7 +955,7 @@ class Helper {
         fun computeGuiTreeVisibleDimension(guiState: State<*>): Rectangle {
             val outboundViews = guiState.widgets.filter { !it.hasParent && !it.isKeyboard }
             if (outboundViews.isNotEmpty()) {
-                val outBound = outboundViews.maxBy { it.visibleBounds.height + it.visibleBounds.width }!!.visibleBounds
+                val outBound = outboundViews.maxByOrNull { it.visibleBounds.height + it.visibleBounds.width }!!.visibleBounds
                 return outBound
             }
             val bound = guiState.widgets.sortedBy { it.visibleBounds.width + it.visibleBounds.height }.last().visibleBounds

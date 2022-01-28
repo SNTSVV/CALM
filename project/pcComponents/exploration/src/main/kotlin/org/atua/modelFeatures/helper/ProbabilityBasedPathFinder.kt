@@ -276,7 +276,7 @@ class ProbabilityBasedPathFinder {
                 && foundPaths.any { it.path.values.all { it.dest !is PredictedAbstractState } }) {
                 return
             }
-            val newMinCost = foundPaths.map { it.cost() }.min() ?: maxCost
+            val newMinCost = foundPaths.map { it.cost() }.minOrNull() ?: maxCost
 //            foundPaths.removeIf { it.cost() > newMinCost }
 //            val newMinCost = minCost
             findPathToTargetComponentByBFS(
@@ -363,7 +363,6 @@ class ProbabilityBasedPathFinder {
                             && (pathContraints[PathConstraint.INCLUDE_WTG]?:false || !it.fromWTG)
                 }
                 val goodAbstactTransitions = abstractTransitions.filter {
-
                     it.dest.window !is Launcher &&
                     it.dest !is PredictedAbstractState
                             && !traveredAppStates.contains(it.dest)
@@ -598,14 +597,12 @@ class ProbabilityBasedPathFinder {
                         val key = if (traversedEdges.isEmpty())
                             0
                         else
-                            traversedEdges.keys.max()!! + 1
+                            traversedEdges.keys.maxOrNull()!! + 1
                         traversedEdges.put(key, Pair(abstractTransition, nextAbstateStack))
                         if (prevEdgeId != null)
                             pathTracking.put(key, prevEdgeId)
                         nextTransitions.add(key)
                     }
-                } else {
-                    val a = cost
                 }
             }
             return result

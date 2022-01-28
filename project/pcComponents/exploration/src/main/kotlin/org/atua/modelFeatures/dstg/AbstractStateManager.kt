@@ -511,7 +511,7 @@ class AbstractStateManager() {
                         && it.activated == true
                         && consideredForImplicitAbstractStateAction(it.abstractAction)
             }
-        }.flatten().sortedByDescending { it.interactions.map { it.endTimestamp }.max() ?: LocalDateTime.MIN }
+        }.flatten().sortedByDescending { it.interactions.map { it.endTimestamp }.maxOrNull() ?: LocalDateTime.MIN }
         for (transition in explicitTransitions) {
             if (consideredForImplicitAbstractStateAction(transition.abstractAction)
             ) {
@@ -1441,7 +1441,7 @@ class AbstractStateManager() {
             var lv1Attributes: Set<Map<AttributeType, String>>? = null
             var valid = true
             val sorted =
-                similarAbstractTransitions.sortedByDescending { it.interactions.map { it.endTimestamp }.max() }.take(3)
+                similarAbstractTransitions.sortedByDescending { it.interactions.map { it.endTimestamp }.maxOrNull() }.take(3)
             sorted.forEach {
                 val dest = it.dest
                 var diff = 0

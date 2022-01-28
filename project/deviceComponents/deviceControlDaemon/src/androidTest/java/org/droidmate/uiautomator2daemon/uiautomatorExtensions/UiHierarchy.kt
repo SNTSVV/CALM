@@ -248,8 +248,8 @@ object UiHierarchy : UiParser() {
 	fun Bitmap?.isValid(appWindows:List<DisplayedWindow>): Boolean {
 		return if (this != null) {
 			try {
-				val maxWidth = windowWidth(appWindows.maxBy(windowWidth))
-				val maxHeight = windowHeight(appWindows.maxBy(windowHeight))
+				val maxWidth = windowWidth(appWindows.maxByOrNull(windowWidth))
+				val maxHeight = windowHeight(appWindows.maxByOrNull(windowHeight))
 
 				(maxWidth == 0 && maxHeight == 0) || ((maxWidth <= this.width) && (maxHeight <= this.height))
 			} catch (e: Exception) {

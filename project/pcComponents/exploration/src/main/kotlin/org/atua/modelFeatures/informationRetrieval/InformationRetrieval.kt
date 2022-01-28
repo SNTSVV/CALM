@@ -83,7 +83,7 @@ class InformationRetrieval<D, T> (
      */
     private fun computeQueryTermsTF(query: HashMap<T, Long>): Map<T, Double> {
         val queryTermsTF = HashMap<T,Double>()
-        val maxTermRawCount = query.maxBy { it.value }!!.value
+        val maxTermRawCount = query.maxByOrNull { it.value }!!.value
         query.forEach { term, rawCount -> 
             //val tf = 0.5 + (0.5 * rawCount/maxTermRawCount)
             val tf = rawCount.toDouble()

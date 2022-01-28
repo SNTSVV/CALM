@@ -282,7 +282,7 @@ object DefaultStrategies: Logging {
 				else -> {
 					if (s.widgets.all { it.boundaries.equals(s.widgets.first().boundaries) } || !clickScreen)   {
 						log.debug("Click on Screen")
-						val largestWidget = s.widgets.maxBy { it.boundaries.width+it.boundaries.height }
+						val largestWidget = s.widgets.maxByOrNull { it.boundaries.width+it.boundaries.height }
 						if (largestWidget !=null) {
 							clickScreen = true
 							largestWidget.click()
@@ -312,7 +312,7 @@ object DefaultStrategies: Logging {
 						} else
 						{
 							log.debug("Click on Screen")
-							val largestWidget = s.widgets.maxBy { it.boundaries.width+it.boundaries.height }
+							val largestWidget = s.widgets.maxByOrNull { it.boundaries.width+it.boundaries.height }
 							if (largestWidget !=null) {
 								clickScreen = true
 								largestWidget.click()

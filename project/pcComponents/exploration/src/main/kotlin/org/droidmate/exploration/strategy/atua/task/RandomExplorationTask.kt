@@ -466,13 +466,13 @@ class RandomExplorationTask constructor(
             }.filter { action -> !currentAbstractState.abstractTransitions.any {
                 it.abstractAction == action && it.interactions.isNotEmpty() } }
             if (unexercisedActionsInAppState.isNotEmpty()) {
-                randomAction = unexercisedActionsInAppState.maxBy { it.getScore() }
+                randomAction = unexercisedActionsInAppState.maxByOrNull { it.getScore() }
             }
         }
         if (randomAction == null) {
             val unexercisedActions2 = currentAbstractState.getUnExercisedActions2(currentState)
             if (unexercisedActions2.isNotEmpty()) {
-                randomAction = unexercisedActions2.maxBy { it.getScore() }
+                randomAction = unexercisedActions2.maxByOrNull { it.getScore() }
             }
         }
         if (randomAction == null) {

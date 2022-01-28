@@ -303,7 +303,7 @@ class ApiLogcatMessage(
 
             elements.forEachIndexed { i, element ->
                 if (element !in keywords) {
-                    val elementKeywordIndex = keywordIndexes.filter { it < i }.max()!!
+                    val elementKeywordIndex = keywordIndexes.filter { it < i }.maxOrNull()!!
                     keywordToValues[indexToKeyword[elementKeywordIndex]]!!.add(element)
                 }
             }
