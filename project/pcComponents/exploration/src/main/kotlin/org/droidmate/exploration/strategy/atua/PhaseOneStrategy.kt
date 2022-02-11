@@ -1463,9 +1463,9 @@ class PhaseOneStrategy(
                 AbstractStateManager.INSTANCE.unreachableAbstractState.contains(it)
             }.forEach {
                 val allTargetInputs = it.getAvailableInputs().filter {
-                    phaseTargetInputs.contains(it) && inputEffectiveness.containsKey(it)
+                    phaseTargetInputs.contains(it)
                 }
-                targetInputs.addAll(allTargetInputs.filter { inputEffectiveness[it]!! > 0.0 })
+                targetInputs.addAll(allTargetInputs)
 
             }
             if (targetInputs.isNotEmpty()) {
@@ -1639,9 +1639,9 @@ class PhaseOneStrategy(
             ) {
             }*/
             val targetInputsInAppState = it.getAvailableInputs().filter {
-                phaseTargetInputs.contains(it) && inputEffectiveness.containsKey(it)
+                phaseTargetInputs.contains(it)
             }
-            targetInputsInAppState.filter { inputEffectiveness[it]!! > 0.0 }.forEach {
+            targetInputsInAppState.forEach {
                 if (!targetInputs.contains(it)) {
                     targetInputs.add(it)
                 }
@@ -1725,17 +1725,15 @@ class PhaseOneStrategy(
             // prioritize usefull inputs
             val inputScore = HashMap<Input, Double>()
             availableTargetInputsWithActions.keys.forEach { input ->
-                val score = inputEffectiveness[input]!!
-                inputScore.put(input, score)
+                inputScore.put(input, 1.0)
             }
             while (inputScore.isNotEmpty()) {
-                val pb = ProbabilityDistribution<Input>(inputScore)
-                val selectedInput = pb.getRandomVariable()
+                val selectedInput = inputScore.keys.random()
                 val abstractActions = availableTargetInputsWithActions.get(selectedInput)!!
                 if (abstractActions.isNotEmpty()) {
                     result.add(selectedInput)
-                    inputScore.remove(selectedInput)
                 }
+                inputScore.remove(selectedInput)
             }
         }
         if (availableTargetInputsWithActions.isEmpty()) {
