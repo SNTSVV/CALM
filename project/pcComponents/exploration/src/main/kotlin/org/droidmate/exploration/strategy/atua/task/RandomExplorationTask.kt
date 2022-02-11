@@ -2,7 +2,6 @@ package org.droidmate.exploration.strategy.atua.task
 
 import kotlinx.coroutines.runBlocking
 import org.atua.calm.modelReuse.ModelHistoryInformation
-import org.atua.calm.modelReuse.ModelVersion
 import org.droidmate.deviceInterface.exploration.*
 import org.droidmate.exploration.actions.*
 import org.atua.modelFeatures.dstg.AbstractAction
@@ -13,7 +12,6 @@ import org.atua.modelFeatures.dstg.PredictedAbstractState
 import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.WindowManager
-import org.atua.modelFeatures.ewtg.window.Activity
 import org.atua.modelFeatures.ewtg.window.Dialog
 import org.atua.modelFeatures.ewtg.window.Window
 import org.atua.modelFeatures.ewtg.window.OutOfApp
@@ -234,52 +232,51 @@ class RandomExplorationTask constructor(
                 } else if (!goToLockedWindowTask!!.isTaskEnd(currentState)) {
                     return goToLockedWindowTask!!.chooseAction(currentState)
                 }
-        } else {
-            if (isCameraOpening(currentState)) {
-                return dealWithCamera(currentState)
-            }
-            if (lockedWindow != null
-                    && lockedWindow != currentAbstractState.window) {
-                /*dataFilled = false
-                fillingData = false*/
-                if (!currentAbstractState.isRequireRandomExploration()
-                    && !Helper.isOptionsMenuLayout(currentState)
-                    || actionOnOutOfAppCount >= 5 // to avoid the case that we are in outOfApp too long
-                ) {
-                    if (currentAbstractState.isOpeningKeyboard) {
-                        return GlobalAction(actionType = ActionType.CloseKeyboard)
-                    }
-                    goToLockedWindowTask = GoToAnotherWindowTask(atuaTestingStrategy = atuaStrategy, autautMF = atuaMF, delay = delay, useCoordinateClicks = useCoordinateClicks)
-                    if (goToLockedWindowTask!!.isAvailable(
-                            currentState =  currentState,
-                            destWindow = lockedWindow!!,
-                            isWindowAsTarget = true,
-                            includePressback = true,
-                            includeResetApp = false,
-                            isExploration = false)) {
-                        if (goToLockedWindowTask!!.possiblePaths.any { it.cost()<=5*atuaStrategy.scaleFactor }) {
-                            goToLockedWindowTask!!.initialize(currentState)
-                            return goToLockedWindowTask!!.chooseAction(currentState)
-                        } else {
-                            log.debug("Unexercised inputs are too far.")
-                            forcingEndTask = true
-                        }
+        }
+        if (isCameraOpening(currentState)) {
+            return dealWithCamera(currentState)
+        }
+        if (lockedWindow != null
+            && lockedWindow != currentAbstractState.window) {
+            /*dataFilled = false
+            fillingData = false*/
+            if (!currentAbstractState.isRequireRandomExploration()
+                && !Helper.isOptionsMenuLayout(currentState)
+                || actionOnOutOfAppCount >= 5 // to avoid the case that we are in outOfApp too long
+            ) {
+                if (currentAbstractState.isOpeningKeyboard) {
+                    return GlobalAction(actionType = ActionType.CloseKeyboard)
+                }
+                goToLockedWindowTask = GoToAnotherWindowTask(atuaTestingStrategy = atuaStrategy, autautMF = atuaMF, delay = delay, useCoordinateClicks = useCoordinateClicks)
+                if (goToLockedWindowTask!!.isAvailable(
+                        currentState =  currentState,
+                        destWindow = lockedWindow!!,
+                        isWindowAsTarget = true,
+                        includePressback = true,
+                        includeResetApp = false,
+                        isExploration = false)) {
+                    if (goToLockedWindowTask!!.possiblePaths.any { it.cost()<=5*atuaStrategy.scaleFactor }) {
+                        goToLockedWindowTask!!.initialize(currentState)
+                        return goToLockedWindowTask!!.chooseAction(currentState)
+                    } else {
+                        log.debug("Unexercised inputs are too far.")
+                        forcingEndTask = true
                     }
                 }
             }
-            if (isOutOfAppState(currentAbstractState)) {
-                if (actionOnOutOfAppCount >= 5 || !shouldRandomExplorationOutOfApp(currentAbstractState,currentState)){
-                    dataFilled = false
-                    fillingData = false
-                    if (actionOnOutOfAppCount >= 11) {
-                        return atuaStrategy.eContext.resetApp()
-                    }
-                    if (actionOnOutOfAppCount >= 10) {
-                        return atuaStrategy.eContext.launchApp()
-                    }
-                    if (actionOnOutOfAppCount >= 5 || !shouldRandomExplorationOutOfApp(currentAbstractState,currentState)) {
-                        return ExplorationAction.pressBack()
-                    }
+        }
+        if (isOutOfAppState(currentAbstractState)) {
+            if (actionOnOutOfAppCount >= 5 || !shouldRandomExplorationOutOfApp(currentAbstractState,currentState)){
+                dataFilled = false
+                fillingData = false
+                if (actionOnOutOfAppCount >= 11) {
+                    return atuaStrategy.eContext.resetApp()
+                }
+                if (actionOnOutOfAppCount >= 10) {
+                    return atuaStrategy.eContext.launchApp()
+                }
+                if (actionOnOutOfAppCount >= 5 || !shouldRandomExplorationOutOfApp(currentAbstractState,currentState)) {
+                    return ExplorationAction.pressBack()
                 }
             }
         }
@@ -461,16 +458,17 @@ class RandomExplorationTask constructor(
             }
         }
         if (randomAction == null) {
-            val unexercisedActionsInAppState = currentAbstractState.getAvailableActions(currentState).filter {
-                !it.isCheckableOrTextInput() && it.isWidgetAction()
+            val unexercisedWidgetActionsInAppState = currentAbstractState.getAvailableActions(currentState).filter {
+                !it.isCheckableOrTextInput() && it.isWidgetAction() && it.actionType != AbstractActionType.SWIPE
             }.filter { action -> !currentAbstractState.abstractTransitions.any {
                 it.abstractAction == action && it.interactions.isNotEmpty() } }
-            if (unexercisedActionsInAppState.isNotEmpty()) {
-                randomAction = unexercisedActionsInAppState.maxByOrNull { it.getScore() }
+            if (unexercisedWidgetActionsInAppState.isNotEmpty()) {
+                randomAction = unexercisedWidgetActionsInAppState.maxByOrNull { it.getScore() }
             }
         }
         if (randomAction == null) {
             val unexercisedActions2 = currentAbstractState.getUnExercisedActions2(currentState)
+                .filter {  !it.isCheckableOrTextInput() && it.isWidgetAction() }
             if (unexercisedActions2.isNotEmpty()) {
                 randomAction = unexercisedActions2.maxByOrNull { it.getScore() }
             }
@@ -490,7 +488,15 @@ class RandomExplorationTask constructor(
             }
         }
         if (randomAction == null) {
-            if (random.nextDouble() < 0.1) {
+            val unexercisedWindowActionsInAppState = currentAbstractState.getUnExercisedActions(currentState,atuaMF).filter {
+                !it.isWidgetAction()
+            }
+            if (unexercisedWindowActionsInAppState.isNotEmpty()) {
+                randomAction = unexercisedWindowActionsInAppState.maxByOrNull { it.getScore() }
+            }
+        }
+        if (randomAction == null) {
+            if (random.nextDouble() < 0.05) {
                 val abstractActions = currentAbstractState.getAvailableActions().filter {
                     !it.isWidgetAction() && !recentActions.contains(it) && !it.isLaunchOrReset()
                 }

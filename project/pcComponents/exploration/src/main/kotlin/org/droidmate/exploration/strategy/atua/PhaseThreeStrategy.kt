@@ -524,7 +524,7 @@ class PhaseThreeStrategy(
                         return
                     }
                     setRandomExploration(randomExplorationTask, currentState)
-                    phaseState = PhaseState.P3_GO_TO_TARGET_NODE
+                    phaseState = PhaseState.P3_EXERCISE_TARGET_NODE
                     return
                 } else {
                     if (goToTargetNodeTask.isAvailable(currentState,
@@ -537,7 +537,7 @@ class PhaseThreeStrategy(
                         return
                     }
                     setRandomExploration(randomExplorationTask, currentState)
-                    phaseState = PhaseState.P3_GO_TO_TARGET_NODE
+                    phaseState = PhaseState.P3_EXERCISE_TARGET_NODE
                     return
                 }
             }
@@ -547,6 +547,14 @@ class PhaseThreeStrategy(
                 // if random can be still run, keep running
                 log.info("Continue filling data")
                 return
+            }
+            if (currentAppState.window == targetWindow
+                && targetWindow != relatedWindow) {
+                if (exerciseTargetComponentTask.isAvailable(currentState)) {
+                    setExerciseTarget(exerciseTargetComponentTask, currentState)
+                    phaseState = PhaseState.P3_EXERCISE_TARGET_NODE
+                    return
+                }
             }
             if (!strategyTask!!.isTaskEnd(currentState)) {
                 log.info("Continue ${strategyTask!!.javaClass.name}")
@@ -635,8 +643,8 @@ class PhaseThreeStrategy(
                     setGoToTarget(goToTargetNodeTask, currentState)
                     return
                 }
-                setRandomExploration(randomExplorationTask, currentState)
-                phaseState = PhaseState.P3_GO_TO_TARGET_NODE
+                setRandomExplorationInTargetWindow(randomExplorationTask, currentState)
+
                 return
             } else {
                 if (goToTargetNodeTask.isAvailable(currentState,
@@ -649,7 +657,7 @@ class PhaseThreeStrategy(
                     return
                 }
                 setRandomExploration(randomExplorationTask, currentState)
-                phaseState = PhaseState.P3_GO_TO_TARGET_NODE
+                phaseState = PhaseState.P3_EXERCISE_TARGET_NODE
                 return
             }
         }
@@ -667,8 +675,7 @@ class PhaseThreeStrategy(
                 return
             }
             if (targetEvent == null) {
-                setRandomExploration(randomExplorationTask, currentState)
-                phaseState = PhaseState.P3_EXERCISE_TARGET_NODE
+                setRandomExplorationInTargetWindow(randomExplorationTask, currentState)
             }
         }
 
@@ -987,6 +994,7 @@ class PhaseThreeStrategy(
 
         return true
     }
+
 
     val eliminateWindows = ArrayList<Window>()
     private fun containTargetEvents(window: Window): Boolean {

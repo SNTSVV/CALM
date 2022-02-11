@@ -866,9 +866,9 @@ abstract class AbstractStrategyTask(
                 ExplorationTrace.widgetTargets.clear()
             }
         }
+        isClickedShutterButton = false
         val doneButton = currentState.actionableWidgets.find { it.resourceId.contains("done") }
         if (doneButton != null) {
-
             log.info("Widget: $doneButton")
             val clickActions = doneButton.availableActions(delay, useCoordinateClicks).filter { it.name.isClick() }
             if (clickActions.isNotEmpty()) {
@@ -876,6 +876,7 @@ abstract class AbstractStrategyTask(
             }
             ExplorationTrace.widgetTargets.clear()
         }
+        log.info("Cannot find the expected widgets in the camera app. Press back.")
         return ExplorationAction.pressBack()
     }
 

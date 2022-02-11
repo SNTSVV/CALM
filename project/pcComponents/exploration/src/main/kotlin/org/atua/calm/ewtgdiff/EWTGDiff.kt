@@ -151,7 +151,7 @@ class EWTGDiff private constructor(){
         if (widgetDifferentSets.containsKey("ReplacementSet")) {
             for (replacement in (widgetDifferentSets.get("ReplacementSet")!! as ReplacementSet<EWTGWidget>).replacedElements) {
                 // update avm-ewtgwidget mapping
-                updateInputs(replacement,true,atuamf)
+                updateReplacementInput(replacement,true,atuamf)
                 updateAbstractionFunction(replacement)
                 // update EWTGWidget structure
                 updateWindowHierarchy(replacement)
@@ -162,7 +162,7 @@ class EWTGDiff private constructor(){
 
         if (widgetDifferentSets.containsKey("RetainerSet")) {
             for (replacement in (widgetDifferentSets.get("RetainerSet")!! as RetainingSet<EWTGWidget>).replacedElements) {
-                updateInputs(replacement,false,atuamf)
+                updateReplacementInput(replacement,false,atuamf)
                 // update EWTGWidget structure
                 updateWindowHierarchy(replacement)
                 updateAbstractionFunction(replacement)
@@ -268,7 +268,7 @@ class EWTGDiff private constructor(){
         replacement.old.window.widgets.remove(replacement.old)
     }
 
-    fun updateInputs(replacement: Replacement<EWTGWidget>, isReplaced: Boolean, atuamf: ATUAMF) {
+    fun updateReplacementInput(replacement: Replacement<EWTGWidget>, isReplaced: Boolean, atuamf: ATUAMF) {
         replacement.old.window.inputs.filter { it.widget == replacement.old }.forEach { oldInput ->
             var existingInputInUpdateVers = replacement.new.window.inputs
                     .find { it.widget == replacement.new && it.eventType == oldInput.eventType }
@@ -289,13 +289,13 @@ class EWTGDiff private constructor(){
                     existingInputInUpdateVers.modifiedMethods.clear()
                     existingInputInUpdateVers.modifiedMethodStatement.clear()
                 }*/
-                val uncoveredHanndlers = existingInputInUpdateVers.eventHandlers.subtract(oldInput.eventHandlers)
+                val uncoveredHanndlers = existingInputInUpdateVers.eventHandlers.subtract(oldInput.eventHandlers.union(existingInputInUpdateVers.verifiedEventHandlers))
                 if (uncoveredHanndlers.isNotEmpty()) {
                     val remainHandlers = uncoveredHanndlers.filter { atuamf.statementMF!!.isModifiedMethod(it) }
                     existingInputInUpdateVers.eventHandlers.clear()
                     existingInputInUpdateVers.eventHandlers.addAll(remainHandlers)
                 }
-                existingInputInUpdateVers.eventHandlers.addAll(oldInput.eventHandlers)
+                existingInputInUpdateVers.eventHandlers.addAll(oldInput.eventHandlers.union(existingInputInUpdateVers.verifiedEventHandlers))
                 val beforeCnt = existingInputInUpdateVers.modifiedMethods.size
                 val reachableModifiedMethods = existingInputInUpdateVers.eventHandlers.map { handler->
                     atuamf.modifiedMethodWithTopCallers.filter { it.value.contains(handler) }.keys

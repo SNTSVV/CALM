@@ -79,7 +79,7 @@ class ExerciseTargetComponentTask private constructor(
             }
             return false
         }*/
-        if (isDoingRandomExplorationTask && !randomExplorationTask.isTaskEnd(currentState)) {
+        if (randomBudget>=0 || fillingData || (isDoingRandomExplorationTask && !randomExplorationTask.isTaskEnd(currentState))) {
             return false
         }
         if (goToLockedWindowTask != null)
@@ -232,6 +232,8 @@ class ExerciseTargetComponentTask private constructor(
             return doRandomExploration(currentState)
         }
         if (currentAbstractState.window != targetWindow) {
+            fillingData = false
+            dataFilled = true
             if (randomBudget>0 || (!currentAbstractState.isRequireRandomExploration()
                 && !Helper.isOptionsMenuLayout(currentState)))
                 return doRandomExploration(currentState)

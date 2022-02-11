@@ -25,6 +25,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.atua.calm.AppModelLoader
 import org.atua.calm.ModelBackwardAdapter
+import org.atua.calm.TargetInputClassification
 import org.atua.calm.TargetInputReport
 import org.atua.calm.ewtgdiff.AdditionSet
 import org.atua.calm.ewtgdiff.EWTGDiff
@@ -269,6 +270,7 @@ class ATUAMF(
             window.inputs.forEach {
                 if (it.modifiedMethods.isNotEmpty()) {
                     TargetInputReport.INSTANCE.targetIdentifiedByStaticAnalysis.add(it)
+                    TargetInputClassification.INSTANCE.identifiedTargetInputsByStaticAnalysis.put(it,HashMap(it.modifiedMethods))
                     if (!notFullyExercisedTargetInputs.contains(it))
                         notFullyExercisedTargetInputs.add(it)
                 }
@@ -2397,6 +2399,16 @@ class ATUAMF(
                 notFullyExercisedTargetInputs.remove(input)
         } else {
             TargetInputReport.INSTANCE.praticalTargets.add(input)
+            TargetInputClassification.INSTANCE.positiveTargetInputs.add(input)
+            if (TargetInputClassification.INSTANCE.identifiedTargetInputsByStaticAnalysis.containsKey(input)) {
+                val identifiedReachableMethods = TargetInputClassification.INSTANCE.identifiedTargetInputsByStaticAnalysis[input]!!
+                input.modifiedMethods.forEach { m, b ->
+                    if (identifiedReachableMethods.containsKey(m)) {
+                        identifiedReachableMethods[m] = b
+                    }
+                }
+            }
+
             if (!input.modifiedMethods.all { statementMF!!.fullyCoveredMethods.contains(it.key) }) {
                 if (!notFullyExercisedTargetInputs.contains(input)) {
 //                val handlerMethods = input.verifiedEventHandlers.map { statementMF!!.getMethodName(it) }
@@ -2762,15 +2774,16 @@ class ATUAMF(
     }
 
     fun produceTargetIdentificationReport(context: ExplorationContext<*,*,*>) {
-        val outputFile = context.model.config.baseDir.resolve("targetIdentificationReport.txt")
-        TargetInputReport.INSTANCE.writeReport(outputFile.toString())
+        val outputFile = context.model.config.baseDir.resolve("targetIdentificationReport.csv")
+        TargetInputClassification.INSTANCE.writeReport(outputFile.toString())
+
     }
 
     fun accumulateTargetEventsDependency(): HashMap<Input, HashMap<String, Long>> {
         val result = HashMap<Input, HashMap<String, Long>>()
         notFullyExercisedTargetInputs.forEach { event ->
             val eventDependency = HashMap<String, Long>()
-            event.eventHandlers.forEach {
+            event.coveredMethods.filter { it.value }.keys.forEach {
                 if (methodTermsHashMap.containsKey(it)) {
                     if (methodTermsHashMap[it]!!.isNotEmpty()) {
                         methodTermsHashMap[it]!!.forEach { term, count ->

@@ -91,20 +91,26 @@ class PhaseOneStrategy(
         }
         atuaMF.notFullyExercisedTargetInputs.forEach {
             val maxModifiedMethodsCnt = atuaMF.modifiedMethodsByWindow[it.sourceWindow]?.size ?: 0
-            val usefullness = ModelHistoryInformation.INSTANCE.inputUsefulness[it]
-            val usefullScore = if (usefullness != null && usefullness!!.second == 0)
-                0.0
-            else if (usefullness == null && it.widget != null) {
-                if (!EWTGDiff.instance.getAddedWidgets().contains(it.widget!!)) {
+            if (atuaMF.reuseBaseModel) {
+                val usefullness = ModelHistoryInformation.INSTANCE.inputUsefulness[it]
+                val usefullScore = if (usefullness != null && usefullness!!.second == 0)
                     0.0
-                } else {
+                else if (usefullness == null && it.widget != null) {
+                    if (!EWTGDiff.instance.getAddedWidgets().contains(it.widget!!)) {
+                        0.0
+                    } else {
+                        1.0
+                    }
+                } else
                     1.0
+                if (usefullScore == 1.0) {
+                    val score = (it.modifiedMethods.keys.size + 1) * 1.0 / maxModifiedMethodsCnt
+                    inputEffectiveness.put(it, score)
+                    phaseTargetInputs.add(it)
+                    targetInputTryCount.put(it, 0)
                 }
-            } else
-                1.0
-            if (usefullScore == 1.0) {
-                val score = (it.modifiedMethods.keys.size + 1) * 1.0 / maxModifiedMethodsCnt
-                inputEffectiveness.put(it, score)
+            } else {
+                inputEffectiveness.put(it, 1.0)
                 phaseTargetInputs.add(it)
                 targetInputTryCount.put(it, 0)
             }

@@ -37,13 +37,14 @@ class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.Pa
 
     fun cost(start: Int=0): Double {
         var cost = 0.0
+        var baseCost = 0.0
         path.values.drop(start).forEach {
             if (it.abstractAction.actionType == AbstractActionType.RESET_APP)
-                cost+=10
+                baseCost+=10
             else if (it.abstractAction.actionType == AbstractActionType.LAUNCH_APP)
-                cost+=5
+                baseCost+=5
             else
-                cost+=1
+                baseCost+=1
         }
         var finalReachPb = 1.0
         var finalEffectiveness = 1.0
@@ -52,7 +53,7 @@ class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.Pa
                 val reachPb = it.source.abstractActionsProbability[it.abstractAction]
                 if (reachPb != null)
                     finalReachPb = finalReachPb * reachPb
-                /*val effectiveness =  it.source.abstractActionsEffectivenss[it.abstractAction]
+               /* val effectiveness =  it.source.abstractActionsEffectivenss[it.abstractAction]
                 if (effectiveness != null)
                     finalEffectiveness = finalEffectiveness + effectiveness*/
             }
@@ -61,13 +62,12 @@ class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.Pa
         if (goal.isNotEmpty() && destination is PredictedAbstractState) {
             val avgProb = goal.intersect(destination.getAvailableInputs()).map { destination.getAbstractActionsWithSpecificInputs(it) }
                 .flatten().map { destination.abstractActionsProbability[it]?:0.0 }.maxOrNull()?:0.0
-            val actionFailure = 1.0 - avgProb
-            cost+=(cost/2 * (1.0 - (avgProb*finalReachPb)))
+            cost = baseCost+ (baseCost/2 * (1.0 - (avgProb*finalReachPb)))
         } else {
-            cost += (cost/2 * failurePb)
+            cost = baseCost + (baseCost/2 * failurePb)
         }
 
-        val finalCost = cost/finalEffectiveness
+        val finalCost = maxOf(baseCost, cost/finalEffectiveness)
         return finalCost
     }
 

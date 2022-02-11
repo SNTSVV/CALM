@@ -197,6 +197,8 @@ open class Input{
                 sourceWindow = sourceWindow,
                 createdAtRuntime = createdAtRuntime,
                 modelVersion = modelVersion)
+            if (event.createdAtRuntime)
+                event.witnessed = true
             return event
         }
 

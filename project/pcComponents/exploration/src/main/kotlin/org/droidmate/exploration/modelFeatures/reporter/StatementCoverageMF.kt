@@ -239,15 +239,19 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
     private fun readModifiedMethodList(appModel: Path) {
         val jsonData = String(Files.readAllBytes(appModel))
         val jObj = JSONObject(jsonData)
+        var unfoundMethods = ArrayList<String>()
         val modifiedMethodsJson = jObj.getJSONArray("modifiedMethods")
         if (modifiedMethodsJson!=null) {
             modifiedMethodsJson.forEach {
                 if (methodIdByMethodName.containsKey(it))
                     modifiedMethodsList.add(it.toString())
-                else
-                    log.warn("NOT registered method")
+                else {
+                    unfoundMethods.add(it.toString())
+                    log.warn("NOT registered method: $it")
+                }
             }
         }
+        log.warn("Total unfound methods: ${unfoundMethods.size}")
     }
 
     private fun getAppModelFile(apkName: String, resourceDir: Path): Path? {

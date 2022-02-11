@@ -624,7 +624,7 @@ class ModelBackwardAdapter {
                             val replacementSet = (EWTGDiff.instance.widgetDifferentSets.get("ReplacementSet")!! as ReplacementSet<EWTGWidget>)
                             if (!replacementSet.replacedElements.contains(replacement)) {
                                 replacementSet.replacedElements.add(replacement)
-                                EWTGDiff.instance.updateInputs(replacement, true, atuaMF)
+                                EWTGDiff.instance.updateReplacementInput(replacement, true, atuaMF)
                             }
                         }
 

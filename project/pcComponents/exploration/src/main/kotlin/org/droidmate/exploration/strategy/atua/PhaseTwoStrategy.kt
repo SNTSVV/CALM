@@ -548,7 +548,6 @@ class PhaseTwoStrategy(
 
     private fun computeExerciseTestBudget(currentState: State<*>): Int {
         val currentAppState = atuaMF.getAbstractState(currentState)!!
-        val inputWidgetCount = Helper.getUserInputFields(currentState).size
         //val inputWidgetCount = 1
         val targetEvents =
             phase2TargetEvents.filter { it.key.sourceWindow == targetWindow && it.key.verifiedEventHandlers.isNotEmpty() }
@@ -560,6 +559,21 @@ class PhaseTwoStrategy(
             } else
                 1
         }
+        val targetWidgets = targetEvents.map { it.key.widget }
+        val inputWidget = Helper.getUserInputFields(currentState).filter {
+            val avm =  currentAppState.getAttributeValuationSet(it,currentState,atuaMF)
+            if (avm == null)
+                true
+            else {
+                val ewtgWidget = currentAppState.EWTGWidgetMapping[avm]
+                if (ewtgWidget == null)
+                    true
+                else {
+                    !targetWidgets.contains(ewtgWidget)
+                }
+            }
+        }
+        val inputWidgetCount = inputWidget.size
         if (targetEventCount == 0)
             targetEventCount = 1
         /*val abstractStateCnt = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.window == targetWindow
