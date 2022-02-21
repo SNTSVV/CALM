@@ -92,8 +92,6 @@ class ExerciseTargetComponentTask private constructor(
             else
                 return true
         }
-
-
         if (availableActions.isNotEmpty()) {
             return false
         }
@@ -231,11 +229,12 @@ class ExerciseTargetComponentTask private constructor(
         if (isCameraOpening(currentState) ) {
             return doRandomExploration(currentState)
         }
-        if (currentAbstractState.window != targetWindow) {
+        if (currentAbstractState.window != targetWindow
+            || availableActions.isEmpty()) {
             fillingData = false
             dataFilled = true
             if (randomBudget>0 || (!currentAbstractState.isRequireRandomExploration()
-                && !Helper.isOptionsMenuLayout(currentState)))
+                && !Helper.isOptionsMenuLayout(currentState)) || availableActions.isEmpty())
                 return doRandomExploration(currentState)
             else {
                 goToLockedWindowTask = GoToTargetWindowTask(atuaMF,atuaStrategy,delay, useCoordinateClicks)
@@ -266,7 +265,7 @@ class ExerciseTargetComponentTask private constructor(
 
         //TODO check eventList is not empty
 
-        if (availableActions.isEmpty()) {
+/*        if (availableActions.isEmpty()) {
             dataFilled = false
             fillingData = false
 //            Let's see if we can swipe to explore more target inputs
@@ -294,6 +293,8 @@ class ExerciseTargetComponentTask private constructor(
                     }
 
                     if (chosenWidget != null) {
+                        isDoingRandomExplorationTask = true
+                        randomBudget--
                         return chooseActionWithName(action.actionType,action.extra,chosenWidget,currentState,action)
                     }
                 }
@@ -301,7 +302,7 @@ class ExerciseTargetComponentTask private constructor(
 
             log.debug("No more target event. Random exploration.")
             return doRandomExploration(currentState)
-        }
+        }*/
         isDoingRandomExplorationTask = false
 
         if (atuaMF.havingInternetConfiguration(currentAbstractState.window)) {

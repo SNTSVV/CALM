@@ -173,6 +173,9 @@ class AbstractAction private constructor (
             return swipeAction
         }
 
+        /**
+         * The return abstract action needs to be associated with window'input
+         */
         fun getOrCreateAbstractAction(actionType: AbstractActionType,
                                       attributeValuationMap: AttributeValuationMap? = null,
                                       extra: Any? = null,
@@ -194,6 +197,7 @@ class AbstractAction private constructor (
                     window = window
                 )
                 abstractActionsByWindow[window]!!.add(abstractAction)
+
             } else {
                 abstractAction = availableAction
             }

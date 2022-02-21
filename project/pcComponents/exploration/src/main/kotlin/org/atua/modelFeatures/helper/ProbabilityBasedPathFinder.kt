@@ -361,6 +361,7 @@ class ProbabilityBasedPathFinder {
                             && (!considerGuardedTransitions || !it.guardEnabled ||
                             it.dependentAbstractStates.intersect(abstractStateStack.toList()).isNotEmpty())
                             && (pathContraints[PathConstraint.INCLUDE_WTG]?:false || !it.fromWTG)
+                            && !traveredAbstractTransitions.contains(it)
                 }
                 val goodAbstactTransitions = abstractTransitions.filter {
                     it.dest.window !is Launcher &&
@@ -434,10 +435,12 @@ class ProbabilityBasedPathFinder {
                         } else {
                             // predict destination
                             if (!AbstractStateManager.INSTANCE
-                                    .goBackAbstractActions.contains(abstractAction) || true
+                                    .goBackAbstractActions.contains(abstractAction) && abstractAction.isWidgetAction()
                             ) {
                                 val reachableAbstractActions =
-                                    atuaMF.dstg.abstractActionEnables[abstractAction]?.filter { it.key.actionType != AbstractActionType.RESET_APP }
+                                    atuaMF.dstg.abstractActionEnables[abstractAction]?.filter {
+                                        it.key.actionType != AbstractActionType.RESET_APP
+                                                && it.key.isWidgetAction()}
                                 if (reachableAbstractActions != null) {
                                     val totalcnt = atuaMF.dstg.abstractActionCounts[abstractAction]!!
                                     val reachableStates = atuaMF.dstg.abstractActionStateEnable[abstractAction]!!
@@ -455,10 +458,9 @@ class ProbabilityBasedPathFinder {
                                             inputMappings = HashMap()
                                         )
                                         abstractActions.forEach { action ->
-
                                             val prob =
                                                 reachableAbstractActions[action]!! * 1.0 / totalcnt
-                                            if (prob>0.3){
+                                            if (prob>=0.4){
                                                 if (!action.isWidgetAction()) {
                                                     if (!predictAbstractState.containsActionCount(action))
                                                         predictAbstractState.setActionCount(action, 0)
@@ -484,8 +486,6 @@ class ProbabilityBasedPathFinder {
                                                     else  reachableStates.size.toDouble() / totalcnt
                                                 predictAbstractState.abstractActionsEffectivenss.put(action,effectiveness)
                                             }
-
-
                                         }
                                         predictAbstractState.updateHashCode()
                                         val newAbstractTransition = AbstractTransition(

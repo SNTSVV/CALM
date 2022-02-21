@@ -1377,15 +1377,16 @@ class AbstractStateManager() {
             return true
         val similarAbstractTransitions = ArrayList<AbstractTransition>()
         similarAbstractTransitions.add(abstractTransition)
-        similarAbstractTransitions.removeIf {
-            AbstractionFunction2.INSTANCE.isAbandonedAbstractTransition(actionAbstractState.activity, it)
-                    || it.activated == false
-        }
+
         if (similarAbstractTransitions.isEmpty())
             return true
         val similarATFromActionAS =
             getType1SimilarAbstractTransitions(actionAbstractState, abstractTransition, HashSet())
         similarAbstractTransitions.addAll(similarATFromActionAS)
+        similarAbstractTransitions.removeIf {
+            AbstractionFunction2.INSTANCE.isAbandonedAbstractTransition(actionAbstractState.activity, it)
+                    || it.activated == false
+        }
         val sameWindowsAbstractStates = getSimilarAbstractStates(actionAbstractState, abstractTransition)
         val similarAbstractStates = getSlightlyDifferentAbstractStates(actionAbstractState, sameWindowsAbstractStates)
         similarAbstractStates.forEach {
@@ -1436,12 +1437,17 @@ class AbstractStateManager() {
             }
             return false
         }
+        similarATFromActionAS.add(abstractTransition)
         val distinctAbstractInteractions2 = similarATFromActionAS.groupBy { it.dest }
         if (distinctAbstractInteractions2.size > 1) {
             var lv1Attributes: Set<Map<AttributeType, String>>? = null
             var valid = true
+            // get the most 2 recent abstract transitions
+            // if the destination is relatively similar, the non-determination
+            // is due to the state of the destinationn windows itself
             val sorted =
-                similarAbstractTransitions.sortedByDescending { it.interactions.map { it.endTimestamp }.maxOrNull() }.take(3)
+                similarATFromActionAS.sortedByDescending { it.interactions.map { it.endTimestamp }.maxOrNull() }.take(2)
+
             sorted.forEach {
                 val dest = it.dest
                 var diff = 0
@@ -1540,6 +1546,7 @@ class AbstractStateManager() {
         }
     }
 
+    // Same input in an abstract state brings App to different abstract states
     private fun getType1SimilarAbstractTransitions(
         sourceState: AbstractState,
         abstractTransition: AbstractTransition,
@@ -1554,8 +1561,8 @@ class AbstractStateManager() {
                     /*&& it.data == abstractTransition.data*/
                     /*&& it.label.prevWindow == abstractTransition.label.prevWindow*/
                     && it.requiringPermissionRequestTransition == abstractTransition.requiringPermissionRequestTransition
-                    && ((!isImplicit && it.interactions.isNotEmpty() )
-                    || (isImplicit && it.interactions.isEmpty() && it.isImplicit))
+                    && ((it.modelVersion == ModelVersion.RUNNING && it.interactions.isNotEmpty() )
+                    || (it.modelVersion == ModelVersion.BASE))
                     && (!it.guardEnabled
                     || it.dependentAbstractStates.intersect(abstractTransition.dependentAbstractStates).isNotEmpty())
                     && (it.userInputs.isEmpty() || userInputs.isEmpty() || it.userInputs.intersect(userInputs)

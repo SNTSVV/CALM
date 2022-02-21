@@ -109,9 +109,8 @@ class PathTraverser (val transitionPath: TransitionPath) {
         val nextAction = nextAbstractTransition?.abstractAction
         if (nextAction == null)
             return false
-
-        if (nextAbstractTransition!!.guardEnabled)
-            return false
+/*        if (nextAbstractTransition!!.guardEnabled)
+            return false*/
         if (!nextAction.isWidgetAction())
             return true
         val targetAVM = nextAction!!.attributeValuationMap!!
@@ -122,12 +121,12 @@ class PathTraverser (val transitionPath: TransitionPath) {
             if (it.isDerivedFrom(targetAVM,currentAppState.window))
                 return true
         }
-        val nextInputs = nextAbstractTransition!!.source.getInputsByAbstractAction(nextAction)
+/*        val nextInputs = nextAbstractTransition!!.source.getInputsByAbstractAction(nextAction)
         val inputIntersection = currentAppState.getAvailableInputs().intersect(nextInputs)
         if (inputIntersection.isNotEmpty()) {
 //            val potentialAbstractActions = inputIntersection.map { currentAppState.getAbstractActionsWithSpecificInputs(it) }.flatten().distinct()
             return true
-        }
+        }*/
         return false
     }
 }

@@ -1,6 +1,7 @@
 package org.droidmate.exploration.strategy.atua.task
 
 import kotlinx.coroutines.runBlocking
+import org.atua.calm.ModelBackwardAdapter
 import org.atua.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractActionType
@@ -14,6 +15,7 @@ import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.PathTraverser
 import org.atua.modelFeatures.ewtg.TransitionPath
 import org.atua.modelFeatures.ewtg.WindowManager
+import org.atua.modelFeatures.ewtg.window.Dialog
 import org.atua.modelFeatures.ewtg.window.Window
 import org.atua.modelFeatures.helper.PathConstraint
 import org.atua.modelFeatures.helper.PathFindingHelper
@@ -153,11 +155,12 @@ open class GoToAnotherWindowTask constructor(
                 val pathType = pathTraverser!!.transitionPath.pathType
                 if (nextAbstractTransition!=null) {
                     if (nextAbstractTransition.source.window == currentAppState.window &&
-                        (pathType == PathFindingHelper.PathType.WTG || pathType == PathFindingHelper.PathType.WIDGET_AS_TARGET)) {
+                            nextAbstractTransition.dest is PredictedAbstractState) {
                         if (pathTraverser!!.canContinue(currentAppState)) {
                             return false
                         }
                     }
+
                 }
                 val transitionPaths = ArrayList<TransitionPath>()
                 val finalTarget = if (currentPath!!.getFinalDestination() !is PredictedAbstractState) {
@@ -384,14 +387,12 @@ open class GoToAnotherWindowTask constructor(
             }
         }
         val pathType = pathTraverser!!.transitionPath.pathType
-        if (pathType==PathFindingHelper.PathType.WIDGET_AS_TARGET
-            || pathType == PathFindingHelper.PathType.WTG) {
-            val nextAbstractTransition = pathTraverser!!.transitionPath.path[pathTraverser!!.latestEdgeId!! + 1]
-            if (nextAbstractTransition != null) {
-                if (nextAbstractTransition.source.window == currentAppState.window) {
-                    if (pathTraverser!!.canContinue(currentAppState)) {
-                        return true
-                    }
+        val nextAbstractTransition = pathTraverser!!.transitionPath.path[pathTraverser!!.latestEdgeId!! + 1]
+        if (nextAbstractTransition != null
+            && nextAbstractTransition.dest is PredictedAbstractState) {
+            if (nextAbstractTransition.source.window == currentAppState.window) {
+                if (pathTraverser!!.canContinue(currentAppState)) {
+                    return true
                 }
             }
         }
@@ -485,7 +486,7 @@ open class GoToAnotherWindowTask constructor(
         destWindow: Window,
         isWindowAsTarget: Boolean = false,
         includePressback: Boolean = true,
-        includeResetApp: Boolean = false,
+        includeResetApp: Boolean = true,
         isExploration: Boolean = true,
         maxCost: Double = DEFAULT_MAX_COST
     ): Boolean {
@@ -579,7 +580,7 @@ open class GoToAnotherWindowTask constructor(
         includeResetApp: Boolean
     ): PathFindingHelper.PathType {
         return when (pathType) {
-            PathFindingHelper.PathType.WIDGET_AS_TARGET -> PathFindingHelper.PathType.NORMAL
+//            PathFindingHelper.PathType.WIDGET_AS_TARGET -> PathFindingHelper.PathType.NORMAL
             // PathFindingHelper.PathType.NORMAL -> PathFindingHelper.PathType.WTG
 //            PathFindingHelper.PathType.PARTIAL_TRACE -> PathFindingHelper.PathType.WTG
             /*PathFindingHelper.PathType.NORMAL_RESET -> PathFindingHelper.PathType.WIDGET_AS_TARGET_RESET
@@ -591,7 +592,7 @@ open class GoToAnotherWindowTask constructor(
                 else
                     PathFindingHelper.PathType.NORMAL
             PathFindingHelper.PathType.FULLTRACE -> PathFindingHelper.PathType.NORMAL*/
-            PathFindingHelper.PathType.NORMAL ->
+            PathFindingHelper.PathType.WIDGET_AS_TARGET ->
                 if (isWindowAsTarget)
                     PathFindingHelper.PathType.WTG
                 else
@@ -861,9 +862,14 @@ open class GoToAnotherWindowTask constructor(
                 lastTransition.activated = false
             }
         }
-        if (lastTransition.modelVersion == ModelVersion.BASE &&  !lastTransition.abstractAction.isWebViewAction())
+        if (lastTransition.modelVersion == ModelVersion.BASE ) {
             lastTransition.activated = false
-        else if (lastTransition.isExplicit() &&  !lastTransition.abstractAction.isWebViewAction())
+            val backwardTransitions = ModelBackwardAdapter.instance.backwardEquivalentAbstractTransitionMapping.get(lastTransition)
+            backwardTransitions?.forEach { abstractTransition ->
+                abstractTransition.activated = false
+            }
+        }
+        else if (lastTransition.isExplicit() )
             lastTransition.activated = false
         else if (lastTransition.isImplicit) {
             lastTransition.activated = false

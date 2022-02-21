@@ -622,8 +622,8 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
         var prevActionId: Int = 0
         actions.forEach {
             val actionIdStr = it.actionId.toString()
-            if (actionUpdatedCoverageTracking.containsKey(actionIdStr)
-                && actionUpdatedCoverageTracking.get(actionIdStr)!!.size>0) {
+            if (actionIncreasingUpdatedCoverageTracking.containsKey(actionIdStr)
+                && actionIncreasingUpdatedCoverageTracking.get(actionIdStr)!!.size>0) {
                 val actionJSONObject = JSONObject()
                 dataJson.put(actionIdStr, actionJSONObject)
                 actionJSONObject.put("from", it.prevState.uid)

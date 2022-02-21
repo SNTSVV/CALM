@@ -157,7 +157,7 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
                 nextSources.add(edge.dest)
             }
             val abstractTransitionInfo = "${sourceAbstractState.abstractStateId};${edge.dest.abstractStateId};" +
-                    "${edge.abstractAction.actionType};${edge.abstractAction.attributeValuationMap?.avmId};${edge.abstractAction.extra};${edge.data};${edge.guardEnabled};" +
+                    "${edge.abstractAction.actionType};${edge.abstractAction.attributeValuationMap?.avmId};\"${edge.abstractAction.extra}\";\"${edge.data}\";${edge.guardEnabled};" +
                     "\"${edge.dependentAbstractStates.map { it.abstractStateId }.joinToString(";")}\";" +
                     "\"${getInteractionHandlers(edge,statementCoverageMF)}\";" +
                     "\"${getCoveredModifiedMethods(edge,statementCoverageMF)}\";" +

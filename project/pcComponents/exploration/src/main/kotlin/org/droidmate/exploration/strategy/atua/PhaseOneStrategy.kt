@@ -393,7 +393,6 @@ class PhaseOneStrategy(
                     }
                 }
                 if (unexercisedInputs.all { it.exercisedInThePast
-                            && it.modifiedMethods.isEmpty()
                             && !replacingWidgets.contains(it.widget)
                             && !replacingInputs.contains(it) }) {
                     fullyExploredWindows.add(it.key)
@@ -1769,7 +1768,7 @@ class PhaseOneStrategy(
         !chosenAction.isFetch()
                 && chosenAction.name != "CloseKeyboard"
                 && !chosenAction.name.isLaunchApp()
-                && chosenAction.name != "Swipe"
+//                && chosenAction.name != "Swipe"
                 && !(
                 chosenAction.hasWidgetTarget
                         && ExplorationTrace.widgetTargets.any { it.isKeyboard }
