@@ -111,8 +111,13 @@ class PathTraverser (val transitionPath: TransitionPath) {
             return false
 /*        if (nextAbstractTransition!!.guardEnabled)
             return false*/
-        if (!nextAction.isWidgetAction())
+        if (!nextAction.isWidgetAction()) {
+            if (currentAppState.isOpeningKeyboard != nextAbstractTransition.source.isOpeningKeyboard)
+                return false
+            if (currentAppState.isOpeningMenus != nextAbstractTransition.source.isOpeningMenus)
+                return false
             return true
+        }
         val targetAVM = nextAction!!.attributeValuationMap!!
         if (currentAppState.attributeValuationMaps.contains(targetAVM)) {
             return true

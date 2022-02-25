@@ -352,6 +352,7 @@ class ProbabilityBasedPathFinder {
                         && it.actionType != AbstractActionType.ACTION_QUEUE
                         && it.actionType != AbstractActionType.UNKNOWN
                         && (!(pathContraints[PathConstraint.FORCING_LAUNCH]?:false) || depth!=0 || it.actionType == AbstractActionType.LAUNCH_APP)
+                        && (it.actionType != AbstractActionType.SWIPE || !it.isWebViewAction())
             }
 
             validAbstractActions.forEach { abstractAction ->
@@ -434,8 +435,7 @@ class ProbabilityBasedPathFinder {
                             }
                         } else {
                             // predict destination
-                            if (!AbstractStateManager.INSTANCE
-                                    .goBackAbstractActions.contains(abstractAction) && abstractAction.isWidgetAction()
+                            if ( abstractAction.isWidgetAction()
                             ) {
                                 val reachableAbstractActions =
                                     atuaMF.dstg.abstractActionEnables[abstractAction]?.filter {
@@ -525,8 +525,7 @@ class ProbabilityBasedPathFinder {
         }
 
         private fun isConsideredForPredicting(abstractAction: AbstractAction) =
-            (abstractAction.actionType != AbstractActionType.LAUNCH_APP
-                    && abstractAction.actionType != AbstractActionType.RESET_APP)
+            (abstractAction.actionType != AbstractActionType.RESET_APP)
 
         private fun processAbstractTransition(
             abstractTransition: AbstractTransition,
@@ -673,20 +672,30 @@ class ProbabilityBasedPathFinder {
             nextState: AbstractState
         ): Stack<AbstractState> {
             val newWindowStack = AbstractStateStack.clone() as Stack<AbstractState>
-            if (newWindowStack.map { it.window }.contains(nextState.window) && newWindowStack.size > 1) {
+            val lastWindow = newWindowStack.peek().window
+            if (nextState.window != lastWindow
+                && newWindowStack.map { it.window }.contains(nextState.window)
+                && newWindowStack.size > 1 ) {
                 // Return to the prev window
                 // Pop the window
                 while (newWindowStack.pop().window != nextState.window) {
                 }
-            } else {
+            }
+            newWindowStack.removeIf {
+                it == nextState
+                        || it.hashCode == nextState.hashCode
+                        || it.isSimlarAbstractState(nextState,0.8)
+            }
+            newWindowStack.push(nextState)
+            /*else {
                 if (nextState.window != prevState.window) {
                     if (prevState.window !is Dialog && prevState.window !is OptionsMenu) {
                         newWindowStack.push(prevState)
                     }
-                } else if (nextState.isOpeningKeyboard) {
-                    newWindowStack.push(nextState)
+                } else if (nextState.isOpeningKeyboard || nextState.isOpeningMenus) {
+                    newWindowStack.push(prevState)
                 }
-            }
+            }*/
             return newWindowStack
         }
     }

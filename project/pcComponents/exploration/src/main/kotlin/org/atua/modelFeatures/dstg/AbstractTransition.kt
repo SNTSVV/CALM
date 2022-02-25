@@ -13,7 +13,9 @@
 package org.atua.modelFeatures.dstg
 
 import org.atua.calm.modelReuse.ModelVersion
+import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.ewtg.Helper
+import org.atua.modelFeatures.ewtg.Input
 import org.droidmate.explorationModel.ConcreteId
 import org.droidmate.explorationModel.interaction.Interaction
 import org.droidmate.explorationModel.interaction.State
@@ -153,6 +155,71 @@ class AbstractTransition(
 
     }
 
+    fun updateDependentAppState(currentState: State<*>,
+                                traceId: Int,
+                                transitionId: Int,
+                                atuaMF: ATUAMF
+    ) {
+        val currentAbstractState = this.dest
+        val p_prevWindowAbstractState = if (transitionId != 0) {
+            atuaMF.getPrevWindowAbstractState(traceId, transitionId - 1)
+        } else
+            null
+        if (p_prevWindowAbstractState != null
+            && !currentAbstractState.isOpeningMenus
+            && this.dest != this.source
+        ) {
+            if (currentAbstractState.window == p_prevWindowAbstractState.window) {
+                val previousSameWindowAbstractStates: List<AbstractState> =
+                    atuaMF.getPrevSameWindowAbstractState(currentState, traceId, transitionId, true)
+                var supressPreviousAbstractStates = false
+                for (prevAppState in previousSameWindowAbstractStates) {
+                    if (prevAppState == currentAbstractState
+                        || prevAppState.hashCode == currentAbstractState.hashCode
+                        || prevAppState.isSimlarAbstractState(currentAbstractState, 0.8)
+                    ) {
+
+                        if (!AbstractStateManager.INSTANCE.goBackAbstractActions.contains(this.abstractAction)) {
+                            val inputs =
+                                this.source.getInputsByAbstractAction(this.abstractAction)
+                            inputs.forEach {
+                                if (!Input.goBackInputs.contains(it))
+                                    Input.goBackInputs.add(it)
+                            }
+                        } else
+                            AbstractStateManager.INSTANCE.goBackAbstractActions.add(this.abstractAction)
+                        this.guardEnabled = true
+                        this.dependentAbstractStates.add(prevAppState)
+                        break
+                    }
+                }
+
+
+            } else if (this.dest != this.source) {
+                val previousSameWindowAbstractStates: List<AbstractState> =
+                    atuaMF.getPrevSameWindowAbstractState(currentState, traceId, transitionId, false)
+                for (prevAppState in previousSameWindowAbstractStates) {
+                    if (prevAppState == currentAbstractState
+                        || prevAppState.hashCode == currentAbstractState.hashCode
+                        || prevAppState.isSimlarAbstractState(currentAbstractState, 0.8)
+                    ) {
+                        if (!AbstractStateManager.INSTANCE.goBackAbstractActions.contains(this.abstractAction)) {
+                            val inputs =
+                                this.source.getInputsByAbstractAction(this.abstractAction)
+                            inputs.forEach {
+                                if (!Input.goBackInputs.contains(it))
+                                    Input.goBackInputs.add(it)
+                            }
+                        } else
+                            AbstractStateManager.INSTANCE.goBackAbstractActions.add(this.abstractAction)
+                        this.guardEnabled = true
+                        this.dependentAbstractStates.add(prevAppState)
+                        break
+                    }
+                }
+            }
+        }
+    }
     companion object{
         fun computeAbstractTransitionData(actionType: AbstractActionType, interaction: Interaction<Widget>, guiState: State<Widget>, abstractState: AbstractState, atuaMF: org.atua.modelFeatures.ATUAMF): Any? {
             if (actionType == AbstractActionType.RANDOM_KEYBOARD) {

@@ -154,13 +154,11 @@ open class GoToAnotherWindowTask constructor(
                 val nextAbstractTransition = pathTraverser!!.getNextTransition()
                 val pathType = pathTraverser!!.transitionPath.pathType
                 if (nextAbstractTransition!=null) {
-                    if (nextAbstractTransition.source.window == currentAppState.window &&
-                            nextAbstractTransition.dest is PredictedAbstractState) {
+                    if (nextAbstractTransition.source.window == currentAppState.window) {
                         if (pathTraverser!!.canContinue(currentAppState)) {
                             return false
                         }
                     }
-
                 }
                 val transitionPaths = ArrayList<TransitionPath>()
                 val finalTarget = if (currentPath!!.getFinalDestination() !is PredictedAbstractState) {
@@ -857,22 +855,21 @@ open class GoToAnotherWindowTask constructor(
             lastTransition.source.abstractTransitions.remove(lastTransition)
             return
         }
-        if (pathTraverser!!.transitionPath.pathType == PathFindingHelper.PathType.FULLTRACE) {
-            if (lastTransition.interactions.isNotEmpty() && !lastTransition.abstractAction.isWebViewAction()) {
+        lastTransition.activated = false
+        /*if (pathTraverser!!.transitionPath.pathType == PathFindingHelper.PathType.FULLTRACE) {
+            if (lastTransition.interactions.isNotEmpty()) {
                 lastTransition.activated = false
             }
-        }
+        }*/
         if (lastTransition.modelVersion == ModelVersion.BASE ) {
-            lastTransition.activated = false
+//            lastTransition.activated = false
             val backwardTransitions = ModelBackwardAdapter.instance.backwardEquivalentAbstractTransitionMapping.get(lastTransition)
             backwardTransitions?.forEach { abstractTransition ->
                 abstractTransition.activated = false
             }
         }
-        else if (lastTransition.isExplicit() )
-            lastTransition.activated = false
         else if (lastTransition.isImplicit) {
-            lastTransition.activated = false
+//            lastTransition.activated = false
             if (currentAbstractState.window != lastTransition.dest.window) {
                 var isIgnored = false
                 if (!lastTransition.guardEnabled)

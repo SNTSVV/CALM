@@ -586,7 +586,7 @@ class PhaseTwoStrategy(
         //            budgetLeft = (targetEventCount * (inputWidgetCount+1)+ log2(undiscoverdTargetHiddenHandlers.size.toDouble()) * scaleFactor).toInt()
         //        else
         val exerciseTestBudget =
-            ((targetEventCount * (inputWidgetCount + 1) + undiscoverdTargetHiddenHandlers.size) * scaleFactor).toInt()
+            ((targetEventCount * (inputWidgetCount + 1)) * scaleFactor).toInt()
         return exerciseTestBudget
     }
 

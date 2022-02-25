@@ -598,6 +598,67 @@ open class AbstractState(
         return  localScore
     }
 
+    fun extractGeneralAVMs(): Set<Map<AttributeType, String>> {
+        val result = java.util.HashSet<Map<AttributeType, String>>()
+        attributeValuationMaps.forEach {
+            val attributes = it.localAttributes
+            val lv1Attributes = java.util.HashMap<AttributeType, String>()
+            attributes.forEach {
+                if (it.key != AttributeType.childrenStructure
+                    && it.key != AttributeType.checked
+                    && it.key != AttributeType.contentDesc
+                    && it.key != AttributeType.scrollable
+                    && it.key != AttributeType.scrollDirection
+                    && it.key != AttributeType.text
+                    && it.key != AttributeType.siblingsInfo
+                    && it.key != AttributeType.isLeaf
+                    && it.key != AttributeType.childrenText
+                    && it.key != AttributeType.xpath
+                ) {
+                    lv1Attributes.put(it.key, it.value)
+                }
+            }
+            result.add(lv1Attributes)
+        }
+        return result
+    }
+
+    fun isSimlarAbstractState(
+        lv1Attributes1: Set<Map<AttributeType, String>>,
+        threshold: Double
+    ): Boolean {
+        var isSimilar1 = false
+        var diff = 0
+        val lv1Attributes = this.extractGeneralAVMs()
+        diff += lv1Attributes.filter { !lv1Attributes1.contains(it) }.size
+        diff += lv1Attributes1.filter { !lv1Attributes.contains(it) }.size
+        if (diff * 1.0 / (lv1Attributes1.size + lv1Attributes.size) <= (1-threshold)) {
+            isSimilar1 = true
+        } else {
+            isSimilar1 = false
+        }
+        return isSimilar1
+    }
+
+    fun isSimlarAbstractState(
+        comparedAppState: AbstractState,
+        threshold: Double
+    ): Boolean {
+        var isSimilar1 = false
+        var diff = 0
+        val lv1Attributes1 = this.extractGeneralAVMs()
+        val lv1Attributes2 = comparedAppState.extractGeneralAVMs()
+        diff += lv1Attributes1.filter { !lv1Attributes2.contains(it) }.size
+        diff += lv1Attributes2.filter { !lv1Attributes1.contains(it) }.size
+        if (diff * 1.0 / (lv1Attributes1.size + lv1Attributes2.size) <= (1-threshold)) {
+            isSimilar1 = true
+        } else {
+            isSimilar1 = false
+        }
+        return isSimilar1
+    }
+
+
     /**
      * write csv
      * uuid -> AbstractState_[uuid]

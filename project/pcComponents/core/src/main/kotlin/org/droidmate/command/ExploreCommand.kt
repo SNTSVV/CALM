@@ -48,6 +48,7 @@ import org.droidmate.device.logcat.ApiLogcatMessageListExtensions
 import org.droidmate.deviceInterface.exploration.*
 import org.droidmate.exploration.ExplorationContext
 import org.droidmate.exploration.actions.launchApp
+import org.droidmate.exploration.actions.resetApp
 import org.droidmate.exploration.modelFeatures.ModelFeature
 import org.droidmate.exploration.strategy.ExplorationStrategyPool
 import org.droidmate.explorationModel.ModelFeatureI
@@ -283,7 +284,7 @@ open class ExploreCommand<M,S,W>(
 			while (isFirst || !action.isTerminate()) {
 				try {
 					if (isFirst) {
-						action = GlobalAction(ActionType.PressHome)
+						action = explorationContext.resetApp()
 					} else {
 						// decide for an action
 						action = strategyScheduler.nextAction(explorationContext) // check if we need to initialize timeProvider.getNow() here

@@ -79,8 +79,7 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
     ) {
         if (abstractTransition.isImplicit)
             return
-        if (AbstractStateManager.INSTANCE.goBackAbstractActions.contains(abstractTransition.abstractAction))
-            return
+
         val abstractAction = abstractTransition.abstractAction
         val prevAbstractState = abstractTransition.source
         val newAbstractState = abstractTransition.dest
@@ -91,7 +90,11 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
             abstractActionEnables[abstractAction]!!
         val totalCnt = abstractActionCounts[abstractAction]!!
         val availableActions = newAbstractState.getAvailableActions()
-        val prevAvailableActions = prevAbstractState.getAvailableActions()
+        val prevAvailableActions = if (!AbstractStateManager.INSTANCE.goBackAbstractActions.contains(abstractTransition.abstractAction))
+            prevAbstractState.getAvailableActions()
+        else {
+            abstractTransition.dependentAbstractStates.map { it.getAvailableActions() }.flatten().distinct()
+        }
         val availableAbstractActions = availableActions.subtract(prevAvailableActions)
         val bonus = if (abstractTransition.interactions.isNotEmpty())
             2

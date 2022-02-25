@@ -437,15 +437,10 @@ class RandomExplorationTask constructor(
                 }
         }
         if (randomAction == null) {
-            if (unexercisedActions.isNotEmpty()) {
-                    randomAction = if (unexercisedActions.any { it.attributeValuationMap != null }) {
-                        // Swipe on widget should be executed by last
-                        val widgetActions = unexercisedActions.filter { it.attributeValuationMap != null }
-                        widgetActions.random()
-                    } else {
-                        unexercisedActions.random()
-                    }
-                }
+            if (unexercisedActions.any { it.attributeValuationMap != null }) {
+                val widgetActions = unexercisedActions.filter { it.attributeValuationMap != null }
+                randomAction =  widgetActions.random()
+            }
         }
         if (randomAction == null) {
             if (!isPureRandom && !recentGoToExploreState
@@ -473,6 +468,15 @@ class RandomExplorationTask constructor(
                 randomAction = unexercisedActions2.maxByOrNull { it.getScore() }
             }
         }
+
+        if (randomAction == null) {
+            val unexercisedWindowActionsInAppState = currentAbstractState.getUnExercisedActions(currentState,atuaMF).filter {
+                !it.isWidgetAction()
+            }
+            if (unexercisedWindowActionsInAppState.isNotEmpty()) {
+                randomAction = unexercisedWindowActionsInAppState.maxByOrNull { it.getScore() }
+            }
+        }
         if (randomAction == null) {
             val swipeActions = currentAbstractState.getActionCountMap().map { it.key }. filter {
                 !it.isWebViewAction()
@@ -485,14 +489,6 @@ class RandomExplorationTask constructor(
                                     && it.dest !is PredictedAbstractState)} && action.meaningfulScore > 0}
             if (unexercisedActionsInCurrentState.isNotEmpty()) {
                 randomAction = unexercisedActionsInCurrentState.random()
-            }
-        }
-        if (randomAction == null) {
-            val unexercisedWindowActionsInAppState = currentAbstractState.getUnExercisedActions(currentState,atuaMF).filter {
-                !it.isWidgetAction()
-            }
-            if (unexercisedWindowActionsInAppState.isNotEmpty()) {
-                randomAction = unexercisedWindowActionsInAppState.maxByOrNull { it.getScore() }
             }
         }
         if (randomAction == null) {

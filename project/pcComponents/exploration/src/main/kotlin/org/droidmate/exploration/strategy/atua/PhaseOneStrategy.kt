@@ -9,6 +9,7 @@ import org.atua.modelFeatures.dstg.AbstractStateManager
 import org.atua.modelFeatures.dstg.Cardinality
 import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.modelFeatures.ewtg.EWTGWidget
+import org.atua.modelFeatures.ewtg.EventType
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.Input
 import org.atua.modelFeatures.ewtg.TransitionPath
@@ -89,7 +90,7 @@ class PhaseOneStrategy(
         atuaMF.modifiedMethodsByWindow.keys.forEach {
             targetWindowTryCount.put(it, 0)
         }
-        atuaMF.notFullyExercisedTargetInputs.forEach {
+        atuaMF.notFullyExercisedTargetInputs. forEach {
             val maxModifiedMethodsCnt = atuaMF.modifiedMethodsByWindow[it.sourceWindow]?.size ?: 0
             if (atuaMF.reuseBaseModel) {
                 val usefullness = ModelHistoryInformation.INSTANCE.inputUsefulness[it]
@@ -1592,6 +1593,7 @@ class PhaseOneStrategy(
             pathConstraints = pathConstraints
         )
         if (transitionPaths.isEmpty()) {
+            goalByAbstractState.entries.removeIf { it.key.window is Dialog }
             getPathToStatesBasedOnPathType(
                 pathType,
                 transitionPaths,
@@ -1638,7 +1640,8 @@ class PhaseOneStrategy(
             ) {
             }*/
             val targetInputsInAppState = it.getAvailableInputs().filter {
-                phaseTargetInputs.contains(it)
+                phaseTargetInputs.contains(it) &&
+                        (it.eventType != EventType.implicit_launch_event && it.eventType != EventType.resetApp)
             }
             targetInputsInAppState.forEach {
                 if (!targetInputs.contains(it)) {
@@ -1768,7 +1771,7 @@ class PhaseOneStrategy(
         !chosenAction.isFetch()
                 && chosenAction.name != "CloseKeyboard"
                 && !chosenAction.name.isLaunchApp()
-//                && chosenAction.name != "Swipe"
+                && (chosenAction.name != "Swipe" || !chosenAction.hasWidgetTarget)
                 && !(
                 chosenAction.hasWidgetTarget
                         && ExplorationTrace.widgetTargets.any { it.isKeyboard }
