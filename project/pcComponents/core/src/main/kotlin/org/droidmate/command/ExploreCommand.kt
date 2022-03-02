@@ -284,7 +284,7 @@ open class ExploreCommand<M,S,W>(
 			while (isFirst || !action.isTerminate()) {
 				try {
 					if (isFirst) {
-						action = explorationContext.resetApp()
+						action = GlobalAction(ActionType.FetchGUI)
 					} else {
 						// decide for an action
 						action = strategyScheduler.nextAction(explorationContext) // check if we need to initialize timeProvider.getNow() here

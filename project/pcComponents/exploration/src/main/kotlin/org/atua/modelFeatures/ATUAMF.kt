@@ -792,7 +792,7 @@ class ATUAMF(
             windowStack.push(Launcher.getOrCreateNode())
             val homeScreenState = stateList.findLast { it.isHomeScreen }
             if (homeScreenState != null) {
-                stateList.add(homeScreenState)
+//                stateList.add(homeScreenState)
                 abstractStateStack.push(getAbstractState(homeScreenState)!!)
                 prevWindowStateMapping.put(currentState, homeScreenState)
             } else {
@@ -802,9 +802,24 @@ class ATUAMF(
             if (windowStack.contains(currentAbstractState.window)) {
                 // Return to the prev window
                 // Pop the window
-                abstractStateStack.pop()
-                while (windowStack.pop() != currentAbstractState.window) {
-                    abstractStateStack.pop()
+                while (true) {
+                    val topWindow = windowStack.pop()
+                    if (abstractStateStack.isNotEmpty()) {
+                        while (abstractStateStack.peek().window != topWindow) {
+                            abstractStateStack.pop()
+                            if (abstractStateStack.isEmpty())
+                                break
+                        }
+                    }
+                    if (abstractStateStack.isNotEmpty()) {
+                        while (abstractStateStack.peek() == currentAbstractState) {
+                            abstractStateStack.pop()
+                            if (abstractStateStack.isEmpty())
+                                break
+                        }
+                    }
+                    if (topWindow == currentAbstractState.window)
+                        break
                 }
             } else {
                 if (currentAbstractState.window != prevAbstractState.window) {
@@ -837,7 +852,6 @@ class ATUAMF(
                             || it.isSimlarAbstractState(prevAbstractState,0.8)
                 }
                 abstractStateStack.push(prevAbstractState)
-
             }
         }
         /*if (currentAbstractState.window !is OutOfApp) {

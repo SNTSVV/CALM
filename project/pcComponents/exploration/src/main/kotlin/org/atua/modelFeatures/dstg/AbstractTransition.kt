@@ -193,8 +193,6 @@ class AbstractTransition(
                         break
                     }
                 }
-
-
             } else if (this.dest != this.source) {
                 val previousSameWindowAbstractStates: List<AbstractState> =
                     atuaMF.getPrevSameWindowAbstractState(currentState, traceId, transitionId, false)
@@ -203,7 +201,7 @@ class AbstractTransition(
                         || prevAppState.hashCode == currentAbstractState.hashCode
                         || prevAppState.isSimlarAbstractState(currentAbstractState, 0.8)
                     ) {
-                        if (!AbstractStateManager.INSTANCE.goBackAbstractActions.contains(this.abstractAction)) {
+                       /* if (!AbstractStateManager.INSTANCE.goBackAbstractActions.contains(this.abstractAction)) {
                             val inputs =
                                 this.source.getInputsByAbstractAction(this.abstractAction)
                             inputs.forEach {
@@ -211,7 +209,7 @@ class AbstractTransition(
                                     Input.goBackInputs.add(it)
                             }
                         } else
-                            AbstractStateManager.INSTANCE.goBackAbstractActions.add(this.abstractAction)
+                            AbstractStateManager.INSTANCE.goBackAbstractActions.add(this.abstractAction)*/
                         this.guardEnabled = true
                         this.dependentAbstractStates.add(prevAppState)
                         break

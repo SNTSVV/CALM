@@ -459,15 +459,7 @@ class PhaseOneStrategy(
         }*/
         var chosenAction: ExplorationAction?
         updateCurrentTargetWindow(currentState, currentAppState)
-        if (targetWindow == null) {
-            //try select a target window
-            selectTargetWindow(currentState, false).also {
-                if (targetWindow != null) {
-                    resetStrategyTask(currentState)
-                    log.info("Switch target window to $targetWindow")
-                }
-            }
-        } /*else if (outofbudgetWindows.contains(targetWindow!!)  ) {
+        /*else if (outofbudgetWindows.contains(targetWindow!!)  ) {
             //try select another target window
             selectTargetWindow(currentState, false).also {
                 resetStrategyTask(currentState)
@@ -514,69 +506,90 @@ class PhaseOneStrategy(
     ) {
         val explicitTargetWindows =
             phaseTargetInputs.filter { it.widget?.witnessed ?: true }.map { it.sourceWindow }.distinct()
+        val isTargetAppState = isTargetAbstractState(currentAppState, true)
         if (targetWindow != null) {
-            if ( unreachableWindows.contains(targetWindow!!)
-                || outofbudgetWindows.contains(targetWindow!!)
-                || fullyCoveredWindows.contains(targetWindow!!) ) {
-                targetWindow = null
-                resetStrategyTask(currentState)
+            if (!isTargetAppState) {
+                if (strategyTask !is ExerciseTargetComponentTask
+                    && strategyTask !is GoToTargetWindowTask
+                    && !explicitTargetWindows.contains(targetWindow)
+                    && (unreachableWindows.contains(targetWindow!!)
+                    || outofbudgetWindows.contains(targetWindow!!)
+                    || fullyCoveredWindows.contains(targetWindow!!))
+                ) {
+                    targetWindow = null
+                    resetStrategyTask(currentState)
+                }
             }
         }
         if (targetWindow != currentAppState.window) {
-            if (isTargetAbstractState(currentAppState, true)) {
+            if (isTargetAppState) {
                 resetStrategyTask(currentState)
                 targetWindow = currentAppState.window
                 log.info("Switch target window to $targetWindow")
-            } else if (isAvailableTargetWindow(currentAppState)) {
-                if (!explicitTargetWindows.contains(targetWindow)
-                    && !explicitTargetWindows.contains(currentAppState.window)
-                    && !outofbudgetWindows.contains(currentAppState.window)
-                    && !fullyExploredWindows.contains(currentAppState.window)
-                ) {
-                    resetStrategyTask(currentState)
-                    targetWindow = currentAppState.window
-                    log.info("Switch target window to $targetWindow")
-                } else if (!explicitTargetWindows.contains(targetWindow)
-                    && explicitTargetWindows.contains(currentAppState.window)
-                    && !outofbudgetWindows.contains(currentAppState.window)
-                    && !fullyExploredWindows.contains(currentAppState.window)
-                ) {
-                    resetStrategyTask(currentState)
-                    targetWindow = currentAppState.window
-                    log.info("Switch target window to $targetWindow")
-                } else if (explicitTargetWindows.contains(targetWindow)
-                    && explicitTargetWindows.contains(currentAppState.window)
-                    && !outofbudgetWindows.contains(currentAppState.window)
-                    && !fullyExploredWindows.contains(currentAppState.window)
-                ) {
-                    if (getCurrentTargetInputs(currentState).isNotEmpty()) {
+            } else if (strategyTask !is GoToTargetWindowTask) {
+                if (isAvailableTargetWindow(currentAppState)) {
+                    if (!explicitTargetWindows.contains(targetWindow)
+                        && !explicitTargetWindows.contains(currentAppState.window)
+                        && !outofbudgetWindows.contains(currentAppState.window)
+                        && !fullyExploredWindows.contains(currentAppState.window)
+                    ) {
                         resetStrategyTask(currentState)
                         targetWindow = currentAppState.window
                         log.info("Switch target window to $targetWindow")
-                    } else if (strategyTask !is GoToTargetWindowTask) {
+                    } else if (!explicitTargetWindows.contains(targetWindow)
+                        && explicitTargetWindows.contains(currentAppState.window)
+                        && !outofbudgetWindows.contains(currentAppState.window)
+                        && !fullyExploredWindows.contains(currentAppState.window)
+                    ) {
                         resetStrategyTask(currentState)
                         targetWindow = currentAppState.window
                         log.info("Switch target window to $targetWindow")
+                    } else if (explicitTargetWindows.contains(targetWindow)
+                        && explicitTargetWindows.contains(currentAppState.window)
+                        && !outofbudgetWindows.contains(currentAppState.window)
+                        && !fullyExploredWindows.contains(currentAppState.window)
+                    ) {
+                        if (getCurrentTargetInputs(currentState).isNotEmpty()) {
+                            resetStrategyTask(currentState)
+                            targetWindow = currentAppState.window
+                            log.info("Switch target window to $targetWindow")
+                        } else if (strategyTask !is GoToTargetWindowTask) {
+                            resetStrategyTask(currentState)
+                            targetWindow = currentAppState.window
+                            log.info("Switch target window to $targetWindow")
+                        }
                     }
                 }
             }
         }
         if (episodeCountDown == 0 && targetWindow != null && !explicitTargetWindows.contains(targetWindow!!)) {
             val oldTargetWindow = targetWindow!!
-            if (episodeCountDown == 0 && explicitTargetWindows.isNotEmpty() && explicitTargetWindows.any {
+            if (episodeCountDown == 0
+                && explicitTargetWindows.isNotEmpty()
+                && explicitTargetWindows.any {
                     isAvailableTargetWindow(
                         it
                     )
                 }) {
                 selectTargetWindow(currentState, true).also {
-                    if (targetWindow != null && targetWindow != oldTargetWindow && explicitTargetWindows.contains(
-                            targetWindow!!
-                        )
+                    if (targetWindow != null
+                        && targetWindow != oldTargetWindow
+                        && explicitTargetWindows.contains(targetWindow!!)
                     ) {
                         resetStrategyTask(currentState)
                         log.info("Switch target window to $targetWindow")
                     } else {
                         targetWindow = oldTargetWindow
+                    }
+                }
+            }
+        } else {
+            if (targetWindow == null) {
+                //try select a target window
+                selectTargetWindow(currentState, false).also {
+                    if (targetWindow != null) {
+                        resetStrategyTask(currentState)
+                        log.info("Switch target window to $targetWindow")
                     }
                 }
             }

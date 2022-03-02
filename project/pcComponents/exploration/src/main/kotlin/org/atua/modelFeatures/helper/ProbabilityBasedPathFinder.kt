@@ -25,13 +25,10 @@ import org.atua.modelFeatures.dstg.PredictedAbstractState
 import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.modelFeatures.ewtg.Input
 import org.atua.modelFeatures.ewtg.TransitionPath
-import org.atua.modelFeatures.ewtg.window.Dialog
 import org.atua.modelFeatures.ewtg.window.Launcher
-import org.atua.modelFeatures.ewtg.window.OptionsMenu
 import org.atua.modelFeatures.ewtg.window.OutOfApp
 import org.atua.modelFeatures.mapping.EWTG_DSTGMapping
 import org.droidmate.exploration.modelFeatures.graph.Edge
-import org.droidmate.exploration.strategy.atua.PhaseOneStrategy
 import org.droidmate.explorationModel.interaction.State
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -366,13 +363,23 @@ class ProbabilityBasedPathFinder {
                 }
                 val goodAbstactTransitions = abstractTransitions.filter {
                     it.dest.window !is Launcher &&
-                    it.dest !is PredictedAbstractState
+                            it.dest !is PredictedAbstractState
                             && !traveredAppStates.contains(it.dest)
                             && it.source != it.dest
                 }
+                var mostPertinentAbstractTransitions = ArrayList<AbstractTransition>()
+                mostPertinentAbstractTransitions.addAll(goodAbstactTransitions.filter { !it.guardEnabled || !considerGuardedTransitions })
+                val guardedAbstractTransitions = goodAbstactTransitions.subtract(mostPertinentAbstractTransitions)
+                for (abstractState in abstractStateStack.reversed()) {
+                    val selectedGuaredAbstractTransitions = guardedAbstractTransitions.filter { it.dependentAbstractStates.contains(abstractState) }
+                    if (selectedGuaredAbstractTransitions.isNotEmpty()) {
+                        mostPertinentAbstractTransitions.addAll(selectedGuaredAbstractTransitions)
+                        break
+                    }
+                }
                 var selectedExercisedAbstractTransition = false
-                if (goodAbstactTransitions.isNotEmpty()) {
-                    goodAbstactTransitions.forEach { abstractTransition ->
+                if (mostPertinentAbstractTransitions.isNotEmpty()) {
+                    mostPertinentAbstractTransitions.forEach { abstractTransition ->
                         selectedExercisedAbstractTransition = processAbstractTransition(
                             abstractTransition = abstractTransition,
                             traversedEdges = traversedEdges,
@@ -671,32 +678,26 @@ class ProbabilityBasedPathFinder {
             prevState: AbstractState,
             nextState: AbstractState
         ): Stack<AbstractState> {
-            val newWindowStack = AbstractStateStack.clone() as Stack<AbstractState>
-            val lastWindow = newWindowStack.peek().window
-            if (nextState.window != lastWindow
-                && newWindowStack.map { it.window }.contains(nextState.window)
-                && newWindowStack.size > 1 ) {
-                // Return to the prev window
-                // Pop the window
-                while (newWindowStack.pop().window != nextState.window) {
-                }
-            }
-            newWindowStack.removeIf {
-                it == nextState
-                        || it.hashCode == nextState.hashCode
-                        || it.isSimlarAbstractState(nextState,0.8)
-            }
-            newWindowStack.push(nextState)
-            /*else {
-                if (nextState.window != prevState.window) {
-                    if (prevState.window !is Dialog && prevState.window !is OptionsMenu) {
-                        newWindowStack.push(prevState)
+            val appStateStack = AbstractStateStack.clone() as Stack<AbstractState>
+            if (appStateStack.isNotEmpty()) {
+                val lastWindow = appStateStack.peek().window
+                if (nextState.window != lastWindow
+                    && appStateStack.map { it.window }.contains(nextState.window)
+                    && appStateStack.size > 1 ) {
+                    // Return to the prev window
+                    // Pop the window
+                    while (appStateStack.pop().window != nextState.window) {
                     }
-                } else if (nextState.isOpeningKeyboard || nextState.isOpeningMenus) {
-                    newWindowStack.push(prevState)
                 }
-            }*/
-            return newWindowStack
+                appStateStack.removeIf {
+                    it == nextState
+                            || it.hashCode == nextState.hashCode
+                            || it.isSimlarAbstractState(nextState,0.8)
+                }
+            }
+            appStateStack.push(nextState)
+
+            return appStateStack
         }
     }
 }

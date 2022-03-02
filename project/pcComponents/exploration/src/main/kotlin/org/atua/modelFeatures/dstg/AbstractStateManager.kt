@@ -1273,11 +1273,12 @@ class AbstractStateManager() {
                         rebuildModel(originalActionAbstractState.window, actionEWTGWidget)
                     } else {
                         if (refinementGrainCount > 0) {
+                            refinementGrainCount = 0
                             AbstractionFunction2.restore(atuaMF)
                             rebuildModel(originalActionAbstractState.window, actionEWTGWidget)
                         }
                         AbstractionFunction2.INSTANCE.abandonedAbstractTransitions.add(abstractTransition)
-                        refinementGrainCount = 0
+
                         val actionAbstractState = getAbstractState(actionGUIState)!!
                         val abstractTransition = actionAbstractState.abstractTransitions.find {
                             it.interactions.contains(guiInteraction)
@@ -1293,18 +1294,23 @@ class AbstractStateManager() {
                                 abstractTransition.userInputs
                             )
                             similarExplicitTransitions.addAll(similarATs)
-                            // try remove userInput
                             var solved = false
-                            if (abstractTransition.abstractAction.actionType == AbstractActionType.TEXT_INSERT) {
-                                abstractTransition.data = guiInteraction.data
-                                solved = true
-                            }
-                            similarExplicitTransitions.forEach {
-                                /*if (it.userInputs.intersect(abstractTransition.userInputs).isNotEmpty()) {
+                            if (similarExplicitTransitions.isNotEmpty()) {
+                                // try remove userInput
+
+                                if (abstractTransition.abstractAction.actionType == AbstractActionType.TEXT_INSERT) {
+                                    abstractTransition.data = guiInteraction.data
+                                    solved = true
+                                }
+                                similarExplicitTransitions.forEach {
+                                    /*if (it.userInputs.intersect(abstractTransition.userInputs).isNotEmpty()) {
                                     it.userInputs.removeAll(abstractTransition.userInputs)
                                     solved = true
                                 }*/
-                                it.activated = false
+                                    it.activated = false
+                                }
+                            } else {
+                                solved = true
                             }
                             if (!solved) {
                                 log.debug("Non-deterministic transitions not solved by abstract state refinement.")
@@ -1373,8 +1379,8 @@ class AbstractStateManager() {
             return true
         if (abstractTransition.dest.attributeValuationMaps.isEmpty())
             return true
-        if (goBackAbstractActions.contains(abstractTransition.abstractAction))
-            return true
+      /*  if (goBackAbstractActions.contains(abstractTransition.abstractAction))
+            return true*/
         val similarAbstractTransitions = ArrayList<AbstractTransition>()
         similarAbstractTransitions.add(abstractTransition)
 
@@ -1435,6 +1441,7 @@ class AbstractStateManager() {
                 }
                 return true
             }
+
             return false
         }
         similarATFromActionAS.add(abstractTransition)
@@ -1530,6 +1537,7 @@ class AbstractStateManager() {
             it != abstractTransition
                     && it.activated == true
                     && it.abstractAction == abstractTransition.abstractAction
+                    && !it.dest.isRequestRuntimePermissionDialogBox
                     /*&& it.data == abstractTransition.data*/
                     /*&& it.label.prevWindow == abstractTransition.label.prevWindow*/
                     && it.requiringPermissionRequestTransition == abstractTransition.requiringPermissionRequestTransition

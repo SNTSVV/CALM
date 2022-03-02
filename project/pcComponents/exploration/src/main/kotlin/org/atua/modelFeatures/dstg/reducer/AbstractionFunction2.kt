@@ -84,8 +84,12 @@ class AbstractionFunction2 (val root: DecisionNode2) {
                 break
             else
                 currentDecisionNode = currentDecisionNode.nextNode
-
-            if (isOptionsMenu && isInteractiveLeaf && level <= 5) {
+            val needLevel5 = (isInteractiveLeaf && level <= 5) && (
+                    isOptionsMenu
+                            || window.classType.contains("Settings")
+                            || window.classType.contains("Preferences")
+                    )
+            if (needLevel5 ){
                if (ewtgWidget!=null && !currentDecisionNode!!.ewtgWidgets.contains(ewtgWidget))
                    currentDecisionNode!!.ewtgWidgets.add(ewtgWidget)
             }
