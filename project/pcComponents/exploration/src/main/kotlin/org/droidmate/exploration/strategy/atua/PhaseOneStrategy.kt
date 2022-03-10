@@ -3,6 +3,7 @@ package org.droidmate.exploration.strategy.atua
 import org.atua.calm.ewtgdiff.EWTGDiff
 import org.atua.calm.modelReuse.ModelHistoryInformation
 import org.atua.calm.modelReuse.ModelVersion
+import org.atua.modelFeatures.ActionCount
 import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
@@ -200,7 +201,7 @@ class PhaseOneStrategy(
             return true
         }
         delayCheckingBlockStates = 5
-        /*return isAvailableAbstractStatesExisting(currentState).also {
+       /* return isAvailableAbstractStatesExisting(currentState).also {
             if (it == false) {
                 log.debug("No available abstract states to explore.")
             }
@@ -223,10 +224,10 @@ class PhaseOneStrategy(
                 it !is VirtualAbstractState
                         && it.attributeValuationMaps.isNotEmpty()
                         && ((windowRandomExplorationBudget.containsKey(it.window)
-                        && hasBudgetLeft(it.window)
-                        && it.guiStates.isNotEmpty())
-                        || (!windowRandomExplorationBudget.containsKey(it.window)
-                        && it.modelVersion == ModelVersion.BASE))
+                                && hasBudgetLeft(it.window)
+                                && it.guiStates.isNotEmpty())
+                            || (!windowRandomExplorationBudget.containsKey(it.window)
+                                && it.modelVersion == ModelVersion.BASE))
             }
         if (availableAbstractStates.isEmpty())
             return false
@@ -342,6 +343,16 @@ class PhaseOneStrategy(
             }
         }
 
+        val minBudget = window.inputs.filter { it.exerciseCount>0 }.size
+        /*val minBudget = widgets.fold(0) {cnt, w ->
+            val minExercisedCnt = atuaMF.actionCount.wConcreteIdCount[w.id]?.filter { it.key == window.classType }?.map { it.value }?.maxOrNull()?:0
+            if (minExercisedCnt > 0)
+                cnt + 1
+            else
+                cnt
+        }*/
+        if (windowRandomExplorationBudgetUsed[window]!! < minBudget)
+            windowRandomExplorationBudgetUsed[window] = minBudget
         if (fullyExploredWindows.contains(currentAppState.window)) {
             val unexercisedInputs = ArrayList<Input>()
             val unexercisedActions = currentAppState.getUnExercisedActions2(currentState).filter { it.isWidgetAction()}
@@ -507,8 +518,8 @@ class PhaseOneStrategy(
         val explicitTargetWindows =
             phaseTargetInputs.filter { it.widget?.witnessed ?: true }.map { it.sourceWindow }.distinct()
         val isTargetAppState = isTargetAbstractState(currentAppState, true)
-        if (targetWindow != null) {
-            if (!isTargetAppState) {
+        if (targetWindow != null ) {
+            if (!isTargetAppState || currentAppState.window!=targetWindow) {
                 if (strategyTask !is ExerciseTargetComponentTask
                     && strategyTask !is GoToTargetWindowTask
                     && !explicitTargetWindows.contains(targetWindow)
@@ -1661,14 +1672,6 @@ class PhaseOneStrategy(
                     targetInputs.add(it)
                 }
             }
-
-            /*if (allTargetInputs.isNotEmpty()) {
-                goalByAbstractState.put(it,allTargetInputs)
-                val targetScore = allTargetInputs.fold(0.1,{score,input ->
-                    score + (inputEffectiveness[input]?:0.0)
-                })
-                stateScores.put(it,targetScore.toDouble())
-            }*/
         }
 
         val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(targetWindow!!)!!
@@ -1710,6 +1713,7 @@ class PhaseOneStrategy(
                 abandonedAppStates = emptyList(),
                 pathConstraints = pathConstraints
             )
+            return transitionPaths
         }
         /*if (transitionPaths.isEmpty() && currentAbstractState.window != targetWindow) {
             log.debug("No path from $currentAbstractState to $targetWindow!!")
@@ -1925,8 +1929,8 @@ class PhaseOneStrategy(
             .filter {
                 it.ignored == false &&
                         it !is VirtualAbstractState
-                        && (it.modelVersion != ModelVersion.BASE || it.guiStates.isNotEmpty())
-                it.window == window
+                        && (it.modelVersion == ModelVersion.BASE || it.guiStates.isNotEmpty())
+                        && it.window == window
                         && !excludedNodes.contains(it)
                         && it.attributeValuationMaps.isNotEmpty()
 
@@ -1937,7 +1941,7 @@ class PhaseOneStrategy(
                     it.ignored == false &&
                             it !is VirtualAbstractState
                             && (it.modelVersion == ModelVersion.BASE)
-                    it.window == window
+                            && it.window == window
                             && !excludedNodes.contains(it)
                             && it.attributeValuationMaps.isNotEmpty()
 

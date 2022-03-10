@@ -104,13 +104,16 @@ open class GoToAnotherWindowTask constructor(
     val maxActionTryCount = 3*atuaStrategy.scaleFactor
 
     override fun isTaskEnd(currentState: State<*>): Boolean {
-        // update testing path
-        if (atuaMF.prevAbstractStateRefinement > 0)
-            return true
+
+        /*if (atuaMF.prevAbstractStateRefinement > 0)
+            return true*/
         if (pathTraverser == null)
             return true
-        if (mainTaskFinished)
+        if (mainTaskFinished) {
+            log.info("Failed to reach destination.")
+            failedCount++
             return true
+        }
         if (currentPath == null)
             return true
         if (pathTraverser!!.getCurrentTransition() == null)
@@ -118,6 +121,8 @@ open class GoToAnotherWindowTask constructor(
         val currentAppState = atuaMF.getAbstractState(currentState)!!
 
         if (isWindowAsTarget && currentAppState.window == destWindow) {
+            log.info("Reached destination.")
+            succeededCount++
             return true
         }
         if (isFillingText)
@@ -126,6 +131,8 @@ open class GoToAnotherWindowTask constructor(
 
         if (pathTraverser!!.isEnded()) {
             if (currentAppState == currentPath!!.getFinalDestination()) {
+                log.info("Reached destination.")
+                succeededCount++
                 return true
             }
         }
@@ -133,6 +140,8 @@ open class GoToAnotherWindowTask constructor(
         if (isExploration) {
             if (destWindow==null || currentAppState.window == destWindow) {
                 if (currentAppState.getUnExercisedActions(currentState, atuaMF).filter{it.isWidgetAction()}.isNotEmpty()) {
+                    log.info("Reached destination.")
+                    succeededCount++
                     return true
                 }
             }
@@ -144,12 +153,15 @@ open class GoToAnotherWindowTask constructor(
                 val prevAppState = atuaMF.getAbstractState(prevState)
                 val lastAbstractAction = lastTransition.abstractAction
                 val abstractStateStacks = atuaMF.getAbstractStateStack()
-                log.debug("Fail to reach $expectedNextAbState")
+//                log.debug("Fail to reach $expectedNextAbState")
                 addIncorrectPath(currentAppState)
                 if (pathTraverser!!.transitionPath.goal.isNotEmpty()) {
                     val goal = pathTraverser!!.transitionPath.goal
-                    if (currentAppState.getAvailableInputs().intersect(goal).isNotEmpty())
+                    if (currentAppState.getAvailableInputs().intersect(goal).isNotEmpty()) {
+                        log.info("Reached destination.")
+                        succeededCount++
                         return true
+                    }
                 }
                 val nextAbstractTransition = pathTraverser!!.getNextTransition()
                 val pathType = pathTraverser!!.transitionPath.pathType
@@ -229,12 +241,17 @@ open class GoToAnotherWindowTask constructor(
                 actionTryCount = 0
                 expectedNextAbState = lastTransition.dest
                 if (pathTraverser!!.isEnded()) {
+                    log.info("Reached destination.")
+                    succeededCount++
                     return true
                 }
                 if (pathTraverser!!.transitionPath.goal.isNotEmpty()) {
                     val goal = pathTraverser!!.transitionPath.goal
-                    if (currentAppState.getAvailableInputs().intersect(goal).isNotEmpty())
+                    if (currentAppState.getAvailableInputs().intersect(goal).isNotEmpty()) {
+                        log.info("Reached destination.")
+                        succeededCount++
                         return true
+                    }
                 }
                 if (expectedNextAbState is VirtualAbstractState) {
                     return reroutePath(currentState, currentAppState,true)
@@ -254,6 +271,8 @@ open class GoToAnotherWindowTask constructor(
             }
         } else {
             //something wrong, should end task
+            log.debug("Fail to reach destination.")
+            failedCount++
             return true
         }
     }
@@ -318,6 +337,8 @@ open class GoToAnotherWindowTask constructor(
             if (possiblePaths.isNotEmpty() ) {
                 val minCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!! + 1)
                 if (saveBudget && !possiblePaths.any { it.cost() <= minCost }) {
+                    log.debug("Fail to reach destination.")
+                    failedCount
                     return true
                 }
                 initialize(currentState)
@@ -342,6 +363,8 @@ open class GoToAnotherWindowTask constructor(
                 return false
             }
         }*/
+        log.debug("Fail to reach destination.")
+        failedCount++
         return true
     }
 
@@ -654,15 +677,20 @@ open class GoToAnotherWindowTask constructor(
 
     override fun chooseAction(currentState: State<*>): ExplorationAction? {
         increaseExecutedCount()
+        val currentAbstractState = atuaMF.getAbstractState(currentState)!!
+        if (pathTraverser!!.getCurrentTransition() != null)
+            expectedNextAbState = pathTraverser!!.getCurrentTransition()!!.dest
+        else
+            expectedNextAbState = currentAbstractState
         if (currentExtraTask != null)
             return currentExtraTask!!.chooseAction(currentState)
-        if (expectedNextAbState == null) {
+        /*if (expectedNextAbState == null) {
             mainTaskFinished = true
             return randomExplorationTask.chooseAction(currentState)
-        }
+        }*/
         log.info("Path type: ${pathTraverser!!.transitionPath.pathType}")
         var nextAbstractState = expectedNextAbState
-        val currentAbstractState = atuaMF.getAbstractState(currentState)!!
+
         if (currentAbstractState.isOpeningKeyboard && !expectedNextAbState!!.isOpeningKeyboard) {
             return GlobalAction(actionType = ActionType.CloseKeyboard)
         }
@@ -870,6 +898,15 @@ open class GoToAnotherWindowTask constructor(
         }
         else if (lastTransition.isImplicit) {
 //            lastTransition.activated = false
+            if (!lastTransition.dest.isSimlarAbstractState(currentAbstractState,0.8)) {
+                AbstractStateManager.INSTANCE.ignoreImplicitDerivedTransition.add(
+                    Triple(
+                        lastTransition.source.window,
+                        lastTransition.abstractAction,
+                        lastTransition.dest.window
+                    )
+                )
+            }
             if (currentAbstractState.window != lastTransition.dest.window) {
                 var isIgnored = false
                 if (!lastTransition.guardEnabled)
@@ -921,6 +958,8 @@ open class GoToAnotherWindowTask constructor(
 
         var instance: GoToAnotherWindowTask? = null
         var executedCount: Int = 0
+        var succeededCount: Int = 0
+        var failedCount: Int = 0
         fun getInstance(
             regressionWatcher: org.atua.modelFeatures.ATUAMF,
             atuaTestingStrategy: ATUATestingStrategy,

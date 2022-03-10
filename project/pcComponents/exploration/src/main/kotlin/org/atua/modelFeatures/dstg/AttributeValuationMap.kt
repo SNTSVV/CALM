@@ -374,7 +374,7 @@ class AttributeValuationMap {
     fun isUserLikeInput(): Boolean {
         val className = getClassName()
         return when (className) {
-            "android.widget.RadioButton", "android.widget.CheckBox", "android.widget.Switch", "android.widget.ToggleButton" -> true
+            "android.widget.RadioButton", "android.widget.CheckBox", "android.widget.Switch", "android.widget.ToggleButton", "android.widget.CheckedTextView" -> true
             else -> isInputField()
         }
     }

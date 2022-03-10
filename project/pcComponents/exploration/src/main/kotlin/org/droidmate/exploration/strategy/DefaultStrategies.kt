@@ -254,7 +254,8 @@ object DefaultStrategies: Logging {
 					}
 				}
 				s.isHomeScreen  -> {
-					if (lastActionType.isPressBack() || lastActionType=="PressHome")
+					if (lastActionType.isPressBack()
+						|| lastActionType=="PressHome" )
 						eContext.launchApp()
 					else
 						eContext.resetApp()

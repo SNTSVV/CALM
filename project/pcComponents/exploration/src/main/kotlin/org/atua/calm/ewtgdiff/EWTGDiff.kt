@@ -289,13 +289,20 @@ class EWTGDiff private constructor(){
                     existingInputInUpdateVers.modifiedMethods.clear()
                     existingInputInUpdateVers.modifiedMethodStatement.clear()
                 }*/
-                val uncoveredHanndlers = existingInputInUpdateVers.eventHandlers.subtract(oldInput.eventHandlers.union(existingInputInUpdateVers.verifiedEventHandlers))
+                val uncoveredHanndlers = existingInputInUpdateVers.eventHandlers.subtract(oldInput.eventHandlers)
                 if (uncoveredHanndlers.isNotEmpty()) {
                     val remainHandlers = uncoveredHanndlers.filter { atuamf.statementMF!!.isModifiedMethod(it) }
                     existingInputInUpdateVers.eventHandlers.clear()
                     existingInputInUpdateVers.eventHandlers.addAll(remainHandlers)
                 }
-                existingInputInUpdateVers.eventHandlers.addAll(oldInput.eventHandlers.union(existingInputInUpdateVers.verifiedEventHandlers))
+                existingInputInUpdateVers.eventHandlers.addAll(oldInput.eventHandlers)
+                val allWindowHandlers = atuamf.windowHandlersHashMap.values.flatten()
+                val newEventHandlers = existingInputInUpdateVers.coveredMethods.keys.filter {
+                    allWindowHandlers.contains(it) && !existingInputInUpdateVers.eventHandlers.contains(it) }
+                if (newEventHandlers.isNotEmpty()) {
+                    existingInputInUpdateVers.eventHandlers.addAll(newEventHandlers)
+                }
+                existingInputInUpdateVers.coveredMethods.putAll(oldInput.coveredMethods.keys.associateWith { false })
                 val beforeCnt = existingInputInUpdateVers.modifiedMethods.size
                 val reachableModifiedMethods = existingInputInUpdateVers.eventHandlers.map { handler->
                     atuamf.modifiedMethodWithTopCallers.filter { it.value.contains(handler) }.keys
@@ -306,7 +313,6 @@ class EWTGDiff private constructor(){
                 }
                 existingInputInUpdateVers.modifiedMethods.putAll(oldInput.modifiedMethods)
                 val afterCnt = existingInputInUpdateVers.modifiedMethods.size
-                existingInputInUpdateVers.coveredMethods.putAll(oldInput.coveredMethods)
                 existingInputInUpdateVers.exercisedInThePast = oldInput.exercisedInThePast
                 if (oldInput.modifiedMethods.isNotEmpty()) {
                     TargetInputReport.INSTANCE.targetIdentifiedByBaseModel.add(existingInputInUpdateVers)

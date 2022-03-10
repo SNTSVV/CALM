@@ -1059,14 +1059,14 @@ class Helper {
 
         fun isUserLikeInput(guiWidget: Widget): Boolean {
             return when (guiWidget.className) {
-                "android.widget.RadioButton", "android.widget.CheckBox", "android.widget.Switch", "android.widget.ToggleButton" -> true
+                "android.widget.RadioButton", "android.widget.CheckBox", "android.widget.Switch", "android.widget.ToggleButton","android.widget.CheckedTextView" -> true
                 else -> guiWidget.isInputField
             }
         }
 
         fun isUserLikeInput(widgetClass: String):Boolean {
             return when (widgetClass) {
-                "android.widget.RadioButton", "android.widget.CheckBox", "android.widget.Switch", "android.widget.ToggleButton", "android.widget.EditText" -> true
+                "android.widget.RadioButton", "android.widget.CheckBox", "android.widget.Switch", "android.widget.ToggleButton", "android.widget.EditText", "android.widget.CheckedTextView"  -> true
                 else -> false
             }
         }

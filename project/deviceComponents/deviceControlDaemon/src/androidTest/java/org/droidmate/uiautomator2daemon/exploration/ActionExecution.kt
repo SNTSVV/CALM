@@ -76,7 +76,7 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 	Log.d(logTag, "START execution ${toString()}($id)")
 	val result: Any = when(this) { // REMARK this has to be an assignment for when to check for exhaustiveness
 		is Click -> {
-			env.device.verifyCoordinate(x, y)
+//			env.device.verifyCoordinate(x, y)
 			/*env.device.executeShellCommand("input tap $x $y").apply {
 				delay(delay)
 			}*/
@@ -439,8 +439,8 @@ suspend fun fetchDeviceData(env: UiAutomationEnvironment, afterAction: Boolean =
 //	}
 
 private fun UiDevice.verifyCoordinate(x:Int,y:Int){
-	assert(x in 0 until displayWidth) { "Error on click coordinate invalid x:$x" }
-	assert(y in 0 until displayHeight) { "Error on click coordinate invalid y:$y" }
+	assert(x in 0 until displayWidth) { "Error on click coordinate invalid x:$x - DisplayWith: $displayWidth" }
+	assert(y in 0 until displayHeight) { "Error on click coordinate invalid y:$y - DisplayHeight: $displayHeight" }
 }
 
 private typealias twoPointStepableAction = (x0:Int,y0:Int,x1:Int,y1:Int)->Boolean

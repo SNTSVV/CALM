@@ -57,7 +57,7 @@ class AbstractAction private constructor (
         }
         val className = attributeValuationMap.getClassName()
         return when(className) {
-            "android.widget.RadioButton", "android.widget.CheckBox", "android.widget.Switch", "android.widget.ToggleButton" -> true
+            "android.widget.RadioButton", "android.widget.CheckBox", "android.widget.Switch", "android.widget.ToggleButton", "android.widget.CheckedTextView" -> true
             else -> false
         }
     }

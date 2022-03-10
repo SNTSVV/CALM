@@ -2434,23 +2434,22 @@ class AbstractStateManager() {
                         )
                     }
 
-                    goBackAbstractActions.filter{
-                        it.window == currentAbstractState.window
-                                && it != backAbstractAction}.forEach { backAction ->
-                        if (!ignoreImplicitDerivedTransition.any {
-                                it.first == currentAbstractState.window
-                                        && it.second.actionType == backAction.actionType
-                                        && it.third == prevWindowAbstractState.window
-                            }) {
-                            createImplicitBackTransition(
-                                currentAbstractState,
-                                prevWindowAbstractState,
-                                backAction,
-                                processedStateCount,
-                                prevAbstractState,
-                                addedCount
-                            )
-                        }
+                    goBackAbstractActions.filter{ action ->
+                        action.window == currentAbstractState.window
+                                && action != backAbstractAction
+                                && !ignoreImplicitDerivedTransition.any {
+                            it.first == currentAbstractState.window
+                                    && it.second.actionType == action.actionType
+                                    && it.third == prevWindowAbstractState.window
+                        }}.forEach { backAction ->
+                        createImplicitBackTransition(
+                            currentAbstractState,
+                            prevWindowAbstractState,
+                            backAction,
+                            processedStateCount,
+                            prevAbstractState,
+                            addedCount
+                        )
 
                     }
                 }
@@ -3128,21 +3127,25 @@ class AbstractStateManager() {
         val exisitingImplicitTransitions = prevAbstractState.abstractTransitions.filter {
             it.abstractAction == abstractTransition.abstractAction
                     /*&& it.prevWindow == abstractTransition.prevWindow*/
-
+                    && (!it.guardEnabled || it.dependentAbstractStates.intersect(abstractTransition.dependentAbstractStates).isNotEmpty())
                     /*&& (it.userInputs.intersect(abstractTransition.userInputs).isNotEmpty()
                             || it.userInputs.isEmpty() || abstractTransition.userInputs.isEmpty())*/
                     && it.isImplicit
         }
-        if (abstractTransition.abstractAction.actionType == AbstractActionType.PRESS_BACK) {
+        if (abstractTransition.abstractAction.actionType == AbstractActionType.PRESS_BACK
+            && abstractTransition.source.window != abstractTransition.dest.window) {
             if (exisitingImplicitTransitions.isNotEmpty()) {
                 exisitingImplicitTransitions.forEach {
-                    AbstractStateManager.INSTANCE.ignoreImplicitDerivedTransition.add(
-                        Triple(
-                            it.source.window,
-                            it.abstractAction,
-                            it.dest.window
+                    if (!it.dest.isSimlarAbstractState(abstractTransition.dest,0.8)) {
+                        AbstractStateManager.INSTANCE.ignoreImplicitDerivedTransition.add(
+                            Triple(
+                                it.source.window,
+                                it.abstractAction,
+                                it.dest.window
+                            )
                         )
-                    )
+                    }
+                    it.activated = false
                 }
 
             }
@@ -3362,7 +3365,123 @@ class AbstractStateManager() {
         return result
     }
 
+    fun createAppStack(traceId:Int, transitionId: Int): Stack<AbstractState> {
+        val currentTraceId = traceId
+        val windowStack = Stack<Window>()
+        val appStateStack = Stack<AbstractState>()
+        val guiStateStack = Stack<State<*>>()
+        // construct gui states stack
+        for (i in 1..transitionId) {
+            val traveredInteraction = atuaMF.tracingInteractionsMap.get(Pair(traceId, i))
+            if (traveredInteraction == null)
+                throw Exception()
+            if (i == 1) {
+                val prevState = atuaMF.stateList.find { it.stateId == traveredInteraction.last().prevState }!!
+                guiStateStack.push(prevState)
+            }
+            val state = atuaMF.stateList.find { it.stateId == traveredInteraction.last().resState }!!
+            guiStateStack.push(state)
+        }
+        for (i in 0..guiStateStack.size-2) {
+            val prevState = guiStateStack[i]
+            val destState = guiStateStack[i+1]
+            val prevAbstractState = getAbstractState(prevState)
+            val destAbstractState = getAbstractState(destState)
+            if (destAbstractState == null)
+                continue
+            updateAppStack(windowStack,appStateStack,prevAbstractState,prevState,destAbstractState,destState,false)
+        }
+        return appStateStack
+    }
 
+    fun updateAppStack(
+        windowStack: Stack<Window>,
+        appStateStack: Stack<AbstractState>,
+        prevAbstractState: AbstractState?,
+        prevState: State<*>,
+        currentAbstractState: AbstractState,
+        currentState: State<*>,
+        isLaunch: Boolean
+    ) {
+
+        if (isLaunch) {
+            windowStack.push(Launcher.getOrCreateNode())
+            val homeScreenState = atuaMF.stateList.findLast { it.isHomeScreen }
+            if (homeScreenState != null) {
+//                stateList.add(homeScreenState)
+                appStateStack.push(getAbstractState(homeScreenState)!!)
+            } else {
+                appStateStack.push(AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.window is Launcher }!!)
+            }
+        } else if (prevAbstractState != null) {
+            if (windowStack.contains(currentAbstractState.window)) {
+                // Return to the prev window
+                // Pop the window
+                while (true) {
+                    val topWindow = windowStack.pop()
+                    if (appStateStack.isNotEmpty()) {
+                        while (appStateStack.peek().window != topWindow) {
+                            appStateStack.pop()
+                            if (appStateStack.isEmpty())
+                                break
+                        }
+                    }
+                    if (appStateStack.isNotEmpty()) {
+                        while (appStateStack.peek() == currentAbstractState) {
+                            appStateStack.pop()
+                            if (appStateStack.isEmpty())
+                                break
+                        }
+                    }
+                    if (topWindow == currentAbstractState.window)
+                        break
+                }
+            } else {
+                if (currentAbstractState.window != prevAbstractState.window) {
+                    if (prevAbstractState.window is Activity || prevAbstractState.window is OutOfApp) {
+
+                        windowStack.push(prevAbstractState.window)
+                    }
+                }
+                appStateStack.removeIf {
+                    it.isSimlarAbstractState(prevAbstractState,0.8)
+                }
+                appStateStack.push(prevAbstractState)
+            }
+        }
+    }
+
+    fun getPrevSameWindowAbstractState(
+        currentState: State<*>,
+        traceId: Int,
+        transitionId: Int,
+        isReturnToPrevWindow: Boolean
+    ): List<AbstractState> {
+        val appStateStack = createAppStack(traceId, transitionId)
+
+        val prevSameWindowAbstractStates = ArrayList<AbstractState>()
+        val currentAppState = getAbstractState(currentState)!!
+        val currentWindow = currentAppState.window
+        var ignoreWindow = true
+        while (appStateStack.isNotEmpty()) {
+            val prevAppState = appStateStack.pop()
+            if (prevAppState.window != currentWindow) {
+                if (isReturnToPrevWindow)
+                    if (ignoreWindow)
+                        continue
+                    else
+                        break
+                else
+                    break
+            } else {
+                if (isReturnToPrevWindow)
+                    ignoreWindow = false
+            }
+            if (!prevAppState.isOpeningKeyboard || currentAppState.isOpeningKeyboard)
+                prevSameWindowAbstractStates.add(prevAppState)
+        }
+        return prevSameWindowAbstractStates
+    }
     companion object {
         val INSTANCE: AbstractStateManager by lazy {
             AbstractStateManager()

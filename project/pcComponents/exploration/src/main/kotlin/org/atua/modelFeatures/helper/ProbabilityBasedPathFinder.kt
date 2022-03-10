@@ -350,11 +350,13 @@ class ProbabilityBasedPathFinder {
                         && it.actionType != AbstractActionType.UNKNOWN
                         && (!(pathContraints[PathConstraint.FORCING_LAUNCH]?:false) || depth!=0 || it.actionType == AbstractActionType.LAUNCH_APP)
                         && (it.actionType != AbstractActionType.SWIPE || !it.isWebViewAction())
+
             }
 
             validAbstractActions.forEach { abstractAction ->
                 val abstractTransitions = source.abstractTransitions.filter {
-                    it.abstractAction == abstractAction
+                    (!it.abstractAction.isItemAction() || it.abstractAction.isWebViewAction())
+                    && it.abstractAction == abstractAction
                             && it.activated == true
                             && (!considerGuardedTransitions || !it.guardEnabled ||
                             it.dependentAbstractStates.intersect(abstractStateStack.toList()).isNotEmpty())
@@ -467,7 +469,7 @@ class ProbabilityBasedPathFinder {
                                         abstractActions.forEach { action ->
                                             val prob =
                                                 reachableAbstractActions[action]!! * 1.0 / totalcnt
-                                            if (prob>=0.4){
+                                            if (prob>=0.1){
                                                 if (!action.isWidgetAction()) {
                                                     if (!predictAbstractState.containsActionCount(action))
                                                         predictAbstractState.setActionCount(action, 0)
@@ -555,7 +557,11 @@ class ProbabilityBasedPathFinder {
             var result: Boolean = false
             val nextState = abstractTransition.dest
             var isValid = false
-            if (!abstractTransition.guardEnabled) {
+            if (abstractTransition.dest is PredictedAbstractState
+                && abstractTransition.dest.abstractActionsProbability.isEmpty()) {
+                isValid = false
+            }
+            else if (!abstractTransition.guardEnabled) {
                 isValid = true
             } else if (abstractTransition.dependentAbstractStates.isEmpty()) {
                 isValid = true
@@ -690,9 +696,7 @@ class ProbabilityBasedPathFinder {
                     }
                 }
                 appStateStack.removeIf {
-                    it == nextState
-                            || it.hashCode == nextState.hashCode
-                            || it.isSimlarAbstractState(nextState,0.8)
+                   it.isSimlarAbstractState(nextState,0.8)
                 }
             }
             appStateStack.push(nextState)

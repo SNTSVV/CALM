@@ -85,9 +85,9 @@ class ExerciseTargetComponentTask private constructor(
         if (goToLockedWindowTask != null)
             return false
         if (currentAbstractState.window != targetWindow) {
-            if (randomBudget>=0)
+            /*if (randomBudget>=0)
                 return false
-            else if (currentAbstractState.isRequireRandomExploration())
+            else*/ if (currentAbstractState.isRequireRandomExploration())
                 return false
             else
                 return true

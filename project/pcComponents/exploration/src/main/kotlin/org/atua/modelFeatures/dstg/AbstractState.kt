@@ -96,7 +96,7 @@ open class AbstractState(
         }
         if (!EWTG_DSTGMapping.INSTANCE.inputsByAbstractActions[abstractAction]!!.contains(input))
             EWTG_DSTGMapping.INSTANCE.inputsByAbstractActions[abstractAction]!!.add(input)
-        if (this !is VirtualAbstractState) {
+        if (this !is VirtualAbstractState && this.guiStates.isNotEmpty()) {
             input.witnessed = true
         }
     }
@@ -644,6 +644,12 @@ open class AbstractState(
         comparedAppState: AbstractState,
         threshold: Double
     ): Boolean {
+        if (this == comparedAppState)
+            return true
+        if (this.window != comparedAppState.window)
+            return false
+        if (this.hashCode == comparedAppState.hashCode)
+            return true
         var isSimilar1 = false
         var diff = 0
         val lv1Attributes1 = this.extractGeneralAVMs()

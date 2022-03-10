@@ -171,12 +171,10 @@ class AbstractTransition(
         ) {
             if (currentAbstractState.window == p_prevWindowAbstractState.window) {
                 val previousSameWindowAbstractStates: List<AbstractState> =
-                    atuaMF.getPrevSameWindowAbstractState(currentState, traceId, transitionId, true)
+                    AbstractStateManager.INSTANCE.getPrevSameWindowAbstractState(currentState, traceId, transitionId, true)
                 var supressPreviousAbstractStates = false
                 for (prevAppState in previousSameWindowAbstractStates) {
-                    if (prevAppState == currentAbstractState
-                        || prevAppState.hashCode == currentAbstractState.hashCode
-                        || prevAppState.isSimlarAbstractState(currentAbstractState, 0.8)
+                    if (prevAppState.isSimlarAbstractState(currentAbstractState, 0.8)
                     ) {
 
                         if (!AbstractStateManager.INSTANCE.goBackAbstractActions.contains(this.abstractAction)) {
@@ -193,14 +191,11 @@ class AbstractTransition(
                         break
                     }
                 }
-            } else if (this.dest != this.source) {
+            } else if (!this.dest.isSimlarAbstractState(this.source,0.8)) {
                 val previousSameWindowAbstractStates: List<AbstractState> =
-                    atuaMF.getPrevSameWindowAbstractState(currentState, traceId, transitionId, false)
+                    AbstractStateManager.INSTANCE.getPrevSameWindowAbstractState(currentState, traceId, transitionId, false)
                 for (prevAppState in previousSameWindowAbstractStates) {
-                    if (prevAppState == currentAbstractState
-                        || prevAppState.hashCode == currentAbstractState.hashCode
-                        || prevAppState.isSimlarAbstractState(currentAbstractState, 0.8)
-                    ) {
+                    if (prevAppState.isSimlarAbstractState(currentAbstractState, 0.8)) {
                        /* if (!AbstractStateManager.INSTANCE.goBackAbstractActions.contains(this.abstractAction)) {
                             val inputs =
                                 this.source.getInputsByAbstractAction(this.abstractAction)

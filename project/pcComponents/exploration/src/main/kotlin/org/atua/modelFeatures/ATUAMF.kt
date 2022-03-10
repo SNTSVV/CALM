@@ -78,6 +78,7 @@ import org.droidmate.exploration.modelFeatures.explorationWatchers.CrashListMF
 import org.droidmate.exploration.modelFeatures.graph.Edge
 import org.droidmate.exploration.modelFeatures.graph.StateGraphMF
 import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF
+import org.droidmate.exploration.strategy.atua.task.GoToAnotherWindowTask
 import org.droidmate.explorationModel.ConcreteId
 import org.droidmate.explorationModel.ExplorationTrace
 import org.droidmate.explorationModel.emptyUUID
@@ -177,7 +178,7 @@ class ATUAMF(
     private var transitionId = 0
 
     val interactionsTracingMap = HashMap<List<Interaction<*>>, Pair<Int, Int>>()
-    private val tracingInteractionsMap = HashMap<Pair<Int, Int>, List<Interaction<*>>>()
+     val tracingInteractionsMap = HashMap<Pair<Int, Int>, List<Interaction<*>>>()
 
     private val prevWindowStateMapping = HashMap<State<*>, State<*>>()
     val interactionPrevWindowStateMapping = HashMap<Interaction<Widget>, State<*>>()
@@ -745,41 +746,9 @@ class ATUAMF(
                 false
             updateWindowStack(prevAbstractState,prevState,destAbstractState,destState,isLaunch)
         }
-
-        /*val interactionTracing = tracingInteractionsMap.filter { it.key.first == traceId }
-        if (interactionTracing.isEmpty()) {
-            log.warn("The given trace Id does not exist")
-            return
-        }
-        interactionTracing.keys.sortedBy { it.second }.forEach {
-            val interaction = interactionTracing[it]!!.last()
-            val prevState = stateList.find { it.stateId == interaction.prevState }
-            var toContinue = true
-            if (prevState == null) {
-                log.error("Cannot find state with state id: ${interaction.resState}")
-                toContinue = false
-            }
-            val destState = stateList.find { it.stateId == interaction.resState }
-            if (destState == null) {
-                log.error("Cannot find state with state id: ${interaction.resState}")
-                toContinue = false
-            }
-            if (toContinue) {
-                val prevAppState = if (prevState == eContext!!.model.emptyState) {
-                    null
-                } else {
-                    getAbstractState(prevState!!)
-                }
-                val currentAppState = getAbstractState(destState!!)!!
-                val isLaunch = if (interaction.actionType.isLaunchApp() || interaction.actionType == "ResetApp" ) {
-                    true
-                } else {
-                    false
-                }
-                updateWindowStack(prevAppState,prevState,currentAppState,destState,isLaunch)
-            }
-        }*/
     }
+
+
     private fun updateWindowStack(
         prevAbstractState: AbstractState?,
         prevState: State<*>,
@@ -847,9 +816,7 @@ class ATUAMF(
                    abstractStateStack.push(prevAbstractState)
                 }*/
                 abstractStateStack.removeIf {
-                    it == prevAbstractState
-                            || it.hashCode == prevAbstractState.hashCode
-                            || it.isSimlarAbstractState(prevAbstractState,0.8)
+                   it.isSimlarAbstractState(prevAbstractState,0.8)
                 }
                 abstractStateStack.push(prevAbstractState)
             }
@@ -1787,6 +1754,8 @@ class ATUAMF(
         val newAbstractState = AbstractStateManager.INSTANCE.getOrCreateNewAbstractState(
             newState, currentActivity, currentRotation, null
         )
+        val windowId =
+            newState.widgets.find { !it.isKeyboard }?.metaInfo?.find { it.contains("windowId") }?.split(" = ")?.get(1)
         if (getAbstractState(newState) == null)
             throw Exception("State has not been derived")
 //        AbstractStateManager.INSTANCE.updateLaunchAndResetAbstractTransitions(newAbstractState)
@@ -2833,6 +2802,8 @@ class ATUAMF(
         sb.appendln("Phase2ActionCount;$phase2Actions")
         sb.appendln("Phase2StartTime:$phase2StartTime")
         sb.appendln("Phase3StartTime:$phase3StartTime")
+        sb.appendln("ReachSuccessfullyTime:${GoToAnotherWindowTask.succeededCount}")
+        sb.appendln("ReachUnsuccessfullyTime:${GoToAnotherWindowTask.failedCount}")
         sb.appendln("Unreached windows;")
         WindowManager.instance.updatedModelWindows.filterNot {
             it is Launcher

@@ -104,6 +104,7 @@ abstract class AbstractPhaseStrategy(
         var targetStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
             it.window == targetWindow
                     && it.ignored == false
+                    && it.guiStates.isNotEmpty()
                     && (pathType == PathFindingHelper.PathType.FULLTRACE
                     || pathType == PathFindingHelper.PathType.PARTIAL_TRACE
                     || !AbstractStateManager.INSTANCE.unreachableAbstractState.contains(it))
@@ -115,51 +116,86 @@ abstract class AbstractPhaseStrategy(
             targetStates.removeIf {
                 it is VirtualAbstractState
             }
-            val unexercisedInputs = ArrayList<Input>()
+
+            val unexercisedInputs1 = ArrayList<Input>()
+            val unexercisedInputs2 = ArrayList<Input>()
             val canExploreAppStates1 = targetStates.associateWith { it.getUnExercisedActions(null, atuaMF)}.filter { it.value.isNotEmpty() }
             if (canExploreAppStates1.isNotEmpty()) {
                 canExploreAppStates1.forEach { s, actions ->
                     val inputs = actions.map { s.getInputsByAbstractAction(it) }.flatten().distinct()
-                    unexercisedInputs.addAll(inputs)
+//                    unexercisedInputs1.addAll(inputs.filter { it.exerciseCount==0 })
+                    unexercisedInputs2.addAll(inputs)
+
                 }
             } else {
                 val canExploreAppStates2 = targetStates.associateWith { it.getUnExercisedActions(null, atuaMF)}.filter { it.value.isNotEmpty() }
                 canExploreAppStates2.forEach { s, actions ->
                     val inputs = actions.map { s.getInputsByAbstractAction(it) }.flatten().distinct()
-                    unexercisedInputs.addAll(inputs)
+//                    unexercisedInputs1.addAll(inputs.filter { it.exerciseCount==0 })
+                    unexercisedInputs2.addAll(inputs)
                 }
             }
-            if (unexercisedInputs.isEmpty())
-                return emptyList()
-            val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window = targetWindow)!!
-            goalByAbstractState.put(virtualAbstractState, unexercisedInputs.distinct())
-            stateWithScores.put(virtualAbstractState, 1.0)
-            /*  if (targetStates.isEmpty()) {
-                  targetStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
-                      it.window == targetWindow
-                              && it != currentAbstractState
-                              && (it.guiStates.any { atuaMF.actionCount.getUnexploredWidget(it).isNotEmpty() })
-                              && it !is VirtualAbstractState
-                  }.toHashSet()
-              }*/
-        } else {
-            val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window = targetWindow)!!
-            stateWithScores.put(virtualAbstractState, 1.0)
+
+            if (unexercisedInputs1.isNotEmpty()) {
+                val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window = targetWindow)!!
+                goalByAbstractState.put(virtualAbstractState, unexercisedInputs1.distinct())
+                stateWithScores.put(virtualAbstractState, 1.0)
+                getPathToStatesBasedOnPathType(
+                    pathType,
+                    transitionPaths,
+                    stateWithScores,
+                    currentAbstractState,
+                    currentState,
+                    true,
+                    !explore,
+                    goalByAbstractState,
+                    maxCost,
+                    emptyList(),
+                    pathConstraints
+                )
+            }
+            if (transitionPaths.isEmpty()) {
+                if (unexercisedInputs2.isNotEmpty()) {
+                    val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window = targetWindow)!!
+                    goalByAbstractState.put(virtualAbstractState, unexercisedInputs2.distinct())
+                    stateWithScores.put(virtualAbstractState, 1.0)
+                    getPathToStatesBasedOnPathType(
+                        pathType,
+                        transitionPaths,
+                        stateWithScores,
+                        currentAbstractState,
+                        currentState,
+                        true,
+                        !explore,
+                        goalByAbstractState,
+                        maxCost,
+                        emptyList(),
+                        pathConstraints
+                    )
+                }
+            }
+            return transitionPaths
+
         }
-        getPathToStatesBasedOnPathType(
-            pathType,
-            transitionPaths,
-            stateWithScores,
-            currentAbstractState,
-            currentState,
-            true,
-            !explore,
-            goalByAbstractState,
-            maxCost,
-            emptyList(),
-            pathConstraints
-        )
+        if (transitionPaths.isEmpty()) {
+            val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window = targetWindow)!!
+            stateWithScores.put(virtualAbstractState, 1.0)
+            getPathToStatesBasedOnPathType(
+                pathType,
+                transitionPaths,
+                stateWithScores,
+                currentAbstractState,
+                currentState,
+                true,
+                true,
+                goalByAbstractState,
+                maxCost,
+                emptyList(),
+                pathConstraints
+            )
+        }
         return transitionPaths
+
     }
 
     fun getPathToStatesBasedOnPathType(
