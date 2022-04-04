@@ -1,1 +1,1 @@
---Core-configPath=./defaultConfig-CALM.properties --StatementCoverage-enableCoverage=true
+--Core-configPath=./defaultConfig-ATUAg.properties --StatementCoverage-enableCoverage=true

@@ -19,6 +19,8 @@ import org.droidmate.deviceInterface.exploration.isEnabled
 import org.droidmate.exploration.strategy.atua.task.InputCoverage
 import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
+import java.lang.Integer.max
+import java.lang.Integer.min
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
@@ -155,8 +157,9 @@ class TextInput () {
                     if (!specificTextInput.containsKey(it.uid)) {
                         specificTextInput.put(it.uid, ArrayList())
                     }
-                    if (!specificTextInput[it.uid]!!.contains(it.text)) {
-                        specificTextInput[it.uid]!!.add(it.text)
+                    val trimedText = it.text.substring(min(it.text.length,100))
+                    if (!specificTextInput[it.uid]!!.contains(trimedText)) {
+                        specificTextInput[it.uid]!!.add(trimedText)
                     }
                 }
             }

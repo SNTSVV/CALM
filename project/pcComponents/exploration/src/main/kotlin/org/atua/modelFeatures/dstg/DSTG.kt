@@ -14,9 +14,13 @@ package org.atua.modelFeatures.dstg
 
 import org.atua.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.ATUAMF
+import org.atua.modelFeatures.ewtg.window.FakeWindow
+import org.atua.modelFeatures.ewtg.window.Window
 import org.droidmate.exploration.ExplorationContext
 import org.droidmate.exploration.modelFeatures.graph.*
 import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF
+import org.droidmate.explorationModel.removeNewLineAndSemicolon
+import org.droidmate.explorationModel.sanitize
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.BufferedWriter
@@ -29,8 +33,8 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
                                         a==b
                                       })): IGraph<AbstractState, AbstractTransition> by graph {
 
-    val abstractActionEnables = HashMap<AbstractAction, HashMap<AbstractAction,Int>>()
-    val abstractActionCounts = HashMap<AbstractAction, Int>()
+    val abstractActionEnables = HashMap<AbstractAction, HashMap<Window,HashMap<AbstractAction,Int>>>()
+    val abstractActionCounts = HashMap<Window, HashMap<AbstractAction, Int>>()
     val abstractActionStateEnable = HashMap<AbstractAction, HashSet<AbstractState>> ()
     fun removeAbstractActionEnabiblity(
         abstractTransition: AbstractTransition,
@@ -39,38 +43,53 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
         if (abstractTransition.isImplicit)
             return
         val abstractAction = abstractTransition.abstractAction
-        val abstractActionCount = abstractActionCounts[abstractAction]
-        if (abstractActionCount == null)
-            return
         val enableAbstractActions =
             abstractActionEnables[abstractAction]
         if (enableAbstractActions == null)
             return
-        val totalCnt = abstractActionCount
-        val bonus = if (abstractTransition.interactions.isEmpty() && abstractTransition.modelVersion == ModelVersion.BASE)
-            1
-        else
-            2
-        if (totalCnt <= bonus) {
-            abstractActionEnables.remove(abstractAction)
-            abstractActionCounts.remove(abstractAction)
-            abstractActionStateEnable.remove(abstractAction)
-            return
-        }
-        val availableActions = abstractTransition.dest.getAvailableActions()
-        val prevAvailableActions = abstractTransition.source.getAvailableActions()
-        val availableAbstractActions = availableActions.subtract(prevAvailableActions)
-        availableAbstractActions.forEach {
-            if (enableAbstractActions.containsKey(it)) {
-                    val enabled = enableAbstractActions[it]!!
-                    if (enabled <= 1) {
-                        enableAbstractActions.remove(it)
-                    } else {
-                        enableAbstractActions.put(it,enabled - bonus)
+        val dependentWindows = ArrayList(abstractTransition.dependentAbstractStates.map { it.window }.distinct())
+        dependentWindows.add(FakeWindow.getOrCreateNode(isBaseModel = false))
+
+        for (window in dependentWindows) {
+
+            val abstractActionCount = abstractActionCounts[window]?.get(abstractAction)
+            if (abstractActionCount == null)
+                continue
+
+            val totalCnt = abstractActionCount
+            val bonus = if (abstractTransition.interactions.isEmpty() && abstractTransition.modelVersion == ModelVersion.BASE)
+                1
+            else
+                2
+            if (totalCnt <= bonus) {
+                abstractActionEnables.remove(abstractAction)
+                abstractActionCounts[window]!!.remove(abstractAction)
+                abstractActionStateEnable.remove(abstractAction)
+                return
+            }
+
+            val availableActions = abstractTransition.dest.getAvailableActions()
+            val prevAvailableActions = abstractTransition.source.getAvailableActions()
+            val availableAbstractActions = availableActions.subtract(prevAvailableActions)
+            availableAbstractActions.forEach { action ->
+                if (enableAbstractActions.containsKey(window)) {
+                    if (enableAbstractActions[window]!!.containsKey(action)) {
+                        val enabled = enableAbstractActions[window]!![action]!!
+                        if (enabled <= 1) {
+                            enableAbstractActions[window]!!.remove(action)
+                        } else {
+                            enableAbstractActions[window]!!.put(action, enabled - bonus)
+                        }
+                    }
                 }
             }
+            abstractActionCounts[window]!!.put(abstractAction,totalCnt-bonus)
+
         }
-        abstractActionCounts.put(abstractAction,totalCnt-bonus)
+        dependentWindows.forEach { window ->
+
+        }
+
     }
 
     fun updateAbstractActionEnability(
@@ -79,40 +98,55 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
     ) {
         if (abstractTransition.isImplicit)
             return
-
+        if (abstractTransition.abstractAction.isWebViewAction())
+            return
         val abstractAction = abstractTransition.abstractAction
         val prevAbstractState = abstractTransition.source
         val newAbstractState = abstractTransition.dest
         val prevWindow = prevAbstractState.window
-        abstractActionCounts.putIfAbsent(abstractAction,0)
-        abstractActionEnables.putIfAbsent(abstractAction, HashMap())
-        val enableAbstractActions =
-            abstractActionEnables[abstractAction]!!
-        val totalCnt = abstractActionCounts[abstractAction]!!
-        val availableActions = newAbstractState.getAvailableActions()
-        val prevAvailableActions = if (!AbstractStateManager.INSTANCE.goBackAbstractActions.contains(abstractTransition.abstractAction))
-            prevAbstractState.getAvailableActions()
-        else {
-            abstractTransition.dependentAbstractStates.map { it.getAvailableActions() }.flatten().distinct()
+        val dependentWindows = ArrayList(abstractTransition.dependentAbstractStates.map { it.window }.distinct())
+        if (dependentWindows.isEmpty()) {
+            dependentWindows.add(FakeWindow.getOrCreateNode(isBaseModel = false))
         }
-        val availableAbstractActions = availableActions.subtract(prevAvailableActions)
-        val bonus = if (abstractTransition.interactions.isNotEmpty())
-            2
-        else
-            1
-        availableAbstractActions.forEach {
-            if (!enableAbstractActions.containsKey(it))
-                enableAbstractActions.putIfAbsent(it, bonus)
-            else {
-                val enabled = enableAbstractActions[it]!!
-                enableAbstractActions.put(it, enabled+bonus)
-            }
-        }
-        abstractActionCounts.put(abstractAction,totalCnt+bonus)
+        dependentWindows.forEach { window ->
+            abstractActionCounts.putIfAbsent(window, HashMap())
+            abstractActionCounts[window]!!.putIfAbsent(abstractAction,0)
+            abstractActionEnables.putIfAbsent(abstractAction, HashMap())
+            val enableAbstractActions =
+                abstractActionEnables[abstractAction]!!
 
-        abstractActionStateEnable.putIfAbsent(abstractAction, HashSet())
-        val enabledState = abstractActionStateEnable[abstractAction]!!
-        enabledState.add(abstractTransition.dest)
+            val totalCnt = abstractActionCounts[window]!![abstractAction]!!
+            val availableActions = newAbstractState.getAvailableActions()
+            val prevAvailableActions = if (!AbstractStateManager.INSTANCE.goBackAbstractActions.contains(abstractTransition.abstractAction))
+                prevAbstractState.getAvailableActions()
+            else {
+                abstractTransition.dependentAbstractStates.map { it.getAvailableActions() }.flatten().distinct()
+            }
+            val availableAbstractActions = availableActions.subtract(prevAvailableActions)
+            val bonus = if (abstractTransition.interactions.isNotEmpty())
+                2
+            else
+                1
+            if (!enableAbstractActions.containsKey(window)) {
+                enableAbstractActions.put(window, HashMap())
+            }
+            availableAbstractActions.forEach {action->
+                val enabledAbstractActionsByDependendWindow =enableAbstractActions[window]!!
+                if (!enabledAbstractActionsByDependendWindow.containsKey(action))
+                    enabledAbstractActionsByDependendWindow.putIfAbsent(action, bonus)
+                else {
+                    val enabled = enabledAbstractActionsByDependendWindow[action]!!
+                    enabledAbstractActionsByDependendWindow.put(action, enabled+bonus)
+                }
+
+            }
+            abstractActionCounts[window]!!.put(abstractAction,totalCnt+bonus)
+
+            abstractActionStateEnable.putIfAbsent(abstractAction, HashSet())
+            val enabledState = abstractActionStateEnable[abstractAction]!!
+            enabledState.add(abstractTransition.dest)
+        }
+
     }
 
     override fun add(source: AbstractState, destination: AbstractState?, label: AbstractTransition, updateIfExists: Boolean, weight: Double): Edge<AbstractState, AbstractTransition> {
@@ -142,7 +176,7 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
     }
 
     private fun header(): String {
-        return "[1]SourceState;[2]ResultingState;[3]ActionType;[4]InteractedAVM;[5]ActionExtra;[6]InteractionData;[7]GuardEnabled;[8]DependentAbstractStates;[9]EventHandlers;[10]CoveredUpdatedMethods;[11]CoveredUpdatedStatements;[12]CoveredMethods;[13]GUITransitionIDs;[14]modelVersion"
+        return "[1]SourceState;[2]ResultingState;[3]ActionType;[4]InteractedAVM;[5]ActionExtra;[6]InteractionData;[7]GuardEnabled;[8]DependentAbstractStates;[9]EventHandlers;[10]UserlikeInputs;[11]CoveredUpdatedMethods;[12]CoveredUpdatedStatements;[13]CoveredMethods;[14]GUITransitionIDs;[15]modelVersion"
     }
 
     fun recursiveDump(sourceAbstractState: AbstractState, statementCoverageMF: StatementCoverageMF, dumpedSourceStates: ArrayList<AbstractState> , explorationContext: ExplorationContext<*,*,*> ,bufferedWriter: BufferedWriter) {
@@ -163,6 +197,7 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
                     "${edge.abstractAction.actionType};${edge.abstractAction.attributeValuationMap?.avmId};\"${edge.abstractAction.extra}\";\"${edge.data}\";${edge.guardEnabled};" +
                     "\"${edge.dependentAbstractStates.map { it.abstractStateId }.joinToString(";")}\";" +
                     "\"${getInteractionHandlers(edge,statementCoverageMF)}\";" +
+                    "\"${getUserlikeInputs(edge,statementCoverageMF)}\";" +
                     "\"${getCoveredModifiedMethods(edge,statementCoverageMF)}\";" +
                     "\"${getCoveredUpdatedStatements(edge,statementCoverageMF)}\";" +
                     "\"${getCoveredMethods(edge, statementCoverageMF)}\";" +
@@ -173,6 +208,24 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
         nextSources.forEach {
             recursiveDump(it,statementCoverageMF,dumpedSourceStates, explorationContext, bufferedWriter)
         }
+    }
+
+    private fun getUserlikeInputs(abstractionTransition: AbstractTransition, statementCoverageMF: StatementCoverageMF): String {
+        if (abstractionTransition.userInputs.isEmpty())
+            return ""
+        val output = StringBuilder()
+        output.append('[')
+        abstractionTransition.userInputs.forEach {
+            output.append('{')
+            it.forEach {
+                output.append("${it.key}:'${it.value.removeNewLineAndSemicolon().replace(",","<comma>")}',")
+            }
+            output.deleteCharAt(output.length-1)
+            output.append("},")
+        }
+        output.deleteCharAt(output.length-1)
+        output.append(']')
+        return output.toString()
     }
 
     private fun getCoveredModifiedMethods(edge: AbstractTransition, statementCoverageMF: StatementCoverageMF): String {

@@ -144,16 +144,6 @@ class AbstractTransition(
         this.computeGuaranteedAVMs()
     }
 
-    fun updateGuardEnableStatus() {
-        val inputs = source.getInputsByAbstractAction(abstractAction)
-        inputs.forEach { input ->
-            if (AbstractStateManager.INSTANCE.guardedTransitions.contains(Pair(source.window, input))) {
-                guardEnabled = true
-            }
-        }
-
-
-    }
 
     fun updateDependentAppState(currentState: State<*>,
                                 traceId: Int,
@@ -172,23 +162,35 @@ class AbstractTransition(
             if (currentAbstractState.window == p_prevWindowAbstractState.window) {
                 val previousSameWindowAbstractStates: List<AbstractState> =
                     AbstractStateManager.INSTANCE.getPrevSameWindowAbstractState(currentState, traceId, transitionId, true)
-                var supressPreviousAbstractStates = false
+                var foundPreviousAbstractStates = false
                 for (prevAppState in previousSameWindowAbstractStates) {
+                    if (!AbstractStateManager.INSTANCE.goBackAbstractActions.contains(this.abstractAction)) {
+                        val inputs =
+                            this.source.getInputsByAbstractAction(this.abstractAction)
+                        inputs.forEach {
+                            if (!Input.goBackInputs.contains(it))
+                                Input.goBackInputs.add(it)
+                        }
+                    } else
+                        AbstractStateManager.INSTANCE.goBackAbstractActions.add(this.abstractAction)
                     if (prevAppState.isSimlarAbstractState(currentAbstractState, 0.8)
                     ) {
 
-                        if (!AbstractStateManager.INSTANCE.goBackAbstractActions.contains(this.abstractAction)) {
-                            val inputs =
-                                this.source.getInputsByAbstractAction(this.abstractAction)
-                            inputs.forEach {
-                                if (!Input.goBackInputs.contains(it))
-                                    Input.goBackInputs.add(it)
-                            }
-                        } else
-                            AbstractStateManager.INSTANCE.goBackAbstractActions.add(this.abstractAction)
                         this.guardEnabled = true
                         this.dependentAbstractStates.add(prevAppState)
+                        foundPreviousAbstractStates = true
                         break
+                    }
+                }
+                if (!foundPreviousAbstractStates && previousSameWindowAbstractStates.isNotEmpty()) {
+                    val notSourceStatePrevWindowAppStates = previousSameWindowAbstractStates.filterNot { it == source }
+                    if (notSourceStatePrevWindowAppStates.isNotEmpty()) {
+                        val similarScores =
+                            notSourceStatePrevWindowAppStates   .associateWith { it.similarScore(currentAbstractState) }
+                        val maxScores = similarScores.maxByOrNull { it.value }!!
+
+                        this.guardEnabled = true
+                        this.dependentAbstractStates.add(maxScores.key)
                     }
                 }
             } else if (!this.dest.isSimlarAbstractState(this.source,0.8)) {

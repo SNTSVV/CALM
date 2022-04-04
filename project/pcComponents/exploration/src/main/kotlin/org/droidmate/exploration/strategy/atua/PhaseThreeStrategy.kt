@@ -22,6 +22,7 @@ import org.atua.modelFeatures.ewtg.window.Window
 import org.atua.modelFeatures.ewtg.WindowManager
 import org.atua.modelFeatures.ewtg.window.Dialog
 import org.atua.modelFeatures.ewtg.window.Launcher
+import org.atua.modelFeatures.helper.Goal
 import org.atua.modelFeatures.helper.PathConstraint
 import org.atua.modelFeatures.helper.PathFindingHelper
 import org.atua.modelFeatures.helper.ProbabilityBasedPathFinder
@@ -77,7 +78,8 @@ class PhaseThreeStrategy(
         statementMF = atuaTestingStrategy.eContext.getOrCreateWatcher()
         atuaMF.updateMethodCovFromLastChangeCount = 0
         atuaMF.notFullyExercisedTargetInputs.forEach {
-            allTargetInputs.put(it,0)
+            if (it.witnessed)
+                allTargetInputs.put(it,0)
         }
         atuaMF.modifiedMethodsByWindow.keys.filter { it !is Launcher }.forEach { window ->
             val abstractStates = AbstractStateManager.INSTANCE.getPotentialAbstractStates().filter { it.window == window }
@@ -139,7 +141,8 @@ class PhaseThreeStrategy(
             !atuaMF.modifiedMethodsByWindow.containsKey(it.key)
         }
         atuaMF.notFullyExercisedTargetInputs.forEach {
-            allTargetInputs.putIfAbsent(it,0)
+            if (it.witnessed)
+                allTargetInputs.putIfAbsent(it,0)
         }
         return true
     }
@@ -216,25 +219,17 @@ class PhaseThreeStrategy(
         if (currentAppState==null)
             return transitionPaths
         val runtimeAbstractStates = getUnexhaustedExploredAbstractState(currentState)
-        val goalByAbstractState = HashMap<AbstractState, List<Input>>()
+        val goalByAbstractState = HashMap<AbstractState, List<Goal>>()
         runtimeAbstractStates.groupBy { it.window }.forEach { window, appStates ->
             var virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window)
             if (virtualAbstractState == null) {
                 virtualAbstractState = AbstractStateManager.INSTANCE.createVirtualAbstractState(window,appStates.first().activity,appStates.first().isHomeScreen)
             }
-            val toExploreInputs = ArrayList<Input>()
+            val toExploreInputs = ArrayList<Goal>()
             appStates.forEach {
-                it.getUnExercisedActions(null, atuaMF).forEach { action ->
-                    val toExporeInputs =
-                        toExploreInputs.addAll(it.getInputsByAbstractAction(action))
-                }
-            }
-            if (toExploreInputs.isEmpty()) {
-                appStates.forEach {
-                    it.getUnExercisedActions(null, atuaMF).forEach { action ->
-                        val toExporeInputs =
-                            toExploreInputs.addAll(it.getInputsByAbstractAction(action))
-                    }
+                it.getUnExercisedActions(null, atuaMF).filter { !it.isCheckableOrTextInput() && it.isWidgetAction() }.forEach { action ->
+                    if (!ProbabilityBasedPathFinder.disableAbstractActions.contains(action))
+                        toExploreInputs.add(Goal(input = null,abstractAction = action))
                 }
             }
             goalByAbstractState.put(virtualAbstractState, toExploreInputs.distinct())
@@ -285,7 +280,7 @@ class PhaseThreeStrategy(
                 targetScores.put(it.first,it.second)
             }
         }*/
-        val goalByAbstractState = HashMap<AbstractState, List<Input>>()
+        val goalByAbstractState = HashMap<AbstractState, List<Goal>>()
         val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(targetWindow!!)!!
 
         targetScores.put(virtualAbstractState,1.0)
@@ -295,7 +290,7 @@ class PhaseThreeStrategy(
         newPathConstraints.put(PathConstraint.INCLUDE_RESET,false)
         val transitionPaths = ArrayList<TransitionPath>()
         if (targetEvent != null) {
-            goalByAbstractState.put(virtualAbstractState, listOf(targetEvent!!))
+            goalByAbstractState.put(virtualAbstractState, listOf(targetEvent!!).map { Goal(input = it,abstractAction = null) })
             getPathToStatesBasedOnPathType(
                 pathType,
                 transitionPaths,
@@ -1209,6 +1204,8 @@ class PhaseThreeStrategy(
             it.eventType != EventType.resetApp
                     && it.eventType != EventType.implicit_launch_event
                     && ( it.exerciseCount == 0)
+                    && it.witnessed
+
         }
         val allTargetInputs = ArrayList(usefulTargets.union(notExercisedYetTargets).distinct())
 

@@ -33,18 +33,16 @@ class FakeWindow(nodeId: String= getNodeId(),isBaseModel: Boolean): Window("",no
     companion object{
         var counter = 0
         fun getNodeId(): String = "FakeWindow-${counter+1}"
-        fun getOrCreateNode(nodeId: String= getNodeId(),isBaseModel: Boolean): FakeWindow {
+        fun getOrCreateNode(isBaseModel: Boolean): FakeWindow {
             val node = if (isBaseModel) {
-                WindowManager.instance.baseModelWindows.find { it.windowId == nodeId
-                        && it is FakeWindow}
+                WindowManager.instance.baseModelWindows.find {  it is FakeWindow}
             } else {
-                WindowManager.instance.updatedModelWindows.find { it.windowId == nodeId
-                        && it is FakeWindow}
+                WindowManager.instance.updatedModelWindows.find {  it is FakeWindow}
             }
             if (node != null)
                 return node!! as FakeWindow
             else
-                return FakeWindow(nodeId = nodeId,isBaseModel = isBaseModel)
+                return FakeWindow(nodeId = getNodeId(),isBaseModel = isBaseModel)
         }
     }
 }

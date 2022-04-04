@@ -379,6 +379,11 @@ suspend fun fetchDeviceData(env: UiAutomationEnvironment, afterAction: Boolean =
 	debugT("Fetch UI", {
 		uiHierarchy = UiHierarchy.fetch(windows,img).let{
 			if(it == null ||  it.none (isInteractive) ) {
+				if (it == null) {
+					Log.w(logTag, "Could not parse current UI screen.")
+				} else {
+					Log.w(logTag, "No interactive widgets")
+				}
 				Log.w(logTag, "first ui extraction failed or no interactive elements were found \n $it, \n ---> start a second try")
 				windows = env.getDisplayedWindows()
 				img = env.captureScreen()
@@ -386,7 +391,7 @@ suspend fun fetchDeviceData(env: UiAutomationEnvironment, afterAction: Boolean =
 					Log.d(logTag, "second try resulted in ${secondRes?.size} elements")
 				}  //retry once for the case that AccessibilityNode tree was not yet stable
 			} else it
-		} ?: emptyList<UiElementPropertiesI>()	.also {
+		} ?: emptyList<UiElementPropertiesI>().also {
 			isSuccessful = false
 			Log.e(logTag, "could not parse current UI screen ( $windows )")
 			throw java.lang.RuntimeException("UI extraction failed for windows: $windows")
@@ -414,7 +419,7 @@ suspend fun fetchDeviceData(env: UiAutomationEnvironment, afterAction: Boolean =
 
 	var xml: String = "TODO parse widget list on Pc if we need the XML or introduce a debug property to enable parsing" +
 			", because (currently) we would have to traverse the tree a second time"
-	if(debugEnabled) xml = UiHierarchy.getXml(env)
+//	if(debugEnabled) xml = UiHierarchy.getXml(env)
 
 	env.lastResponse = DeviceResponse.create( isSuccessful = isSuccessful, uiHierarchy = uiHierarchy!!,
 		uiDump = xml,

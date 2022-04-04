@@ -28,6 +28,8 @@ class GoToTargetWindowTask (
         val pathConstraints = HashMap<PathConstraint,Boolean>()
         pathConstraints.put(PathConstraint.INCLUDE_RESET,includeResetAction)
         pathConstraints.put(PathConstraint.INCLUDE_LAUNCH,true)
+        pathConstraints.put(PathConstraint.MAXIMUM_DSTG,true)
+
         while (possiblePaths.isEmpty()) {
             if (nextPathType == PathFindingHelper.PathType.WTG) {
                 pathConstraints.put(PathConstraint.INCLUDE_WTG,true)

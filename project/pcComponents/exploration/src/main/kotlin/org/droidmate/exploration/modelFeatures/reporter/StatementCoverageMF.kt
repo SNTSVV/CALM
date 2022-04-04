@@ -45,6 +45,8 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.text.SimpleDateFormat
 import java.time.Duration
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.collections.ArrayList
@@ -66,7 +68,7 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
     override val coroutineContext: CoroutineContext = CoroutineName("StatementCoverageMF") + Job()
     val statementUUIDByRawString = HashMap<String,String>()
 
-     val executedMethodsMap: ConcurrentHashMap<String, Date> = ConcurrentHashMap() //methodid -> first executed
+    val executedMethodsMap: ConcurrentHashMap<String, Date> = ConcurrentHashMap() //methodid -> first executed
     val executedStatementsMap: ConcurrentHashMap<String, Date> = ConcurrentHashMap()
 
 
@@ -138,6 +140,8 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                         //val parts2 = parts[0].split(" methodId=".toRegex())
                         val timestamp = statement[0]
                         val tms = dateFormat.parse(timestamp)
+//                        val localTime = LocalDateTime.parse(timestamp, dateFormatter)
+//                        val tms = localTime.toLocalDate()
                         //NGO
                         val statementId = statementUUIDByRawString.get(statement[1])?:""
                         if (statementId!="") {
@@ -147,7 +151,7 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                                 recentExecutedMethods.add(methodId)
                             val methodFound = executedMethodsMap.containsKey(methodId)
                             if (!methodFound) {
-                                executedMethodsMap[methodId] = tms
+                                executedMethodsMap[methodId]= tms
                             }
                             val isUpdatedMethod = isModifiedMethod(methodId)
                             if (!recentExecutedStatements.contains(statementId)) {
@@ -182,10 +186,10 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                 }
 
             }
-            log.info("Current statement coverage: ${"%.2f".format(getCurrentCoverage())}. Encountered statements: ${executedStatementsMap.size}/${statementInstrumentationMap.size}")
             log.info("Current method coverage: ${"%.2f".format(getCurrentMethodCoverage())}. Encountered methods: ${executedMethodsMap.size}/${methodInstrumentationMap.size}")
+            log.info("Current statement coverage: ${"%.2f".format(getCurrentCoverage())}. Encountered statements: ${executedStatementsMap.size}/${statementInstrumentationMap.size}")
             log.info("Current modified method coverage: ${"%.2f".format(getCurrentModifiedMethodCoverage())}. Encountered modified methods: ${executedModifiedMethodsMap.size}/${modMethodInstrumentationMap.size}")
-            log.info("Current modified method's statement coverage: ${"%.2f".format(getCurrentModifiedMethodStatementCoverage())}. Encountered modified methods: ${executedModifiedMethodStatementsMap.size}/${modMethodStatementInstrumentationMap.size}")
+            log.info("Current modified method's statement coverage: ${"%.2f".format(getCurrentModifiedMethodStatementCoverage())}. Encountered modified methods' statement: ${executedModifiedMethodStatementsMap.size}/${modMethodStatementInstrumentationMap.size}")
 
             // Write the received content into a file
             if (readStatements.isNotEmpty()) {
@@ -732,7 +736,8 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
         private const val method_header = "Method(id);Method name;Time(Duration in sec till first occurrence)"
 
         @JvmStatic
-        private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
+        private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS")
 
         @JvmStatic
         private val log: Logger by lazy { LoggerFactory.getLogger(StatementCoverageMF::class.java) }

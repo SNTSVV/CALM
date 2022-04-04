@@ -14,6 +14,8 @@ package org.atua.modelFeatures.dstg
 
 import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.ewtg.Helper
+import org.atua.modelFeatures.ewtg.window.Launcher
+import org.atua.modelFeatures.ewtg.window.OutOfApp
 import org.atua.modelFeatures.ewtg.window.Window
 import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF
 import org.droidmate.explorationModel.interaction.Interaction
@@ -113,22 +115,45 @@ class AbstractAction private constructor (
         lastInteraction: Interaction<*>,
         newState: State<*>,
         prevState: State<*>,
+        coverageIncreased: Boolean,
         atuaMF: ATUAMF
     ) {
         val actionId = lastInteraction.actionId
+//        val actionableWidgets = Helper.getVisibleWidgets(prevState)
+
         val structureUuid = atuaMF.stateStructureHashMap[newState.uid]
-        if (atuaMF.statementMF!!.actionIncreasingCoverageTracking[actionId.toString()]?.isNotEmpty() ?: false
-            || atuaMF.stateVisitCount[structureUuid] == 1)
+        val newAppState = atuaMF.getAbstractState(newState)!!
+//        val unexploredActionableWidgets = atuaMF.actionCount.getUnexploredWidget(newState).filter { !Helper.isUserLikeInput(it) }
+        val unexploredAbstractActions = newAppState.getUnExercisedActions(currentState = newState,atuaMF = atuaMF).filter {
+            !it.isCheckableOrTextInput() && it.isWidgetAction() }
+        if (coverageIncreased
+//            || atuaMF.stateVisitCount[structureUuid] == 1 )
+            || (unexploredAbstractActions.isNotEmpty()
+                    && atuaMF.abstractStateVisitCount[newAppState]==1
+                    && newAppState.window !is OutOfApp
+                    && newAppState.window !is Launcher)) {
             meaningfulScore += 50
-        else if (prevState == newState || newState.isHomeScreen)
+            window.meaningfullScore+=5
+        }
+        else if (prevState == newState || newState.isHomeScreen) {
             meaningfulScore -= 100
-        else
+            window.meaningfullScore -= 10
+        }
+        else {
             meaningfulScore -= 50
+            window.meaningfullScore -= 5
+        }
     }
 
     override fun toString(): String {
         return "$actionType - $attributeValuationMap - $window"
     }
+
+    fun reset() {
+        meaningfulScore = 100
+
+    }
+
     companion object {
         val abstractActionsByWindow = HashMap<Window,ArrayList<AbstractAction>>()
 

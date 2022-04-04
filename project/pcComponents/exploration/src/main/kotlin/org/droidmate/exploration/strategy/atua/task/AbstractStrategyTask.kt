@@ -888,7 +888,7 @@ abstract class AbstractStrategyTask(
     }
 
     fun isCameraOpening(currentState: State<*>): Boolean {
-        return currentState.widgets.any { it.packageName == "com.android.camera2" || it.packageName == "com.android.camera" }
+        return  currentState.widgets.any { it.packageName == "com.android.camera2" || it.packageName == "com.android.camera" }
     }
 
     /** filters out all crashing marked widgets from the actionable widgets of the current state **/

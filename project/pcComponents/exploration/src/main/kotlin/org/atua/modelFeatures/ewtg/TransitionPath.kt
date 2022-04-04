@@ -16,13 +16,17 @@ import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractTransition
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.PredictedAbstractState
+import org.atua.modelFeatures.dstg.VirtualAbstractState
+import org.atua.modelFeatures.helper.Goal
 import org.atua.modelFeatures.helper.PathFindingHelper
 import kotlin.collections.HashMap
+import kotlin.math.log10
+import kotlin.math.log2
 
 class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.PathType, val destination: AbstractState) {
     val path: HashMap<Int, AbstractTransition> = HashMap()
     var reachabilityScore: Double = 1.0
-    val goal = ArrayList<Input>()
+    val goal = ArrayList<Goal>()
     fun getFinalDestination(): AbstractState{
         return destination
     }
@@ -35,7 +39,7 @@ class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.Pa
         return false
     }
 
-    fun cost(start: Int=0): Double {
+    fun cost(start: Int=0, final:Boolean): Double {
         var cost = 0.0
         var baseCost = 0.0
         path.values.drop(start).forEach {
@@ -56,18 +60,30 @@ class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.Pa
                /* val effectiveness =  it.source.abstractActionsEffectivenss[it.abstractAction]
                 if (effectiveness != null)
                     finalEffectiveness = finalEffectiveness + effectiveness*/
+            } else if (it.source.guiStates.isEmpty()) {
+                val reachPb = 0.5
+                finalReachPb  = finalReachPb * reachPb
             }
         }
         val failurePb = 1.0 - finalReachPb
-        if (goal.isNotEmpty() && destination is PredictedAbstractState) {
-            val avgProb = goal.intersect(destination.getAvailableInputs()).map { destination.getAbstractActionsWithSpecificInputs(it) }
-                .flatten().map { destination.abstractActionsProbability[it]?:0.0 }.maxOrNull()?:0.0
+        if (final && goal.isNotEmpty() && destination is PredictedAbstractState) {
+            val destinationAvailableActions = goal.map {
+                if (it.abstractAction != null) {
+                    arrayListOf(it.abstractAction!!)
+                } else {
+                    val abstractActions = destination.getAbstractActionsWithSpecificInputs(it.input!!)
+                    ArrayList(abstractActions)
+                }
+            }.flatten().distinct()
+            val avgProb = destinationAvailableActions.map { destination.abstractActionsProbability[it]?:0.0 }.maxOrNull()?:0.0
             cost = baseCost+ (baseCost/2 * (1.0 - (avgProb*finalReachPb)))
         } else {
             cost = baseCost + (baseCost/2 * failurePb)
         }
-
-        val finalCost = maxOf(baseCost, cost/finalEffectiveness)
+        if (final && destination !is VirtualAbstractState && destination !is PredictedAbstractState) {
+            finalEffectiveness = finalEffectiveness+ log10(destination.getUnExercisedActions2(null).size.toDouble())
+        }
+        val finalCost = cost/finalEffectiveness
         return finalCost
     }
 
@@ -111,7 +127,10 @@ class PathTraverser (val transitionPath: TransitionPath) {
             return false
 /*        if (nextAbstractTransition!!.guardEnabled)
             return false*/
-        if (!nextAction.isWidgetAction()) {
+        if (!nextAction.isWidgetAction() ) {
+            if (nextAbstractTransition.source is PredictedAbstractState) {
+                return true
+            }
             if (currentAppState.isOpeningKeyboard != nextAbstractTransition.source.isOpeningKeyboard)
                 return false
             if (currentAppState.isOpeningMenus != nextAbstractTransition.source.isOpeningMenus)

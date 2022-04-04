@@ -49,7 +49,7 @@ object UiHierarchy : UiParser() {
 					.forEach{ w: DisplayedWindow ->
 			//windows.forEach {  w: DisplayedWindow ->
 				//Try considering Launcher elements
-			if (w.isExtracted() /*|| !w.isExtracted()*/) {  // for now we are not interested in the Launcher elements
+			if (w.isExtracted()) {  // for now we are not interested in the Launcher elements
 					w.area = LinkedList<Rect>().apply { w.initialArea.forEach { add(it) } }
 					if(w.rootNode == null) Log.w(LOGTAG,"ERROR root should not be null (window=$w)")
 					check(w.rootNode != null) {"if extraction is enabled we have to have a rootNode"}

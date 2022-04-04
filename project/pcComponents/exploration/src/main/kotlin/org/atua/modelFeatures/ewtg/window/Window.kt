@@ -28,6 +28,8 @@ abstract class Window(var classType: String,
                       val isRuntimeCreated: Boolean,
                       baseModel: Boolean)
 {
+    var ignored: Boolean = false
+
     //var activityClass = ""
     val widgets = hashSetOf<EWTGWidget>()
     val inputs = hashSetOf<Input>()
@@ -37,6 +39,8 @@ abstract class Window(var classType: String,
     var portraitKeyboardDimension: Rectangle = Rectangle.empty()
     var landscapeKeyboardDimension: Rectangle = Rectangle.empty()
     val windowRuntimeIds = HashSet<String>()
+
+    var meaningfullScore = 200
     init {
         if (!baseModel)
             WindowManager.instance.updatedModelWindows.add(this)

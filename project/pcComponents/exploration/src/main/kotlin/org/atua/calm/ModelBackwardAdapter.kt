@@ -540,8 +540,10 @@ class ModelBackwardAdapter {
                     data = baseTransition.data
             )
             // updatedAbstractState.increaseActionCount2(updatedAbstractAction,false)
-            newAbstractTransition.dependentAbstractStates.addAll(dependendAbstractStates)
-            newAbstractTransition.guardEnabled = baseTransition.guardEnabled
+            if (dependendAbstractStates.isNotEmpty()) {
+                newAbstractTransition.dependentAbstractStates.addAll(dependendAbstractStates)
+                newAbstractTransition.guardEnabled = baseTransition.guardEnabled
+            }
             dstg.add(newAbstractTransition.source, newAbstractTransition.dest, newAbstractTransition)
             newAbstractTransition.userInputs.addAll(baseTransition.userInputs)
             if (newAbstractTransition.source != newAbstractTransition.dest
@@ -557,8 +559,10 @@ class ModelBackwardAdapter {
             backwardEquivalentAbstractTransitionMapping[newAbstractTransition]!!.add(baseTransition)
         } else {
             // copy additional information
-            existingAbstractTransition.guardEnabled = baseTransition.guardEnabled
-            existingAbstractTransition.dependentAbstractStates.addAll(dependendAbstractStates)
+            if (dependendAbstractStates.isNotEmpty()) {
+                existingAbstractTransition.guardEnabled = baseTransition.guardEnabled
+                existingAbstractTransition.dependentAbstractStates.addAll(dependendAbstractStates)
+            }
             val possiblyCoveredUpdatedMethods = baseTransition.methodCoverage.filter { atuamf.statementMF!!.isModifiedMethod(it) }
             existingAbstractTransition.modifiedMethods.putAll(possiblyCoveredUpdatedMethods.associateWith { false })
             val inputs = updatedAbstractState.getInputsByAbstractAction(updatedAbstractAction)

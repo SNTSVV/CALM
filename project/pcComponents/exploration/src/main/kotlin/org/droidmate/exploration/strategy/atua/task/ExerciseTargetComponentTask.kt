@@ -327,7 +327,7 @@ class ExerciseTargetComponentTask private constructor(
         val unexercisedInputs = currentAbstractState.getAvailableInputs().filter {
             it.exerciseCount == 0
                     && it.eventType.isWidgetEvent()}
-        if (unexercisedInputs.isEmpty()
+        if (unexercisedInputs.isNotEmpty()
             && atuaStrategy.phaseStrategy is PhaseTwoStrategy
             && unexercisedInputs.intersect(eventList).isNotEmpty()
             && randomBudget>0) {
@@ -412,7 +412,8 @@ class ExerciseTargetComponentTask private constructor(
         fillingData = false
         if (chosenAbstractAction!=null)
         {
-            log.info("Exercise Event: ${chosenAbstractAction!!.actionType}")
+            val input = currentAbstractState.getInputsByAbstractAction(chosenAbstractAction!!)
+            log.info("Exercise Event: $input")
             var chosenWidget: Widget? = null
             if (chosenAbstractAction!!.attributeValuationMap!=null)
             {

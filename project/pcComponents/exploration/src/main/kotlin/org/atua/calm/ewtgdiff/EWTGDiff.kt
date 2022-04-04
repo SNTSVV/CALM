@@ -290,7 +290,7 @@ class EWTGDiff private constructor(){
                     existingInputInUpdateVers.modifiedMethodStatement.clear()
                 }*/
                 val uncoveredHanndlers = existingInputInUpdateVers.eventHandlers.subtract(oldInput.eventHandlers)
-                if (uncoveredHanndlers.isNotEmpty()) {
+                if (uncoveredHanndlers.isNotEmpty() && oldInput.exercisedInThePast) {
                     val remainHandlers = uncoveredHanndlers.filter { atuamf.statementMF!!.isModifiedMethod(it) }
                     existingInputInUpdateVers.eventHandlers.clear()
                     existingInputInUpdateVers.eventHandlers.addAll(remainHandlers)
@@ -304,8 +304,8 @@ class EWTGDiff private constructor(){
                 }
                 existingInputInUpdateVers.coveredMethods.putAll(oldInput.coveredMethods.keys.associateWith { false })
                 val beforeCnt = existingInputInUpdateVers.modifiedMethods.size
-                val reachableModifiedMethods = existingInputInUpdateVers.eventHandlers.map { handler->
-                    atuamf.modifiedMethodWithTopCallers.filter { it.value.contains(handler) }.keys
+                val reachableModifiedMethods = existingInputInUpdateVers.coveredMethods.map { handler->
+                    atuamf.modifiedMethodWithTopCallers.filter { it.value.contains(handler.key) }.keys
                 }.flatten().distinct()
                 val unreachableMethods = existingInputInUpdateVers.modifiedMethods.keys.subtract(reachableModifiedMethods)
                 unreachableMethods.forEach {
@@ -496,8 +496,8 @@ class EWTGDiff private constructor(){
             }
             existingInputInUpdateVers.eventHandlers.addAll(oldInput.eventHandlers)
             val beforeCnt = existingInputInUpdateVers.modifiedMethods.size
-            val reachableModifiedMethods = existingInputInUpdateVers.eventHandlers.map { handler ->
-                atuamf.modifiedMethodWithTopCallers.filter { it.value.contains(handler) }.keys
+            val reachableModifiedMethods = existingInputInUpdateVers.coveredMethods.map { handler ->
+                atuamf.modifiedMethodWithTopCallers.filter { it.value.contains(handler.key) }.keys
             }.flatten().distinct()
             val unreachableMethods = existingInputInUpdateVers.modifiedMethods.keys.subtract(reachableModifiedMethods)
             unreachableMethods.forEach {

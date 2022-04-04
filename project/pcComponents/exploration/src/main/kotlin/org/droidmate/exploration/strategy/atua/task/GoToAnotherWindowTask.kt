@@ -3,7 +3,6 @@ package org.droidmate.exploration.strategy.atua.task
 import kotlinx.coroutines.runBlocking
 import org.atua.calm.ModelBackwardAdapter
 import org.atua.calm.modelReuse.ModelVersion
-import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
@@ -15,7 +14,6 @@ import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.PathTraverser
 import org.atua.modelFeatures.ewtg.TransitionPath
 import org.atua.modelFeatures.ewtg.WindowManager
-import org.atua.modelFeatures.ewtg.window.Dialog
 import org.atua.modelFeatures.ewtg.window.Window
 import org.atua.modelFeatures.helper.PathConstraint
 import org.atua.modelFeatures.helper.PathFindingHelper
@@ -79,15 +77,15 @@ open class GoToAnotherWindowTask constructor(
             it.path.values.all { it.abstractAction.actionType != AbstractActionType.RESET_APP }
         }
         if (notIncludeResetPaths.isEmpty())
-            currentPath = possiblePaths.random()
+            currentPath = possiblePaths.minByOrNull { it.cost(final = true) }!!
         else {
             val notIncludeLaunchPaths = notIncludeResetPaths.filter {
                 it.path.values.all { it.abstractAction.actionType != AbstractActionType.LAUNCH_APP }
             }
             if (notIncludeLaunchPaths.isEmpty())
-                currentPath = notIncludeResetPaths.random()
+                currentPath = notIncludeResetPaths.minByOrNull { it.cost(final = true) }!!
             else
-                currentPath = notIncludeLaunchPaths.random()
+                currentPath = notIncludeLaunchPaths.minByOrNull { it.cost(final = true) }!!
         }
         //  currentEdge = null
         pathTraverser = PathTraverser(currentPath!!)
@@ -120,11 +118,7 @@ open class GoToAnotherWindowTask constructor(
             return true
         val currentAppState = atuaMF.getAbstractState(currentState)!!
 
-        if (isWindowAsTarget && currentAppState.window == destWindow) {
-            log.info("Reached destination.")
-            succeededCount++
-            return true
-        }
+
         if (isFillingText)
             return false
         //if app reached the final destination
@@ -137,27 +131,38 @@ open class GoToAnotherWindowTask constructor(
             }
         }
         //if currentNode is expectedNextNode
-        if (isExploration) {
-            if (destWindow==null || currentAppState.window == destWindow) {
-                if (currentAppState.getUnExercisedActions(currentState, atuaMF).filter{it.isWidgetAction()}.isNotEmpty()) {
-                    log.info("Reached destination.")
-                    succeededCount++
-                    return true
-                }
-            }
-        }
+
         if (expectedNextAbState != null) {
-            val lastTransition = pathTraverser!!.getCurrentTransition()!!
             if (!isReachExpectedState(currentState)) {
+                val lastTransition = pathTraverser!!.getCurrentTransition()!!
                 val prevState = atuaMF.appPrevState!!
                 val prevAppState = atuaMF.getAbstractState(prevState)
                 val lastAbstractAction = lastTransition.abstractAction
                 val abstractStateStacks = atuaMF.getAbstractStateStack()
 //                log.debug("Fail to reach $expectedNextAbState")
                 addIncorrectPath(currentAppState)
+                if (isWindowAsTarget && currentAppState.window == destWindow) {
+                    log.info("Reached destination.")
+                    succeededCount++
+                    return true
+                }
+                if (isExploration) {
+                    if (destWindow==null || currentAppState.window == destWindow) {
+                        if (currentAppState.getUnExercisedActions(currentState, atuaMF).filter{it.isWidgetAction()}.isNotEmpty()) {
+                            log.info("Reached destination.")
+                            succeededCount++
+                            return true
+                        }
+                    }
+                }
                 if (pathTraverser!!.transitionPath.goal.isNotEmpty()) {
                     val goal = pathTraverser!!.transitionPath.goal
-                    if (currentAppState.getAvailableInputs().intersect(goal).isNotEmpty()) {
+                    if (goal.any { if (it.abstractAction != null) {
+                            currentAppState.getAvailableActions(null).contains(it.abstractAction)
+                        } else {
+                            currentAppState.getAvailableInputs().contains(it.input)
+                        }
+                        }) {
                         log.info("Reached destination.")
                         succeededCount++
                         return true
@@ -165,26 +170,29 @@ open class GoToAnotherWindowTask constructor(
                 }
                 val nextAbstractTransition = pathTraverser!!.getNextTransition()
                 val pathType = pathTraverser!!.transitionPath.pathType
-                if (nextAbstractTransition!=null) {
+                /*if (nextAbstractTransition!=null) {
                     if (nextAbstractTransition.source.window == currentAppState.window) {
                         if (pathTraverser!!.canContinue(currentAppState)) {
                             return false
                         }
                     }
-                }
+                }*/
                 val transitionPaths = ArrayList<TransitionPath>()
-                val finalTarget = if (currentPath!!.getFinalDestination() !is PredictedAbstractState) {
+                var finalTarget = if (currentPath!!.getFinalDestination() !is PredictedAbstractState) {
                     if (AbstractStateManager.INSTANCE.ABSTRACT_STATES.contains(currentPath!!.getFinalDestination()))
                         currentPath!!.getFinalDestination()
                     else
                         AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.hashCode == currentPath!!.getFinalDestination().hashCode } }
                 else
                     AbstractStateManager.INSTANCE.getVirtualAbstractState(currentPath!!.getFinalDestination().window)
+                if (finalTarget == null)
+                    AbstractStateManager.INSTANCE.getVirtualAbstractState(currentPath!!.getFinalDestination().window)
 //                val minCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!!)
-                val minCost = currentPath!!.cost()
+                val maxCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!!,false)
                 if (finalTarget != null) {
                     val pathConstraint = HashMap<PathConstraint,Boolean>()
-                    pathConstraint.put(PathConstraint.INCLUDE_RESET,includeResetAction)
+                    pathConstraint.put(PathConstraint.INCLUDE_RESET,false)
+                    pathConstraint.put(PathConstraint.INCLUDE_LAUNCH,false)
                     ProbabilityBasedPathFinder.findPathToTargetComponent(
                         currentState = currentState,
                         root = currentAppState,
@@ -196,7 +204,7 @@ open class GoToAnotherWindowTask constructor(
                         pathType = currentPath!!.pathType,
                         goalsByTarget = mapOf(Pair(finalTarget, pathTraverser!!.transitionPath.goal)),
                         windowAsTarget = (finalTarget is VirtualAbstractState && pathTraverser!!.transitionPath.goal.isEmpty()),
-                        maxCost = minCost,
+                        maxCost = maxCost,
                         abandonedAppStates = emptyList(),
                         constraints = pathConstraint
                     )
@@ -238,8 +246,15 @@ open class GoToAnotherWindowTask constructor(
                 }
                 return reroutePath(currentState, currentAppState)
             } else {
+                val lastTransition = pathTraverser!!.getCurrentTransition()!!
                 actionTryCount = 0
                 expectedNextAbState = lastTransition.dest
+                if (expectedNextAbState != currentAppState
+//                    && expectedNextAbState!!.hashCode != currentAppState.hashCode
+                    && expectedNextAbState !is PredictedAbstractState
+                    && expectedNextAbState !is VirtualAbstractState) {
+                    addIncorrectPath(currentAppState)
+                }
                 if (pathTraverser!!.isEnded()) {
                     log.info("Reached destination.")
                     succeededCount++
@@ -247,7 +262,13 @@ open class GoToAnotherWindowTask constructor(
                 }
                 if (pathTraverser!!.transitionPath.goal.isNotEmpty()) {
                     val goal = pathTraverser!!.transitionPath.goal
-                    if (currentAppState.getAvailableInputs().intersect(goal).isNotEmpty()) {
+                    if (goal.any{ if (it.abstractAction != null) {
+                        currentAppState.getAvailableActions(null).contains(it.abstractAction)
+                    } else {
+                        currentAppState.getAvailableInputs().contains(it.input)
+                        }
+                    }
+                    ) {
                         log.info("Reached destination.")
                         succeededCount++
                         return true
@@ -292,10 +313,12 @@ open class GoToAnotherWindowTask constructor(
                     AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.hashCode == currentPath!!.getFinalDestination().hashCode } }
             else
                 AbstractStateManager.INSTANCE.getVirtualAbstractState(currentPath!!.getFinalDestination().window)
-            val minCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!!)
+            val maxCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!!,false)
             if (finalTarget != null) {
                 val pathConstraints = HashMap<PathConstraint, Boolean>()
                 pathConstraints.put(PathConstraint.INCLUDE_RESET, false)
+                pathConstraints.put(PathConstraint.INCLUDE_LAUNCH, false)
+
                 ProbabilityBasedPathFinder.findPathToTargetComponent(
                     currentState = currentState,
                     root = currentAppState,
@@ -307,7 +330,7 @@ open class GoToAnotherWindowTask constructor(
                     pathType = currentPath!!.pathType,
                     goalsByTarget = mapOf(Pair(finalTarget, currentPath!!.goal)),
                     windowAsTarget = (currentPath!!.destination is VirtualAbstractState && currentPath!!.goal.isEmpty()),
-                    maxCost = minCost,
+                    maxCost = maxCost,
                     abandonedAppStates = emptyList(),
                     constraints = pathConstraints
                     )
@@ -335,10 +358,16 @@ open class GoToAnotherWindowTask constructor(
             log.debug("Retry-time: $retryTimes")
             identifyPossiblePaths(currentState, true)
             if (possiblePaths.isNotEmpty() ) {
-                val minCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!! + 1)
-                if (saveBudget && !possiblePaths.any { it.cost() <= minCost }) {
+                val maxCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!! + 1,true)
+                if (saveBudget && !possiblePaths.any { it.cost(final = true) <= maxCost }) {
                     log.debug("Fail to reach destination.")
-                    failedCount
+                    currentPath!!.goal.forEach {
+                        if (it.input!=null)
+                            ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
+                        else
+                            ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction!!)
+                    }
+                    failedCount++
                     return true
                 }
                 initialize(currentState)
@@ -363,6 +392,12 @@ open class GoToAnotherWindowTask constructor(
                 return false
             }
         }*/
+        currentPath!!.goal.forEach {
+            if (it.input!=null)
+                ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
+            else
+                ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction!!)
+        }
         log.debug("Fail to reach destination.")
         failedCount++
         return true
@@ -374,7 +409,8 @@ open class GoToAnotherWindowTask constructor(
         var expectedAbstractState = pathTraverser!!.getCurrentTransition()!!.dest
         if (expectedAbstractState.hashCode == currentAppState.hashCode)
             return true
-        if (pathTraverser!!.isEnded() && expectedAbstractState.isRequestRuntimePermissionDialogBox)
+        if (pathTraverser!!.isEnded()
+            && expectedAbstractState.isRequestRuntimePermissionDialogBox)
             return true
         if (expectedAbstractState.isRequestRuntimePermissionDialogBox) {
             pathTraverser!!.next()
@@ -392,18 +428,32 @@ open class GoToAnotherWindowTask constructor(
             if (expectedAbstractState.window == currentAppState.window
             ) {
                 val currentInputs = currentAppState.getAvailableInputs()
-                if  (isWindowAsTarget || pathTraverser!!.transitionPath.goal.isEmpty() || currentInputs.intersect(pathTraverser!!.transitionPath.goal)
-                        .isNotEmpty()
+                if  (isWindowAsTarget
+                    || pathTraverser!!.transitionPath.goal.isEmpty()
+                    || pathTraverser!!.transitionPath.goal.any {
+                        if (it.abstractAction != null) {
+                            currentAppState.getAvailableActions(null).contains(it.abstractAction)
+                        } else {
+                            currentAppState.getAvailableInputs().contains(it.input)
+                        }
+                    }
                 ) {
                     return true
                 }
+                val expectedInputsAsGoals = expectedAbstractState.getAvailableInputs().intersect(pathTraverser!!.transitionPath.goal)
+                return false
             }
             return false
         }
         if (expectedAbstractState is PredictedAbstractState) {
             if (pathTraverser!!.transitionPath.goal.isNotEmpty()) {
                 val goal = pathTraverser!!.transitionPath.goal
-                if (currentAppState.getAvailableInputs().intersect(goal).isNotEmpty())
+                if (goal.any { if (it.abstractAction != null) {
+                        currentAppState.getAvailableActions(null).contains(it.abstractAction)
+                    } else {
+                        currentAppState.getAvailableInputs().contains(it.input)
+                    }
+                })
                     return true
             }
         }
@@ -437,12 +487,13 @@ open class GoToAnotherWindowTask constructor(
                 break
             }
             if (expectedAbstractState1 is VirtualAbstractState) {
-                if (expectedAbstractState.window == currentAppState.window) {
+                if (expectedAbstractState1.window == currentAppState.window) {
                     reached = true
                     break
                 }
             } else if (expectedAbstractState1 is PredictedAbstractState) {
-                if (tmpPathTraverser.canContinue(currentAppState)) {
+                if (expectedAbstractState1.window == currentAppState.window
+                    && tmpPathTraverser.canContinue(currentAppState)) {
                     reached = true
                     break
                 }

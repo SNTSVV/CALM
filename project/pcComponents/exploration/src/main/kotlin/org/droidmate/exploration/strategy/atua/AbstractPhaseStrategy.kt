@@ -11,6 +11,7 @@ import org.atua.modelFeatures.ewtg.window.Dialog
 import org.atua.modelFeatures.ewtg.window.Launcher
 import org.atua.modelFeatures.ewtg.window.OutOfApp
 import org.atua.modelFeatures.ewtg.window.Window
+import org.atua.modelFeatures.helper.Goal
 import org.atua.modelFeatures.helper.PathConstraint
 import org.atua.modelFeatures.helper.PathFindingHelper
 import org.atua.modelFeatures.helper.ProbabilityBasedPathFinder
@@ -99,7 +100,7 @@ abstract class AbstractPhaseStrategy(
         val currentAbstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)
         if (currentAbstractState == null)
             return transitionPaths
-        val goalByAbstractState = HashMap<AbstractState, List<Input>>()
+        val goalByAbstractState = HashMap<AbstractState, List<Goal>>()
         val stateWithScores = HashMap<AbstractState, Double>()
         var targetStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
             it.window == targetWindow
@@ -110,35 +111,42 @@ abstract class AbstractPhaseStrategy(
                     || !AbstractStateManager.INSTANCE.unreachableAbstractState.contains(it))
                     && it != currentAbstractState
                     && (it is VirtualAbstractState ||
-                    (it.getUnExercisedActions(null,atuaMF).isNotEmpty()))
+                    (it.getUnExercisedActions(null,atuaMF).filter { !it.isCheckableOrTextInput() }.isNotEmpty()))
         }.toHashSet()
         if (explore) {
             targetStates.removeIf {
                 it is VirtualAbstractState
             }
 
-            val unexercisedInputs1 = ArrayList<Input>()
-            val unexercisedInputs2 = ArrayList<Input>()
-            val canExploreAppStates1 = targetStates.associateWith { it.getUnExercisedActions(null, atuaMF)}.filter { it.value.isNotEmpty() }
+            var unexercisedInputs1 = ArrayList<Goal>()
+            var unexercisedInputs2 = ArrayList<Goal>()
+            val canExploreAppStates1 = targetStates.associateWith { it.getUnExercisedActions(null, atuaMF).filter { !it.isCheckableOrTextInput() && it.isWidgetAction()}}.filter { it.value.isNotEmpty() }
             if (canExploreAppStates1.isNotEmpty()) {
                 canExploreAppStates1.forEach { s, actions ->
-                    val inputs = actions.map { s.getInputsByAbstractAction(it) }.flatten().distinct()
 //                    unexercisedInputs1.addAll(inputs.filter { it.exerciseCount==0 })
-                    unexercisedInputs2.addAll(inputs)
+                    actions.forEach {
+                        if (!ProbabilityBasedPathFinder.disableAbstractActions.contains(it))
+                            unexercisedInputs2.add(Goal(input = null,abstractAction = it))
+                    }
+
 
                 }
             } else {
-                val canExploreAppStates2 = targetStates.associateWith { it.getUnExercisedActions(null, atuaMF)}.filter { it.value.isNotEmpty() }
+                val canExploreAppStates2 = targetStates.associateWith { it.getUnExercisedActions(null, atuaMF).filter { !it.isCheckableOrTextInput() && it.isWidgetAction()}}.filter { it.value.isNotEmpty() }
                 canExploreAppStates2.forEach { s, actions ->
-                    val inputs = actions.map { s.getInputsByAbstractAction(it) }.flatten().distinct()
+//                    val inputs = actions.map { s.getInputsByAbstractAction(it) }.flatten().distinct()
 //                    unexercisedInputs1.addAll(inputs.filter { it.exerciseCount==0 })
-                    unexercisedInputs2.addAll(inputs)
+                    actions.forEach {
+                        if (!ProbabilityBasedPathFinder.disableAbstractActions.contains(it))
+                            unexercisedInputs2.add(Goal(input = null,abstractAction = it))
+                    }
                 }
             }
-
+            unexercisedInputs1 = ArrayList(unexercisedInputs1.distinct())
+            unexercisedInputs2 = ArrayList(unexercisedInputs2.distinct())
             if (unexercisedInputs1.isNotEmpty()) {
                 val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window = targetWindow)!!
-                goalByAbstractState.put(virtualAbstractState, unexercisedInputs1.distinct())
+                goalByAbstractState.put(virtualAbstractState, unexercisedInputs1)
                 stateWithScores.put(virtualAbstractState, 1.0)
                 getPathToStatesBasedOnPathType(
                     pathType,
@@ -147,7 +155,7 @@ abstract class AbstractPhaseStrategy(
                     currentAbstractState,
                     currentState,
                     true,
-                    !explore,
+                    false,
                     goalByAbstractState,
                     maxCost,
                     emptyList(),
@@ -157,7 +165,7 @@ abstract class AbstractPhaseStrategy(
             if (transitionPaths.isEmpty()) {
                 if (unexercisedInputs2.isNotEmpty()) {
                     val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window = targetWindow)!!
-                    goalByAbstractState.put(virtualAbstractState, unexercisedInputs2.distinct())
+                    goalByAbstractState.put(virtualAbstractState, unexercisedInputs2)
                     stateWithScores.put(virtualAbstractState, 1.0)
                     getPathToStatesBasedOnPathType(
                         pathType,
@@ -166,7 +174,7 @@ abstract class AbstractPhaseStrategy(
                         currentAbstractState,
                         currentState,
                         true,
-                        !explore,
+                        false,
                         goalByAbstractState,
                         maxCost,
                         emptyList(),
@@ -206,7 +214,7 @@ abstract class AbstractPhaseStrategy(
         currentState: State<*>,
         shortest: Boolean = true,
         windowAsTarget: Boolean = false,
-        goalByAbstractState: Map<AbstractState, List<Input>>,
+        goalByAbstractState: Map<AbstractState, List<Goal>>,
         maxCost: Double,
         abandonedAppStates: List<AbstractState>,
         pathConstraints: Map<PathConstraint,Boolean>
@@ -242,7 +250,7 @@ abstract class AbstractPhaseStrategy(
         windowAsTarget: Boolean = false,
         pathCountLimitation: Int = 1,
         pathType: PathFindingHelper.PathType,
-        goalByAbstractState: Map<AbstractState, List<Input>>,
+        goalByAbstractState: Map<AbstractState, List<Goal>>,
         maxCost: Double,
         abandonedAppStates: List<AbstractState>,
         pathConstraints: Map<PathConstraint,Boolean>

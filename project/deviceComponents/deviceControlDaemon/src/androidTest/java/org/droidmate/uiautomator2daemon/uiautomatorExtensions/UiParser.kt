@@ -107,9 +107,9 @@ abstract class UiParser {
 		// In case of Citymapper, there is a transparent layer with children inside
 
 		var isTransparent = if (!isFocusable && !isClickable && !isLongClickable &&!isCheckable && !isScrollable  ) {
-			if (children.isEmpty())
+			if (!hasClickableDescendant1)
 				true
-			else if (!hasClickableDescendant1)
+			else if (children.isEmpty() && layoutViewClasses.contains(className))
 				true
 			else if (layoutViewClasses.contains(className))
 				true
@@ -186,7 +186,7 @@ abstract class UiParser {
 				enabled = isEnabled,
 				isInputField = isEditable || actionList.contains(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_TEXT),
 				isPassword = isPassword,
-				clickable = isClickable,
+				clickable = (isClickable || safeCharSeqToString(className).equals("android.widget.Button") ),
 				longClickable = isLongClickable,
 				checked = if (isCheckable) isChecked else null,
 				focused = if (isFocusable) isFocused else null,
@@ -209,6 +209,7 @@ abstract class UiParser {
 	"android.widget.GridLayout",
 	"android.widget.LinearLayout",
 	"android.widget.RelativeLayout")
+
 	private fun computeImgId(img: Bitmap?, b: Rectangle): Int {
 		if (img == null || b.isEmpty()) return 0
 		val subImg = Bitmap.createBitmap(b.width, b.height, Bitmap.Config.ARGB_8888)
@@ -265,7 +266,7 @@ abstract class UiParser {
 					ser.addAttribute("inputType", node.inputType)
 					ser.addAttribute("checkable", node.isCheckable)
 					ser.addAttribute("checked", node.isChecked)
-					ser.addAttribute("clickable", node.isClickable)
+					ser.addAttribute("clickable", (node.isClickable || node.className.equals("android.widget.Button") ))
 					ser.addAttribute("enabled", node.isEnabled)
 					ser.addAttribute("focusable", node.isFocusable)
 					ser.addAttribute("focused", node.isFocused)

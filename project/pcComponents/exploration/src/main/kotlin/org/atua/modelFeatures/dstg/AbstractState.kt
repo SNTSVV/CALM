@@ -441,7 +441,7 @@ open class AbstractState(
 
 
     override fun toString(): String {
-        return "AbstractState[${this.abstractStateId}]-${window}"
+        return "AbstractState[${this.abstractStateId}]-${window}-isKeyboardOpening${isOpeningKeyboard}-isMenuOpening:${isOpeningMenus}"
     }
 
 
@@ -664,6 +664,21 @@ open class AbstractState(
         return isSimilar1
     }
 
+    fun similarScore(comparedAppState: AbstractState): Double {
+        if (this == comparedAppState)
+            return 1.0
+        /*if (this.window != comparedAppState.window)
+            return 0.0*/
+        if (this.hashCode == comparedAppState.hashCode)
+            return 1.0
+        var diff = 0
+        val lv1Attributes1 = this.extractGeneralAVMs()
+        val lv1Attributes2 = comparedAppState.extractGeneralAVMs()
+        diff += lv1Attributes1.filter { !lv1Attributes2.contains(it) }.size
+        diff += lv1Attributes2.filter { !lv1Attributes1.contains(it) }.size
+        return 1.0-diff * 1.0 / (lv1Attributes1.size + lv1Attributes2.size)
+
+    }
 
     /**
      * write csv

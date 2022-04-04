@@ -39,6 +39,7 @@ import org.atua.modelFeatures.ewtg.window.OptionsMenu
 import org.atua.modelFeatures.ewtg.window.OutOfApp
 import org.atua.modelFeatures.ewtg.window.Window
 import org.droidmate.deviceInterface.exploration.Rectangle
+import org.droidmate.explorationModel.sanitize
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.BufferedReader
@@ -46,6 +47,7 @@ import java.io.FileReader
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
+import kotlin.collections.HashMap
 import kotlin.streams.toList
 
 class AppModelLoader {
@@ -492,7 +494,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             val prevWindow = WindowManager.instance.baseModelWindows.firstOrNull(){it.windowId == prevWindowId}?:WindowManager.instance.updatedModelWindows.firstOrNull(){it.windowId == prevWindowId}*/
             // val prevWindowAbstractStateId = data[6]
             // val prevWindowAbstractState = AbstractStateManager.instance.ABSTRACT_STATES.find { it.abstractStateId == prevWindowAbstractStateId }
-            val guiTransitionIds = data[12]
+            val guiTransitionIds = data[13]
             var isUsefullOnce = false
             if (guiTransitionIds.isBlank()) {
                 return
@@ -529,7 +531,39 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             }
             val handlers = splitCSVLineToField(data[8])
             val handlerIds = handlers.map { atuaMF.statementMF!!.getMethodId(it) }.filter { it != null }
-            val coveredMethods = splitCSVLineToField(data[11])
+
+            val userlikeInputs = data[9]
+            val userlikeInputList = ArrayList<HashMap<UUID,String>>()
+            if (userlikeInputs != "]" && userlikeInputs != "") {
+                for (s in data[9].split("},")) {
+                    val userlikeInputMap = HashMap<UUID, String>()
+                    val dictStr = s.trim('[').trim(']').trim(',').trim('{').trim('}')
+                    val dictElemStrs = dictStr.split("',")
+                    dictElemStrs.forEach {
+                        val dictElement = it.trim('\'')
+                        val dictSplit = dictElement.split(":'")
+                        val key = dictSplit[0].trim(':')
+                        if (key.matches(Regex("[(0-9|(a-f)]+-[(0-9|(a-f)]+-[(0-9|(a-f)]+-[(0-9|(a-f)]+-[(0-9|(a-f)]+"))) {
+                            if (dictSplit.size == 2) {
+                                val v = dictSplit[1].trim('\'').replace("<semicolon>", ";")
+                                    .replace("<newline>", "\\r\\n|\\r|\\n").replace("<comma>",",")
+                                userlikeInputMap.put(UUID.fromString(key), v)
+                            } else {
+                                userlikeInputMap.put(UUID.fromString(key), "")
+                            }
+                        } else {
+                            log.debug("$key does not match UUID")
+                        }
+
+                    }
+                    if (userlikeInputMap.isNotEmpty()) {
+                        userlikeInputList.add(userlikeInputMap)
+                    }
+                }
+            }
+
+
+            val coveredMethods = splitCSVLineToField(data[12])
             val coveredMethodIds = coveredMethods.map { atuaMF.statementMF!!.getMethodId(it) }.filter { it != null }
             val abstractTransition = sourceState.abstractTransitions.find {
                 it.abstractAction == abstractAction
@@ -548,8 +582,10 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                     modelVersion = ModelVersion.BASE
                 )
                 newAbstractTransition.isUsefullOnce = isUsefullOnce
-                newAbstractTransition.guardEnabled = guardEnabled
-                newAbstractTransition.dependentAbstractStates.addAll(dependentAbstractStates)
+                if (dependentAbstractStates.isNotEmpty()) {
+                    newAbstractTransition.guardEnabled = guardEnabled
+                    newAbstractTransition.dependentAbstractStates.addAll(dependentAbstractStates)
+                }
                 // atuaMF.dstg.updateAbstractActionEnability(newAbstractTransition,atuaMF)
                 newAbstractTransition.computeGuaranteedAVMs()
                 handlerIds.forEach {
@@ -564,8 +600,11 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                         currentState = null,
                         transitionId = null
                 )*/
+                newAbstractTransition.userInputs.addAll (userlikeInputList)
             }
-
+            else {
+                abstractTransition.userInputs.addAll(userlikeInputList)
+            }
 
         }
 
@@ -1141,7 +1180,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                     activity = classType,
                     isBaseModel = !isSameVersion
                 )
-                "FakeWindow" -> FakeWindow.getOrCreateNode(nodeId = windowId, isBaseModel = !isSameVersion)
+                "FakeWindow" -> FakeWindow.getOrCreateNode( isBaseModel = !isSameVersion)
                 "Launcher" -> Launcher.getOrCreateNode()
                 else -> throw Exception("Error windowType: $windowType")
             }
