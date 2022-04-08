@@ -111,7 +111,8 @@ abstract class AbstractPhaseStrategy(
                     || !AbstractStateManager.INSTANCE.unreachableAbstractState.contains(it))
                     && it != currentAbstractState
                     && (it is VirtualAbstractState ||
-                    (it.getUnExercisedActions(null,atuaMF).filter { !it.isCheckableOrTextInput() }.isNotEmpty()))
+                    (it.getUnExercisedActions(null,atuaMF).filter { action->
+                        !action.isCheckableOrTextInput(it) }.isNotEmpty()))
         }.toHashSet()
         if (explore) {
             targetStates.removeIf {
@@ -120,9 +121,13 @@ abstract class AbstractPhaseStrategy(
 
             var unexercisedInputs1 = ArrayList<Goal>()
             var unexercisedInputs2 = ArrayList<Goal>()
-            val canExploreAppStates1 = targetStates.associateWith { it.getUnExercisedActions(null, atuaMF).filter { !it.isCheckableOrTextInput() && it.isWidgetAction()}}.filter { it.value.isNotEmpty() }
-            if (canExploreAppStates1.isNotEmpty()) {
-                canExploreAppStates1.forEach { s, actions ->
+            val canExploreAppStatesWithAbstractActions1 = targetStates.associateWith {  it.getUnExercisedActions(currentState, atuaMF)
+                .filter { action ->
+                    !action.isCheckableOrTextInput(it) && action.isWidgetAction()
+                            && it.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
+                }}.filter { it.value.isNotEmpty() }
+            if (canExploreAppStatesWithAbstractActions1.isNotEmpty()) {
+                canExploreAppStatesWithAbstractActions1.forEach { s, actions ->
 //                    unexercisedInputs1.addAll(inputs.filter { it.exerciseCount==0 })
                     actions.forEach {
                         if (!ProbabilityBasedPathFinder.disableAbstractActions.contains(it))
@@ -130,16 +135,6 @@ abstract class AbstractPhaseStrategy(
                     }
 
 
-                }
-            } else {
-                val canExploreAppStates2 = targetStates.associateWith { it.getUnExercisedActions(null, atuaMF).filter { !it.isCheckableOrTextInput() && it.isWidgetAction()}}.filter { it.value.isNotEmpty() }
-                canExploreAppStates2.forEach { s, actions ->
-//                    val inputs = actions.map { s.getInputsByAbstractAction(it) }.flatten().distinct()
-//                    unexercisedInputs1.addAll(inputs.filter { it.exerciseCount==0 })
-                    actions.forEach {
-                        if (!ProbabilityBasedPathFinder.disableAbstractActions.contains(it))
-                            unexercisedInputs2.add(Goal(input = null,abstractAction = it))
-                    }
                 }
             }
             unexercisedInputs1 = ArrayList(unexercisedInputs1.distinct())

@@ -383,11 +383,11 @@ open class AbstractState(
                     && it.key.actionType != AbstractActionType.SEND_INTENT
         }.map { it.key })
         val widgetActionCounts = if (currentState != null) {
-            widget_WidgetGroupMap.values.filter { !it.isUserLikeInput() }.distinct()
+            widget_WidgetGroupMap.values.filter { !it.isUserLikeInput(this)  }.distinct()
                     .map { w -> w.getAvailableActionsWithExercisingCount() }
         } else {
             attributeValuationMaps
-                    .filter { !it.isUserLikeInput() }.map { w -> w.getAvailableActionsWithExercisingCount() }
+                    .filter { !it.isUserLikeInput(this) }.map { w -> w.getAvailableActionsWithExercisingCount() }
         }
         widgetActionCounts.forEach {
             val actions = it.filterNot {
@@ -408,7 +408,8 @@ open class AbstractState(
             }
         }
         unexcerisedActions.removeIf { abstractAction ->
-            inputMappings[abstractAction]?.any { it.isUseless==true }?:true
+            inputMappings[abstractAction]?.any { it.isUseless==true &&
+                    (!abstractAction.isWidgetAction() || it.exerciseCount>0)}?:true
         }
         return unexcerisedActions.toList()
     }

@@ -217,8 +217,12 @@ class RandomExplorationTask constructor(
 
     override fun chooseAction(currentState: State<*>): ExplorationAction? {
         executedCount++
+        atuaMF.isRandomExploration = true
         val currentAbstractState = atuaMF.getAbstractState(currentState)!!
-        val unexercisedActions = currentAbstractState.getUnExercisedActions(currentState,atuaMF).filter { !it.isCheckableOrTextInput() }
+        val unexercisedActions = currentAbstractState.getUnExercisedActions(currentState,atuaMF)
+            .filter {
+                !it.isCheckableOrTextInput(currentAbstractState)
+                    && currentAbstractState.getInputsByAbstractAction(it).any { it.meaningfulScore>0 } }
         val widgetActions1 = unexercisedActions.filter {
             it.attributeValuationMap != null
         }
@@ -239,35 +243,47 @@ class RandomExplorationTask constructor(
                 } else if(lockedWindow == null && widgetActions1.isNotEmpty()){
                     goToLockedWindowTask = null
                 } else if (!goToLockedWindowTask!!.isTaskEnd(currentState)) {
+                    atuaMF.isRandomExploration = false
                     return goToLockedWindowTask!!.chooseAction(currentState)
                 }
         }
         if (isCameraOpening(currentState)) {
+            atuaMF.isRandomExploration = false
             return dealWithCamera(currentState)
         }
         if (lockedWindow != null
             && lockedWindow != currentAbstractState.window) {
             /*dataFilled = false
             fillingData = false*/
+
             if ((!currentAbstractState.isRequireRandomExploration()
                 && !Helper.isOptionsMenuLayout(currentState))
                 || actionOnOutOfAppCount >= 5  // to avoid the case that we are in outOfApp too long
             ) {
                 if (currentAbstractState.isOpeningKeyboard) {
+                    atuaMF.isRandomExploration = false
                     return GlobalAction(actionType = ActionType.CloseKeyboard)
                 }
-                if (returnToLockedWindow(currentState)) return goToLockedWindowTask!!.chooseAction(currentState)
+                if (canReturnToLockedWindow(currentState)) {
+                    atuaMF.isRandomExploration = false
+                    return goToLockedWindowTask!!.chooseAction(currentState)
+                }
             }
             else if (currentAbstractState.isRequireRandomExploration() && randomInDialogCnt>10) {
                 if (currentAbstractState.window.inputs.all { it.witnessed && it.exerciseCount>0 }) {
-                    if (returnToLockedWindow(currentState))
+                    if (canReturnToLockedWindow(currentState)) {
+                        atuaMF.isRandomExploration = false
                         return goToLockedWindowTask!!.chooseAction(currentState)
-                    else
+                    }
+                    else {
+                        atuaMF.isRandomExploration = false
                         return ExplorationAction.pressBack()
+                    }
                 }
             }
         } else if (currentAbstractState.isRequireRandomExploration() && randomInDialogCnt>10) {
             if (currentAbstractState.window.inputs.all { it.witnessed && it.exerciseCount>0 }) {
+                atuaMF.isRandomExploration = false
                 return ExplorationAction.pressBack()
             }
         }
@@ -277,12 +293,15 @@ class RandomExplorationTask constructor(
                 dataFilled = false
                 fillingData = false
                 if (actionOnOutOfAppCount >= 11) {
+                    atuaMF.isRandomExploration = false
                     return atuaStrategy.eContext.resetApp()
                 }
                 if (actionOnOutOfAppCount >= 10) {
+                    atuaMF.isRandomExploration = false
                     return atuaStrategy.eContext.launchApp()
                 }
                 if (actionOnOutOfAppCount >= 5 || !shouldRandomExplorationOutOfApp(currentAbstractState,currentState)) {
+                    atuaMF.isRandomExploration = false
                     return ExplorationAction.pressBack()
                 }
             }
@@ -303,6 +322,7 @@ class RandomExplorationTask constructor(
                         || it.text.contains("Go to end")
                         || it.text.toLowerCase() == "accept and save settings"}
                 val choosenWidget = runBlocking {  getCandidates(candidates).random() }
+                atuaMF.isRandomExploration = false
                 return choosenWidget.click()
             }
         }
@@ -358,9 +378,11 @@ class RandomExplorationTask constructor(
         var action: ExplorationAction? = null
 
         if (fillingData) {
-            if (!fillDataTask.isTaskEnd(currentState))
+            if (!fillDataTask.isTaskEnd(currentState)) {
                 action = fillDataTask.chooseAction(currentState)
+            }
             if (action != null) {
+                atuaMF.isRandomExploration = false
                 return action
             } else {
                 fillingData = false
@@ -375,8 +397,10 @@ class RandomExplorationTask constructor(
                     fillingData = true
                     dataFilled = true
                     val action = fillDataTask.chooseAction(currentState)
-                    if (action != null)
+                    if (action != null) {
+                        atuaMF.isRandomExploration = false
                         return action
+                    }
                 }
             }
         }
@@ -449,13 +473,18 @@ class RandomExplorationTask constructor(
                     //randomAction = unexercisedActions.random()
                 }
         }
+
         if (randomAction == null) {
             if (unexercisedActions.any { it.attributeValuationMap != null }) {
                 val widgetActions = unexercisedActions.filter { it.attributeValuationMap != null }
                 randomAction =  widgetActions.random()
             }
         }
-
+        if (randomAction == null) {
+            if (currentAbstractState.rotation == Rotation.LANDSCAPE) {
+                randomAction = currentAbstractState.getAvailableActions(currentState).find { it.actionType == AbstractActionType.ROTATE_UI }
+            }
+        }
         if (randomAction == null) {
             if (!isPureRandom && !recentGoToExploreState
                 && canGoToUnexploredStates(
@@ -463,19 +492,21 @@ class RandomExplorationTask constructor(
                     currentState
                 )
             ) {
+                atuaMF.isRandomExploration = false
                 return goToLockedWindowTask!!.chooseAction(currentState)
             }
         }
 
         if (randomAction == null && currentAbstractState.isRequireRandomExploration()) {
             randomAction = trySwipeAction(currentAbstractState, randomAction)
-            val filter = currentAbstractState.getAvailableActions()
+            val filter = currentAbstractState.getAvailableActions(currentState)
                 .filter {
                     it.isWidgetAction()
-                            && !it.isCheckableOrTextInput()
+                            && !it.isCheckableOrTextInput(currentAbstractState)
                             && it.actionType != AbstractActionType.SWIPE
                 }
             if (randomAction == null && filter.isEmpty()) {
+                atuaMF.isRandomExploration = false
                 return ExplorationAction.pressBack()
             }
         }
@@ -488,14 +519,15 @@ class RandomExplorationTask constructor(
                         && it !is VirtualAbstractState
                         && it.guiStates.isNotEmpty()
                         && it.attributeValuationMaps.isNotEmpty()
-            }.map { it.getUnExercisedActions2(null)
+            }.map { appState ->
+                appState.getUnExercisedActions2(null)
                 .filter { it.isWidgetAction()
                         && !it.attributeValuationMap!!.getClassName().contains("WebView")
-                        && !it.isCheckableOrTextInput()}}.flatten().distinct()
+                        && !it.isCheckableOrTextInput(appState)}}.flatten().distinct()
             if (allExplorableAbstractActions.isNotEmpty()) {
                 val maxScore = allExplorableAbstractActions.maxByOrNull { it.meaningfulScore }!!
                 val unexercisedActions2 = currentAbstractState.getUnExercisedActions2(currentState)
-                    .filter {  !it.isCheckableOrTextInput() && it.isWidgetAction() }
+                    .filter {  !it.isCheckableOrTextInput(currentAbstractState) && it.isWidgetAction() && currentAbstractState.getInputsByAbstractAction(it).any { it.meaningfulScore>0 } }
                 if (unexercisedActions2.isNotEmpty() && unexercisedActions2.maxByOrNull { it.meaningfulScore }!!.meaningfulScore == maxScore.meaningfulScore) {
                     randomAction = unexercisedActions2.maxByOrNull { it.getScore() }
                 } else {
@@ -505,6 +537,7 @@ class RandomExplorationTask constructor(
                             currentState
                         )
                     ) {
+                        atuaMF.isRandomExploration = false
                         return goToLockedWindowTask!!.chooseAction(currentState)
                     }
                     randomAction = unexercisedActions2.maxByOrNull { it.getScore() }
@@ -523,11 +556,7 @@ class RandomExplorationTask constructor(
                 return goToLockedWindowTask!!.chooseAction(currentState)
             }
         }*/
-        if (randomAction == null) {
-            if (currentAbstractState.rotation == Rotation.LANDSCAPE) {
-                randomAction = currentAbstractState.getAvailableActions().find { it.actionType == AbstractActionType.ROTATE_UI }
-            }
-        }
+
         if (randomAction == null) {
             val unexercisedWindowActionsInAppState = currentAbstractState.getUnExercisedActions(currentState,atuaMF).filter {
                 !it.isWidgetAction()
@@ -542,7 +571,7 @@ class RandomExplorationTask constructor(
         }
         if (randomAction == null) {
             val unexercisedWidgetActionsInAppState = currentAbstractState.getAvailableActions(currentState).filter {
-                !it.isCheckableOrTextInput() && it.isWidgetAction() && it.actionType != AbstractActionType.SWIPE
+                !it.isCheckableOrTextInput(currentAbstractState) && it.isWidgetAction() && it.actionType != AbstractActionType.SWIPE
             }.filter { action -> !currentAbstractState.abstractTransitions.any {
                 it.abstractAction == action
                         && it.interactions.isNotEmpty() } }
@@ -553,7 +582,7 @@ class RandomExplorationTask constructor(
         if (randomAction == null) {
             if (random.nextDouble() < 0.05) {
                 recentGoToExploreState = false
-                val abstractActions = currentAbstractState.getAvailableActions().filter {
+                val abstractActions = currentAbstractState.getAvailableActions(currentState).filter {
                     !it.isWidgetAction() && !recentActions.contains(it) && !it.isLaunchOrReset()
                 }
                 if (abstractActions.isNotEmpty()) {
@@ -658,7 +687,7 @@ class RandomExplorationTask constructor(
 
     }
 
-    private fun returnToLockedWindow(currentState: State<*>): Boolean {
+    private fun canReturnToLockedWindow(currentState: State<*>): Boolean {
         goToLockedWindowTask = GoToAnotherWindowTask(
             atuaTestingStrategy = atuaStrategy,
             autautMF = atuaMF,
@@ -811,17 +840,17 @@ class RandomExplorationTask constructor(
         currentState: State<*>
     ): Boolean {
         if (!currentAbstractState.isRequireRandomExploration() && !Helper.isOptionsMenuLayout(currentState) && !recentGoToExploreState) {
-            var targetStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
-                it.window == currentAbstractState.window
-                        && it.ignored == false
-                        && it != currentAbstractState
-                        && it !is VirtualAbstractState
-                        && it.guiStates.isNotEmpty()
-                        && it.attributeValuationMaps.isNotEmpty()
-                        && it.getUnExercisedActions2(null)
+            var targetStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { appState ->
+                appState.window == currentAbstractState.window
+                        && appState.ignored == false
+                        && appState != currentAbstractState
+                        && appState !is VirtualAbstractState
+                        && appState.guiStates.isNotEmpty()
+                        && appState.attributeValuationMaps.isNotEmpty()
+                        && appState.getUnExercisedActions2(null)
                     .filter { it.isWidgetAction()
                             && !it.attributeValuationMap!!.getClassName().contains("WebView")
-                            && !it.isCheckableOrTextInput()}
+                            && !it.isCheckableOrTextInput(appState)}
                     .isNotEmpty()
             }.toHashSet()
             if (targetStates.isNotEmpty()) {

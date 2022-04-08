@@ -293,7 +293,8 @@ class PrepareContextTask constructor(
 
     private fun getUserLikeInputWidgets(currentState: State<*>): List<Widget> {
         val currentAbstractState = atuaMF.getAbstractState(currentState)!!
-        val userlikeInputAVMs = currentAbstractState.EWTGWidgetMapping.filter { it.value.isUserLikeInput }
+        val userlikeInputAVMs = currentAbstractState.EWTGWidgetMapping.filter {
+            it.value.isUserLikeInput && !it.value.verifiedNotUserlikeInput }
         val userlikeInputWidgets = userlikeInputAVMs.map {
             it.key.getGUIWidgets(currentState,currentAbstractState.window)
         }.flatten()

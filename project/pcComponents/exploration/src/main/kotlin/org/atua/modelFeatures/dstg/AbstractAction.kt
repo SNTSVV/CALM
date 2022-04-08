@@ -51,17 +51,14 @@ class AbstractAction private constructor (
         return actionType == AbstractActionType.LAUNCH_APP || actionType == AbstractActionType.RESET_APP
     }
 
-    fun isCheckableOrTextInput(): Boolean {
+    fun isCheckableOrTextInput(appState: AbstractState): Boolean {
         if (attributeValuationMap == null)
             return false
         if (attributeValuationMap.isInputField()) {
             return true
         }
-        val className = attributeValuationMap.getClassName()
-        return when(className) {
-            "android.widget.RadioButton", "android.widget.CheckBox", "android.widget.Switch", "android.widget.ToggleButton", "android.widget.CheckedTextView" -> true
-            else -> false
-        }
+        return attributeValuationMap.isUserLikeInput(appState)
+
     }
 
     fun isActionQueue(): Boolean {
@@ -116,6 +113,7 @@ class AbstractAction private constructor (
         newState: State<*>,
         prevState: State<*>,
         coverageIncreased: Boolean,
+        randomExploration: Boolean,
         atuaMF: ATUAMF
     ) {
         val actionId = lastInteraction.actionId
@@ -123,25 +121,46 @@ class AbstractAction private constructor (
 
         val structureUuid = atuaMF.stateStructureHashMap[newState.uid]
         val newAppState = atuaMF.getAbstractState(newState)!!
+        val prevAppState = atuaMF.getAbstractState(prevState)!!
+        val inputs = prevAppState.getInputsByAbstractAction(this)
 //        val unexploredActionableWidgets = atuaMF.actionCount.getUnexploredWidget(newState).filter { !Helper.isUserLikeInput(it) }
         val unexploredAbstractActions = newAppState.getUnExercisedActions(currentState = newState,atuaMF = atuaMF).filter {
-            !it.isCheckableOrTextInput() && it.isWidgetAction() }
+            !it.isCheckableOrTextInput(newAppState) && it.isWidgetAction() }
         if (coverageIncreased
 //            || atuaMF.stateVisitCount[structureUuid] == 1 )
             || (unexploredAbstractActions.isNotEmpty()
+                    && unexploredAbstractActions.map { newAppState.getInputsByAbstractAction(it) }.flatten().any { it.meaningfulScore>0 }
                     && atuaMF.abstractStateVisitCount[newAppState]==1
                     && newAppState.window !is OutOfApp
                     && newAppState.window !is Launcher)) {
             meaningfulScore += 50
-            window.meaningfullScore+=5
+
+            if (randomExploration) {
+                window.meaningfullScore+=5
+                inputs.forEach {
+                    it.meaningfulScore += 50
+                }
+            }
         }
         else if (prevState == newState || newState.isHomeScreen) {
             meaningfulScore -= 100
-            window.meaningfullScore -= 10
+
+            if(randomExploration) {
+                window.meaningfullScore -= 10
+                inputs.forEach {
+                    it.meaningfulScore -= 100
+                }
+            }
         }
         else {
             meaningfulScore -= 50
-            window.meaningfullScore -= 5
+
+            if (randomExploration) {
+                window.meaningfullScore -= 5
+                inputs.forEach {
+                    it.meaningfulScore -= 50
+                }
+            }
         }
     }
 

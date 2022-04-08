@@ -19,6 +19,8 @@ import org.atua.modelFeatures.dstg.PredictedAbstractState
 import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.modelFeatures.helper.Goal
 import org.atua.modelFeatures.helper.PathFindingHelper
+import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 import kotlin.math.log10
 import kotlin.math.log2
@@ -27,6 +29,7 @@ class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.Pa
     val path: HashMap<Int, AbstractTransition> = HashMap()
     var reachabilityScore: Double = 1.0
     val goal = ArrayList<Goal>()
+    val abstractStateStack = Stack<AbstractState>()
     fun getFinalDestination(): AbstractState{
         return destination
     }

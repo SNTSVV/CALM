@@ -474,7 +474,7 @@ class AbstractStateManager() {
             else
                 initWindowInputForAbstractState(abstractState, input)
         }
-        abstractState.getAvailableActions().forEach {
+        abstractState.getAvailableActions(guiState).forEach {
             if (!abstractState.isAbstractActionMappedWithInputs(it)) {
                 if (!it.isLaunchOrReset() && !it.isActionQueue()) {
                     Input.getOrCreateInputFromAbstractAction(abstractState, it,abstractState.modelVersion)
@@ -655,9 +655,9 @@ class AbstractStateManager() {
     private fun createAbstractActionsFromVirtualAbstractState(abstractState: AbstractState, guiState: State<*>?) {
         val similarAbstractStates = getSimilarAbstractStates(abstractState)
         similarAbstractStates.forEach { similarAbstractState ->
-            similarAbstractState.getAvailableActions().forEach { abstractAction ->
+            similarAbstractState.getAvailableActions(guiState).forEach { abstractAction ->
 //                val isTarget = similarAbstractState.targetActions.contains(abstractAction)
-                var existingAction = abstractState.getAvailableActions().find {
+                var existingAction = abstractState.getAvailableActions(guiState).find {
                     it == abstractAction
                 }
                 if (existingAction == null) {
@@ -1679,6 +1679,12 @@ class AbstractStateManager() {
         val old_newAbstractStates = HashMap<AbstractState, ArrayList<AbstractState>>()
         val recomputeGuistates = ArrayList<State<*>>()
         recomputeAbstractStates(oldAbstractStatesByWindow, recomputeGuistates, old_newAbstractStates)
+        oldAbstractStatesByWindow.keys.forEach {
+            it.resetMeaningfulScore()
+            it.inputs.forEach {
+                it.resetMeaningfulScore()
+            }
+        }
         old_newAbstractStates.values.flatten().distinct().map { it.getAvailableActions() }.flatten().distinct().forEach { action->
             action.reset()
             if (action.attributeValuationMap!=null)
@@ -2221,7 +2227,7 @@ class AbstractStateManager() {
                     abstractAction.actionType,
                     interaction, sourceState, sourceAbstractState, atuaMF
                 )
-                val availableAction = sourceAbstractState.getAvailableActions().find {
+                val availableAction = sourceAbstractState.getAvailableActions(sourceState).find {
                     it.equals(abstractAction)
                 }
                 if (availableAction == null) {
@@ -2289,7 +2295,13 @@ class AbstractStateManager() {
                 if (coverageIncrease == null)
                     coverageIncrease = 0
 
-                newAbstractionTransition.abstractAction.updateMeaningfulScore(interaction,sourceState,destState,coverageIncrease>0, atuaMF)
+                newAbstractionTransition.abstractAction.updateMeaningfulScore(
+                    interaction,
+                    sourceState,
+                    destState,
+                    coverageIncrease>0,
+                    atuaMF.randomInteractions.contains(interaction.actionId),
+                    atuaMF)
             }
             newAbstractionTransition.source.increaseActionCount2(newAbstractionTransition.abstractAction,false)
             addImplicitAbstractInteraction(destState, newAbstractionTransition, tracing,sourceState, destState, interaction, false)
@@ -2658,7 +2670,7 @@ class AbstractStateManager() {
             )
             if (parentAVS != null && parentAVS != abstractTransition.abstractAction.attributeValuationMap) {
                 if (prevAbstractState.attributeValuationMaps.contains(parentAVS)) {
-                    val itemAbstractAction = prevAbstractState.getAvailableActions().find {
+                    val itemAbstractAction = prevAbstractState.getAvailableActions(sourceState).find {
                         it.actionType == itemAction &&
                                 it.attributeValuationMap == parentAVS
                     }
@@ -2690,6 +2702,7 @@ class AbstractStateManager() {
                             destState,
                             sourceState,
                             coverageIncrease>0,
+                            atuamf.randomInteractions.contains(interaction.actionId),
                             atuaMF
                         )
                         //addImplicitAbstractInteraction(currentState, prevAbstractState, currentAbstractState, implicitInteraction, prevprevWindow, edgeCondition)

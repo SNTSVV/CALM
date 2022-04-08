@@ -369,8 +369,13 @@ class PhaseTwoStrategy(
                 virtualAbstractState = AbstractStateManager.INSTANCE.createVirtualAbstractState(window,appStates.first().activity,appStates.first().isHomeScreen)
             }
             val toExploreInputs = ArrayList<Goal>()
-            appStates.forEach {
-                it.getUnExercisedActions(null, atuaMF).filter { !it.isCheckableOrTextInput() && it.isWidgetAction() }.forEach { action ->
+            appStates.forEach { appState ->
+                val meaningfulAbstractActions = appState.getUnExercisedActions(currentState, atuaMF)
+                    .filter { action->
+                        !action.isCheckableOrTextInput(appState) && action.isWidgetAction()
+                                && appState.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
+                    }
+                meaningfulAbstractActions.forEach { action ->
                     if (!ProbabilityBasedPathFinder.disableAbstractActions.contains(action))
                         toExploreInputs.add(Goal(input = null,abstractAction = action))
                 }
@@ -495,7 +500,12 @@ class PhaseTwoStrategy(
             setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
-        if (currentAppState.getUnExercisedActions(currentState, atuaMF).isNotEmpty()
+        val meaningfulAbstractActions = currentAppState.getUnExercisedActions(currentState, atuaMF)
+            .filter {
+                !it.isCheckableOrTextInput(currentAppState) && it.isWidgetAction()
+                        && currentAppState.getInputsByAbstractAction(it).any { it.meaningfulScore > 0 }
+            }
+        if (meaningfulAbstractActions.isNotEmpty()
             || hasUnexploreWidgets(currentState)) {
             setRandomExploration(randomExplorationTask, currentState, currentAppState)
             return
@@ -596,7 +606,7 @@ class PhaseTwoStrategy(
     }
 
     private fun computeExerciseTestBudget(window: Window): Int {
-        val userlikeInputsCnt = window.widgets.filter { it.isUserLikeInput && it.witnessed }.size
+        val userlikeInputsCnt = window.widgets.filter { it.isUserLikeInput && it.witnessed && !it.verifiedNotUserlikeInput }.size
         val targetEvents =
             phase2TargetEvents.filter { it.key.sourceWindow == targetWindow && it.key.verifiedEventHandlers.isNotEmpty() }
         var targetEventCount = targetEvents.keys.sumBy {
@@ -662,15 +672,20 @@ class PhaseTwoStrategy(
             setRandomExplorationInTargetWindow(randomExplorationTask, currentState)
             return
         }
-        if (currentAppState.getUnExercisedActions(currentState, atuaMF).isNotEmpty()
+        val meaningfulAbstractActions = currentAppState.getUnExercisedActions(currentState, atuaMF)
+            .filter {
+                !it.isCheckableOrTextInput(currentAppState) && it.isWidgetAction()
+                        && currentAppState.getInputsByAbstractAction(it).any { it.meaningfulScore > 0 }
+            }
+        if (meaningfulAbstractActions.isNotEmpty()
             || hasUnexploreWidgets(currentState)) {
             setRandomExploration(randomExplorationTask, currentState, currentAppState)
             return
         }
-        /*if (goToAnotherNode.isAvailable(currentState)) {
+        if (goToAnotherNode.isAvailable(currentState)) {
             setGoToExploreState(goToAnotherNode, currentState)
             return
-        }*/
+        }
         setFullyRandomExploration(randomExplorationTask, currentState)
         return
     }
@@ -722,6 +737,16 @@ class PhaseTwoStrategy(
             setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
+        val meaningfulAbstractActions = currentAppState.getUnExercisedActions(currentState, atuaMF)
+            .filter {
+                !it.isCheckableOrTextInput(currentAppState) && it.isWidgetAction()
+                        && currentAppState.getInputsByAbstractAction(it).any { it.meaningfulScore > 0 }
+            }
+        if (meaningfulAbstractActions.isNotEmpty()
+            || hasUnexploreWidgets(currentState)) {
+            setRandomExploration(randomExplorationTask, currentState, currentAppState)
+            return
+        }
         if (goToAnotherNode.isAvailable(currentState)) {
             strategyTask = goToAnotherNode.also {
                 it.initialize(currentState)
@@ -753,6 +778,16 @@ class PhaseTwoStrategy(
                 return
             }
             setRandomExplorationInTargetWindow(randomExplorationTask, currentState)
+            return
+        }
+        val meaningfulAbstractActions = currentAppState.getUnExercisedActions(currentState, atuaMF)
+            .filter {
+                !it.isCheckableOrTextInput(currentAppState) && it.isWidgetAction()
+                        && currentAppState.getInputsByAbstractAction(it).any { it.meaningfulScore > 0 }
+            }
+        if (meaningfulAbstractActions.isNotEmpty()
+            || hasUnexploreWidgets(currentState)) {
+            setRandomExploration(randomExplorationTask, currentState, currentAppState)
             return
         }
         if (goToAnotherNode.isAvailable(currentState)) {
@@ -792,15 +827,18 @@ class PhaseTwoStrategy(
                 return
             }*/
         }
-
+        val meaningfulAbstractActions = currentAppState.getUnExercisedActions(currentState, atuaMF)
+            .filter {
+                !it.isCheckableOrTextInput(currentAppState) && it.isWidgetAction()
+                        && currentAppState.getInputsByAbstractAction(it).any { it.meaningfulScore > 0 }
+            }
+        if (meaningfulAbstractActions.isNotEmpty()) {
+            setRandomExploration(randomExplorationTask, currentState, currentAppState)
+            return
+        }
         if (!strategyTask!!.isTaskEnd(currentState)) {
             //Keep current task
             log.info("Continue go to the window")
-            return
-        }
-        if (currentAppState.getUnExercisedActions(currentState, atuaMF).filter { it.isWidgetAction() && !it.isCheckableOrTextInput() } .isNotEmpty()
-            || hasUnexploreWidgets(currentState)) {
-            setRandomExploration(randomExplorationTask, currentState, currentAppState)
             return
         }
         if (strategyTask is GoToAnotherWindowTask) {
@@ -862,6 +900,16 @@ class PhaseTwoStrategy(
                 includeResetApp =  true,
                 isExploration =  false))  {
             setGoToTarget(goToTargetNodeTask, currentState)
+            return
+        }
+        val meaningfulAbstractActions = currentAppState.getUnExercisedActions(currentState, atuaMF)
+            .filter {
+                !it.isCheckableOrTextInput(currentAppState) && it.isWidgetAction()
+                        && currentAppState.getInputsByAbstractAction(it).any { it.meaningfulScore > 0 }
+            }
+        if (meaningfulAbstractActions.isNotEmpty()
+            || hasUnexploreWidgets(currentState)) {
+            setRandomExploration(randomExplorationTask, currentState, currentAppState)
             return
         }
         if (goToAnotherNode.isAvailable(currentState)) {
@@ -937,7 +985,7 @@ class PhaseTwoStrategy(
                                      currentState: State<*>,
                                      currentAbstractState: AbstractState,
                                      stopWhenTestPathIdentified: Boolean = false,
-                                     lockWindow: Boolean = true) {
+                                     lockWindow: Boolean = false) {
         setRandomExplorationBudget(currentState)
         strategyTask = randomExplorationTask.also {
             it.initialize(currentState)

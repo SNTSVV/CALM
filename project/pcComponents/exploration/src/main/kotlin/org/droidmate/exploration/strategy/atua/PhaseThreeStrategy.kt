@@ -226,8 +226,13 @@ class PhaseThreeStrategy(
                 virtualAbstractState = AbstractStateManager.INSTANCE.createVirtualAbstractState(window,appStates.first().activity,appStates.first().isHomeScreen)
             }
             val toExploreInputs = ArrayList<Goal>()
-            appStates.forEach {
-                it.getUnExercisedActions(null, atuaMF).filter { !it.isCheckableOrTextInput() && it.isWidgetAction() }.forEach { action ->
+            appStates.forEach { appState ->
+                val meaningfulAbstractActions = appState.getUnExercisedActions(currentState, atuaMF)
+                    .filter { action->
+                        !action.isCheckableOrTextInput(appState) && action.isWidgetAction()
+                                && appState.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
+                    }
+                meaningfulAbstractActions.forEach { action ->
                     if (!ProbabilityBasedPathFinder.disableAbstractActions.contains(action))
                         toExploreInputs.add(Goal(input = null,abstractAction = action))
                 }
@@ -436,7 +441,8 @@ class PhaseThreeStrategy(
             setGoToRelatedWindow(goToAnotherNode, currentState)
             return
         }
-        if (hasUnexploreWidgets(currentState)) {
+        if (hasUnexploreWidgets(currentState) || currentAppState.getUnExercisedActions(atuaMF = atuaMF,currentState = currentState)
+                .filter { it.isWidgetAction() && !it.isCheckableOrTextInput(currentAppState)}.isNotEmpty()) {
             setRandomExploration(randomExplorationTask, currentState)
         }
         if (goToAnotherNode.isAvailable(currentState)) {
@@ -475,7 +481,13 @@ class PhaseThreeStrategy(
             log.info("Continue ${strategyTask!!.javaClass.name}")
             return
         }
-        if (hasUnexploreWidgets(currentState)) {
+        if (goToAnotherNode.isAvailable(currentState, relatedWindow!!,true, true, true,false)) {
+            setGoToRelatedWindow(goToAnotherNode, currentState)
+            return
+        }
+        if (hasUnexploreWidgets(currentState)
+            || currentAppState.getUnExercisedActions(atuaMF = atuaMF,currentState = currentState)
+                .filter { it.isWidgetAction() && !it.isCheckableOrTextInput(currentAppState)}.isNotEmpty()) {
             setRandomExploration(randomExplorationTask, currentState)
             phaseState = PhaseState.P3_GO_TO_RELATED_NODE
             return
@@ -604,7 +616,9 @@ class PhaseThreeStrategy(
                 setGoToRelatedWindow(goToAnotherNode, currentState)
                 return
             }
-            if (hasUnexploreWidgets(currentState)) {
+            if (hasUnexploreWidgets(currentState)
+                || currentAppState.getUnExercisedActions(atuaMF = atuaMF,currentState = currentState)
+                    .filter { it.isWidgetAction() && !it.isCheckableOrTextInput(currentAppState)}.isNotEmpty()) {
                 setRandomExploration(randomExplorationTask, currentState)
                 phaseState = PhaseState.P3_GO_TO_RELATED_NODE
                 return
@@ -691,7 +705,9 @@ class PhaseThreeStrategy(
             log.info("Continue ${strategyTask!!.javaClass.name}")
             return
         }
-        if (hasUnexploreWidgets(currentState)) {
+        if (hasUnexploreWidgets(currentState)
+            || currentAppState.getUnExercisedActions(atuaMF = atuaMF,currentState = currentState)
+                .filter { it.isWidgetAction() && !it.isCheckableOrTextInput(currentAppState)}.isNotEmpty()) {
             setRandomExploration(randomExplorationTask, currentState)
             phaseState = PhaseState.P3_GO_TO_TARGET_NODE
             return
@@ -810,6 +826,7 @@ class PhaseThreeStrategy(
             it.initialize(currentState)
             it.retryTimes = 0
         }
+        phaseState = PhaseState.P3_GO_TO_RELATED_NODE
         log.info("Go to explore another window: ${targetWindow.toString()}")
 
     }

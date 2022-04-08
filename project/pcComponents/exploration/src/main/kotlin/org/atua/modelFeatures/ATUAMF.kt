@@ -80,7 +80,6 @@ import org.droidmate.exploration.modelFeatures.graph.Edge
 import org.droidmate.exploration.modelFeatures.graph.StateGraphMF
 import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF
 import org.droidmate.exploration.strategy.atua.task.GoToAnotherWindowTask
-import org.droidmate.explorationModel.ConcreteId
 import org.droidmate.explorationModel.ExplorationTrace
 import org.droidmate.explorationModel.emptyUUID
 import org.droidmate.explorationModel.interaction.Interaction
@@ -687,6 +686,7 @@ class ATUAMF(
                     updateAppModel(prevState, newState, interactions, context)
                     //validateModel(newState)
                 }
+                isRandomExploration = false
             }
         } finally {
             mutex.unlock()
@@ -785,7 +785,7 @@ class ATUAMF(
                         }
                     }
                     if (abstractStateStack.isNotEmpty()) {
-                        while (abstractStateStack.peek() == currentAbstractState) {
+                        while (currentAbstractState.isSimlarAbstractState(abstractStateStack.peek(),0.8)) {
                             abstractStateStack.pop()
                             if (abstractStateStack.isEmpty())
                                 break
@@ -1372,9 +1372,9 @@ class ATUAMF(
                             || it.guardEnabled == false
                             || it.dependentAbstractStates.isEmpty()
                     )
-                    /*&& (it.userInputs.intersect(abstractTransition.userInputs).isNotEmpty()
-                    || it.userInputs.isEmpty() || abstractTransition.userInputs.isEmpty())*/
-                    && it.isImplicit
+                    && (it.userInputs.intersect(lastExecutedTransition!!.userInputs).isNotEmpty()
+                    || it.userInputs.isEmpty() || lastExecutedTransition!!.userInputs.isEmpty())
+                    && it.interactions.isEmpty()
         }
         exisitingImplicitTransitions.forEach { abTransition ->
             val edge = dstg.edge(abTransition.source, abTransition.dest, abTransition)
@@ -1382,6 +1382,13 @@ class ATUAMF(
                 dstg.remove(edge)
             }
             prevAbstractState.abstractTransitions.remove(abTransition)
+            if (abTransition.modelVersion == ModelVersion.BASE) {
+                dstg.removeAbstractActionEnabiblity(abTransition,this)
+                val backwardTransitions = ModelBackwardAdapter.instance.backwardEquivalentAbstractTransitionMapping.get(abTransition)
+                backwardTransitions?.forEach { abstractTransition ->
+                    abstractTransition.activated = false
+                }
+            }
         }
     }
 
@@ -2028,6 +2035,8 @@ class ATUAMF(
     }
 
     var checkingDialog: Dialog? = null
+    var isRandomExploration: Boolean = false
+    val randomInteractions = HashSet<Int>()
 
     private fun updateAppModelWithLastExecutedEvent(
         prevState: State<*>,
@@ -2049,6 +2058,17 @@ class ATUAMF(
             if (lastExecutedTransition!!.abstractAction.actionType == AbstractActionType.CLOSE_KEYBOARD) {
                 if (prevAbstractState.attributeValuationMaps.any { !newAbstractState.attributeValuationMaps.contains(it) }) {
                     prevAbstractState.shouldNotCloseKeyboard = true
+                }
+            }
+            if (lastExecutedTransition!!.abstractAction.isWidgetAction()) {
+                val avm = lastExecutedTransition!!.abstractAction.attributeValuationMap!!
+                if (avm.isUserLikeInput(lastExecutedTransition!!.source)) {
+                    // If an AVM is an user-like input, after clicking on it, it should remain on the current app state
+                    val widget = lastExecutedTransition!!.source.EWTGWidgetMapping.get(avm)!!
+                    if (!widget.verifiedNotUserlikeInput && !lastExecutedTransition!!.dest.EWTGWidgetMapping.values.contains(widget)) {
+                        // This is not a user-like input
+                        widget.verifiedNotUserlikeInput = true
+                    }
                 }
             }
         }
@@ -2080,7 +2100,11 @@ class ATUAMF(
             if (coverageIncrease == null)
                 coverageIncrease = 0
         }
-        abstractInteraction.abstractAction.updateMeaningfulScore(lastInteractions.first(), newState, prevState,coverageIncrease>0,this)
+        if (isRandomExploration == true) {
+            val interaction = lastInteractions.first()
+            randomInteractions.add(interaction.actionId)
+            abstractInteraction.abstractAction.updateMeaningfulScore(interaction, newState, prevState,coverageIncrease>0,isRandomExploration, this)
+        }
         //create StaticEvent if it dose not exist in case this abstract Interaction triggered modified methods
 
         if (!prevAbstractState.isRequestRuntimePermissionDialogBox && !ignoredStates.contains(prevState)) {
@@ -3182,6 +3206,10 @@ class ATUAMF(
     val ignoredStates: HashSet<State<Widget>> = HashSet()
     fun registerNotProcessState(currentState: State<Widget>) {
         ignoredStates.add(currentState)
+    }
+
+    fun getRecentAbstractTransition(): AbstractTransition? {
+        return lastExecutedTransition
     }
 
     companion object {

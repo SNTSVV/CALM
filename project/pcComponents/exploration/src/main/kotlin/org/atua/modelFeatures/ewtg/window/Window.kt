@@ -127,6 +127,10 @@ abstract class Window(var classType: String,
 
     abstract fun getWindowType(): String
     abstract fun copyToRunningModel(): Window
+    fun resetMeaningfulScore() {
+        meaningfullScore = 200
+    }
+
     companion object{
 
     }

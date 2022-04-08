@@ -50,6 +50,7 @@ open class Input{
     var mappingActionIds = HashMap<String,ArrayList<String>>()
     val modelVersion: ModelVersion
     var exercisedInThePast: Boolean = false
+    var meaningfulScore: Int = 200
 
     private constructor(eventType: EventType, eventHandlers: Set<String>, widget: EWTGWidget?,sourceWindow: Window,createdAtRuntime: Boolean=false, modelVersion: ModelVersion) {
        this.eventType = eventType
@@ -103,6 +104,10 @@ open class Input{
 
     override fun toString(): String {
         return "$sourceWindow-->$eventType-->[$widget]"
+    }
+
+    fun resetMeaningfulScore() {
+        meaningfulScore = 200
     }
 
 

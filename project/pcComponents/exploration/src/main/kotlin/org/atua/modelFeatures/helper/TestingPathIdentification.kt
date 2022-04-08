@@ -346,9 +346,11 @@ class PathFindingHelper {
             prevEdgeId: Int?,
             startingNode: AbstractState,
             traversedEdges: HashMap<Int, Pair<AbstractTransition, Stack<AbstractState>>>,
-            pathTracking: HashMap<Int, Int>
+            pathTracking: HashMap<Int, Int>,
+            abstractStateStack: Stack<AbstractState>
         ): TransitionPath {
             val fullPath = TransitionPath(startingNode, pathType, destination)
+            fullPath.abstractStateStack.addAll(abstractStateStack)
             val path = LinkedList<AbstractTransition>()
             path.add(lastTransition)
 

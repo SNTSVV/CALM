@@ -13,6 +13,7 @@
 package org.atua.modelFeatures.dstg
 
 import org.atua.calm.AppModelLoader
+import org.atua.modelFeatures.ewtg.EWTGWidget
 import org.atua.modelFeatures.ewtg.ScrollDirection
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.window.Window
@@ -371,13 +372,18 @@ class AttributeValuationMap {
         }
         return false
     }
-    fun isUserLikeInput(): Boolean {
+
+    fun isUserLikeInput(appState: AbstractState): Boolean {
+        val widget = appState.EWTGWidgetMapping[this]
+        if (widget != null && widget.verifiedNotUserlikeInput)
+            return false
         val className = getClassName()
         return when (className) {
             "android.widget.RadioButton", "android.widget.CheckBox", "android.widget.Switch", "android.widget.ToggleButton", "android.widget.CheckedTextView" -> true
             else -> isInputField()
         }
     }
+
     fun isCheckable(): Boolean{
         if (localAttributes[AttributeType.checkable]?.equals("true")?:false)
         {

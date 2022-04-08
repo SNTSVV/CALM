@@ -85,7 +85,7 @@ class Helper {
                     //if a widgetGroup has more
                     val matchingWidget = matchEWTGWidget(item, guiState, bestMatchedNode,  appPackage,isMenuOpen,true,guiWidgetId_ewtgWidgets)
                     if (matchingWidget != null) {
-                        if (Helper.isUserLikeInput(item))
+                        if (Helper.isUserLikeInput(item) && !matchingWidget!!.verifiedNotUserlikeInput)
                             matchingWidget!!.isUserLikeInput = true
                         guiwidget_Ewtgwidgets.put(item,matchingWidget)
                         guiWidgetId_ewtgWidgets.put(item.id,matchingWidget)
@@ -120,7 +120,7 @@ class Helper {
                         //if a widgetGroup has more
                         val matchingWidget = matchEWTGWidget(item, guiState, bestMatchedNode,appPackage ,isMenuOpen,true)
                         if (matchingWidget != null) {
-                            if (isUserLikeInput(item))
+                            if (isUserLikeInput(item) && !matchingWidget.verifiedNotUserlikeInput)
                                 matchingWidget.isUserLikeInput = true
                             guiwidget_Ewtgwidgets.put(item,matchingWidget)
                             guiWidgetId_ewtgWidgets.put(item.id,matchingWidget)

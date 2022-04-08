@@ -200,7 +200,7 @@ class ProbabilityBasedPathFinder {
             abandonedAppStates: List<AbstractState>,
             pathContraints: Map<PathConstraint, Boolean>
         ) {
-            log.debug("Depth: $depth")
+//            log.debug("Depth: $depth")
             val graph = autautMF.dstg
             val nextTransitions = ArrayList<Int>()
             if (prevEdgeIds.isEmpty()) {
@@ -453,13 +453,12 @@ class ProbabilityBasedPathFinder {
                             }
                         } else {
                             // predict destination
-                            if ( abstractAction.isWidgetAction()
+                            if ( abstractAction.isWidgetAction() || abstractAction.actionType == AbstractActionType.PRESS_BACK
                             ) {
                                 var reachableAbstractActionsByWindow: HashMap<Window,HashMap<AbstractAction, Int>> = HashMap()
                                 val totalcntByWindow = HashMap<Window, Int>()
                                 for (abstractState in abstractStateStack.reversed()) {
                                     val dependentWindow = abstractState.window
-
                                     if (atuaMF.dstg.abstractActionEnables[abstractAction]!!.contains(dependentWindow)
                                     ) {
                                         reachableAbstractActionsByWindow.put(dependentWindow, HashMap())
@@ -612,7 +611,8 @@ class ProbabilityBasedPathFinder {
                     prevEdgeId,
                     root,
                     traversedEdges,
-                    pathTracking
+                    pathTracking,
+                    abstractStateStack
                 )
                 val cost: Double
                 if (reachedTarget(abstractTransition.dest, finalTargets, goalsByTarget, abandonedAppStates, windowAsTarget)) {
@@ -753,8 +753,12 @@ class ProbabilityBasedPathFinder {
                     while (appStateStack.pop().window != nextState.window) {
                     }
                 }
-                appStateStack.removeIf {
-                   it.isSimlarAbstractState(nextState,0.8)
+                if (nextState is PredictedAbstractState || nextState is VirtualAbstractState) {
+                    appStateStack.removeIf { it.window == nextState.window }
+                } else {
+                    appStateStack.removeIf {
+                        it.isSimlarAbstractState(nextState, 0.8)
+                    }
                 }
             }
             appStateStack.push(nextState)

@@ -233,8 +233,13 @@ class ExerciseTargetComponentTask private constructor(
             || availableActions.isEmpty()) {
             fillingData = false
             dataFilled = true
-            if (randomBudget>0 || (!currentAbstractState.isRequireRandomExploration()
-                && !Helper.isOptionsMenuLayout(currentState)) || availableActions.isEmpty())
+            val recentAbstractTransition = atuaMF.getRecentAbstractTransition()
+            if (/*(recentAbstractTransition==null || recentAbstractTransition.dependentAbstractStates.isEmpty())
+                &&*/
+                ( randomBudget>0
+                        || (!currentAbstractState.isRequireRandomExploration()
+                    && !Helper.isOptionsMenuLayout(currentState))
+                        || availableActions.isEmpty()))
                 return doRandomExploration(currentState)
             else {
                 goToLockedWindowTask = GoToTargetWindowTask(atuaMF,atuaStrategy,delay, useCoordinateClicks)
@@ -345,7 +350,7 @@ class ExerciseTargetComponentTask private constructor(
 
         var action: ExplorationAction? = null
 
-        if (!chosenAbstractAction!!.isCheckableOrTextInput()) {
+        if (!chosenAbstractAction!!.isCheckableOrTextInput(currentAbstractState)) {
             // Generate userlike inputs
             if (fillingData && !fillDataTask.isTaskEnd(currentState)) {
                 action = fillDataTask.chooseAction(currentState)
