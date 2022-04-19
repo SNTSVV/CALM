@@ -21,6 +21,8 @@ import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF
 import org.droidmate.explorationModel.interaction.Interaction
 import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
+import kotlin.math.max
+import kotlin.math.min
 
 class AbstractAction private constructor (
         val actionType: AbstractActionType,
@@ -28,12 +30,14 @@ class AbstractAction private constructor (
         var window: Window,
         val extra: Any?=null
     ) {
+    private val MAX_SCORE: Int = 100
+
     /*override fun equals(other: Any?): Boolean {
-        if (other !is AbstractAction)
-            return false
-        return this.hashCode() == other.hashCode()
-    }*/
-    var meaningfulScore = 100
+            if (other !is AbstractAction)
+                return false
+            return this.hashCode() == other.hashCode()
+        }*/
+    var meaningfulScore = 50
     fun isItemAction(): Boolean {
         return when(actionType) {
             AbstractActionType.ITEM_CLICK,AbstractActionType.ITEM_LONGCLICK,AbstractActionType.ITEM_SELECTED -> true
@@ -133,35 +137,36 @@ class AbstractAction private constructor (
                     && atuaMF.abstractStateVisitCount[newAppState]==1
                     && newAppState.window !is OutOfApp
                     && newAppState.window !is Launcher)) {
-            meaningfulScore += 50
-
+            meaningfulScore = min(meaningfulScore+50,MAX_SCORE)
             if (randomExploration) {
-                window.meaningfullScore+=5
+                window.meaningfullScore = min (window.meaningfullScore+5, window.MAX_SCORE)
                 inputs.forEach {
-                    it.meaningfulScore += 50
+                    it.meaningfulScore = min (it.meaningfulScore+10,it.MAX_SCORE)
+
                 }
             }
         }
         else if (prevState == newState || newState.isHomeScreen) {
-            meaningfulScore -= 100
-
+            meaningfulScore = max(meaningfulScore-50,0)
             if(randomExploration) {
-                window.meaningfullScore -= 10
+                window.meaningfullScore = max(window.meaningfullScore-5,0)
                 inputs.forEach {
-                    it.meaningfulScore -= 100
+                    it.meaningfulScore = max(it.meaningfulScore-20,0)
                 }
             }
         }
         else {
-            meaningfulScore -= 50
-
+            meaningfulScore = max(meaningfulScore-25,0)
+            if (meaningfulScore < 0)
+                meaningfulScore ==0
             if (randomExploration) {
-                window.meaningfullScore -= 5
+                window.meaningfullScore = max(window.meaningfullScore-5,0)
                 inputs.forEach {
-                    it.meaningfulScore -= 50
+                    it.meaningfulScore = max(it.meaningfulScore-10,0)
                 }
             }
         }
+
     }
 
     override fun toString(): String {

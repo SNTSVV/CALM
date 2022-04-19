@@ -27,6 +27,7 @@ import java.lang.Exception
 
 open class Input{
 
+    val MAX_SCORE: Int = 100
     val eventType: EventType
     val eventHandlers: HashSet<String> = HashSet()
     var widget: EWTGWidget?
@@ -50,7 +51,7 @@ open class Input{
     var mappingActionIds = HashMap<String,ArrayList<String>>()
     val modelVersion: ModelVersion
     var exercisedInThePast: Boolean = false
-    var meaningfulScore: Int = 200
+    var meaningfulScore: Int = 50
 
     private constructor(eventType: EventType, eventHandlers: Set<String>, widget: EWTGWidget?,sourceWindow: Window,createdAtRuntime: Boolean=false, modelVersion: ModelVersion) {
        this.eventType = eventType
@@ -107,7 +108,7 @@ open class Input{
     }
 
     fun resetMeaningfulScore() {
-        meaningfulScore = 200
+        meaningfulScore = 50
     }
 
 

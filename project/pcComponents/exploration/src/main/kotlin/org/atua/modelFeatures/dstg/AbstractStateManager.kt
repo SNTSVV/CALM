@@ -735,7 +735,7 @@ class AbstractStateManager() {
     private fun createAbstractTransitionsFromWTG(abstractState: AbstractState) {
         //create implicit widget interactions from static Node
         val nonTrivialWidgetWindowsTransitions = atuaMF.wtg.edges(abstractState.window)
-            .filter { it.label.input.widget != null }
+            .filter { it.label.input.widget != null && !it.label.disabled }
             .filterNot { it.source.data == it.destination?.data }
 
         /*    nonTrivialWindowTransitions

@@ -54,6 +54,7 @@ import org.atua.modelFeatures.ewtg.window.Launcher
 import org.atua.modelFeatures.ewtg.window.OptionsMenu
 import org.atua.modelFeatures.ewtg.window.OutOfApp
 import org.atua.modelFeatures.ewtg.window.Window
+import org.atua.modelFeatures.helper.ProbabilityBasedPathFinder
 import org.atua.modelFeatures.helper.ProbabilityDistribution
 import org.atua.modelFeatures.inputRepo.deviceEnvironment.DeviceEnvironmentConfiguration
 import org.atua.modelFeatures.inputRepo.intent.IntentFilter
@@ -62,6 +63,7 @@ import org.droidmate.deviceInterface.exploration.ActionType
 import org.droidmate.deviceInterface.exploration.ExplorationAction
 import org.droidmate.deviceInterface.exploration.GlobalAction
 import org.droidmate.deviceInterface.exploration.Rectangle
+import org.droidmate.deviceInterface.exploration.ResetApp
 import org.droidmate.deviceInterface.exploration.Swipe
 import org.droidmate.deviceInterface.exploration.isFetch
 import org.droidmate.deviceInterface.exploration.isLaunchApp
@@ -165,7 +167,7 @@ class ATUAMF(
     val stateVisitCount = HashMap<UUID, Int>()
     val stateStructureHashMap = HashMap<UUID,UUID>()
     var appPrevState: State<*>? = null
-    var windowStack: Stack<Window> = Stack()
+//    var windowStack: Stack<Window> = Stack()
     private var abstractStateStack: Stack<AbstractState> = Stack()
     var guiStateStack: Stack<State<*>> = Stack()
     val stateList: ArrayList<State<*>> = ArrayList()
@@ -180,8 +182,7 @@ class ATUAMF(
     val interactionsTracingMap = HashMap<List<Interaction<*>>, Pair<Int, Int>>()
      val tracingInteractionsMap = HashMap<Pair<Int, Int>, List<Interaction<*>>>()
 
-    private val prevWindowStateMapping = HashMap<State<*>, State<*>>()
-    val interactionPrevWindowStateMapping = HashMap<Interaction<Widget>, State<*>>()
+        val interactionPrevWindowStateMapping = HashMap<Interaction<Widget>, State<*>>()
 
 
     private var lastOpeningAnotherAppInteraction: Interaction<Widget>? = null
@@ -604,7 +605,7 @@ class ATUAMF(
                 }
                 if (interactions.any { it.actionType == "ResetApp" }) {
                     fromLaunch = true
-                    windowStack.clear()
+//                    windowStack.clear()
                     abstractStateStack.clear()
                     guiStateStack.clear()
                     /*windowStack.push(Launcher.getOrCreateNode())
@@ -618,12 +619,7 @@ class ATUAMF(
                 val prevState = context.getState(context.getLastAction().prevState) ?: context.model.emptyState
                 val newState = context.getCurrentState()
                 if (prevState == context.model.emptyState) {
-                    if (windowStack.isEmpty()) {
-                       /* windowStack.push(Launcher.getOrCreateNode())
-                        abstractStateStack.push(AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.isHomeScreen }!!)
-                        guiStateStack.push(context.model.emptyState)*/
-//                    abstractStateStack.push(Pair(AbstractStateManager.instance.ABSTRACT_STATES.find { it.window is Launcher}!!,stateList.findLast { it.isHomeScreen } ))
-                    }
+
                 } else {
                     appPrevState = prevState
                     if (prevState.isHomeScreen) {
@@ -660,12 +656,7 @@ class ATUAMF(
                         }
                     }
                 }
-                if (windowStack.isEmpty()) {
-                   /* windowStack.push(Launcher.getOrCreateNode())
-                    abstractStateStack.push(AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.isHomeScreen }!!)
-                    guiStateStack.push(stateList.findLast { it.isHomeScreen })*/
-//                abstractStateStack.push(Pair(AbstractStateManager.instance.ABSTRACT_STATES.find { it.window is Launcher}!!,stateList.findLast { it.isHomeScreen } ))
-                }
+
                 if (newState != context.model.emptyState) {
                     if (newState.isAppHasStoppedDialogBox) {
                         org.atua.modelFeatures.ATUAMF.Companion.log.debug("Encountering Crash state.")
@@ -735,7 +726,7 @@ class ATUAMF(
 
     private fun recomputeWindowStack() {
         val currentTraceId = traceId
-        windowStack.clear()
+//        windowStack.clear()
         abstractStateStack.clear()
         for (i in 0..guiStateStack.size-2) {
             val prevState = guiStateStack[i]
@@ -762,77 +753,40 @@ class ATUAMF(
     ) {
 
         if (isLaunch) {
-            windowStack.push(Launcher.getOrCreateNode())
+//            windowStack.push(Launcher.getOrCreateNode())
             val homeScreenState = stateList.findLast { it.isHomeScreen }
             if (homeScreenState != null) {
 //                stateList.add(homeScreenState)
                 abstractStateStack.push(getAbstractState(homeScreenState)!!)
-                prevWindowStateMapping.put(currentState, homeScreenState)
             } else {
                 abstractStateStack.push(AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.window is Launcher }!!)
             }
         } else if (prevAbstractState != null) {
-            if (windowStack.contains(currentAbstractState.window)) {
-                // Return to the prev window
-                // Pop the window
-                while (true) {
-                    val topWindow = windowStack.pop()
-                    if (abstractStateStack.isNotEmpty()) {
-                        while (abstractStateStack.peek().window != topWindow) {
-                            abstractStateStack.pop()
-                            if (abstractStateStack.isEmpty())
-                                break
-                        }
-                    }
-                    if (abstractStateStack.isNotEmpty()) {
-                        while (currentAbstractState.isSimlarAbstractState(abstractStateStack.peek(),0.8)) {
-                            abstractStateStack.pop()
-                            if (abstractStateStack.isEmpty())
-                                break
-                        }
-                    }
-                    if (topWindow == currentAbstractState.window)
-                        break
+            val topWindow = abstractStateStack.peek().window
+            if (topWindow == currentAbstractState) {
+                // Stay in the same window
+                // Just remove any state similar to the current state
+                abstractStateStack.removeIf {
+                    it.isSimlarAbstractState(currentAbstractState,0.8)
                 }
             } else {
-                if (currentAbstractState.window != prevAbstractState.window) {
-                    if (prevAbstractState.window is Activity || prevAbstractState.window is OutOfApp) {
-                       /* if (WindowManager.instance.launchActivities.contains(currentAbstractState.window)) {
-                            // remove all windows are not kind of launch activity
-                            while (!WindowManager.instance.launchActivities.contains(windowStack.peek()) && windowStack.peek() !is Launcher) {
-                                windowStack.pop()
-                                abstractStateStack.pop()
-                                guiStateStack.pop()
-                            }
-                            if (WindowManager.instance.launchActivities.contains(prevAbstractState.window)) {
-                                windowStack.push(prevAbstractState.window)
-//                                abstractStateStack.push(prevAbstractState)
-                            }
-                        } else {
-
-//                            abstractStateStack.push(prevAbstractState)
-                        }*/
-                        windowStack.push(prevAbstractState.window)
-                        prevWindowStateMapping.put(currentState, prevState)
+                if (abstractStateStack.map { it.window }.contains(currentAbstractState.window)
+                    && abstractStateStack.size > 1 ) {
+                    // Return to one of the previous windows
+                    while(abstractStateStack.peek().window!=currentAbstractState.window) {
+                        abstractStateStack.pop()
+                        if (abstractStateStack.isEmpty())
+                            break
                     }
-                } /*else if (currentAbstractState.isOpeningKeyboard || currentAbstractState.isOpeningMenus) {
-                    windowStack.push(currentAbstractState.window)
-                   abstractStateStack.push(prevAbstractState)
-                }*/
-                abstractStateStack.removeIf {
-                   it.isSimlarAbstractState(prevAbstractState,0.8)
+                    if (abstractStateStack.isNotEmpty()) {
+                        abstractStateStack.removeIf {
+                            it.isSimlarAbstractState(currentAbstractState,0.8)
+                        }
+                    }
                 }
-                abstractStateStack.push(prevAbstractState)
             }
         }
-        /*if (currentAbstractState.window !is OutOfApp) {
-
-        } */
-/*        if (windowStack.isEmpty()) {
-            windowStack.push(Launcher.getOrCreateNode())
-            abstractStateStack.push(Pair(AbstractStateManager.instance.ABSTRACT_STATES.find { it.window is Launcher}!!,stateList.findLast { it.isHomeScreen } ))
-            return
-        }*/
+        abstractStateStack.push(currentAbstractState)
     }
 
     private fun registerPrevWindowState(
@@ -840,13 +794,24 @@ class ATUAMF(
         currentState: State<*>,
         lastInteraction: Interaction<Widget>
     ) {
-        if (windowStack.isEmpty())
+
+        val prevprevAppState: AbstractState
+        val prevAppState = getAbstractState(prevState)
+        if (prevAppState == null) {
             return
-        val prevWindow = windowStack.peek()
+        }
+        if (abstractStateStack.size<=1)
+            return
+        if (abstractStateStack.contains(prevAppState)) {
+            val i = abstractStateStack.indexOf(prevAppState)
+            prevprevAppState = abstractStateStack[i-1]
+        } else {
+            prevprevAppState = abstractStateStack.peek()
+        }
+        val prevWindow: Window = prevprevAppState.window
         if (prevWindow is Launcher) {
             val prevLaucherState = stateList.findLast { it.isHomeScreen }
             if (prevLaucherState != null) {
-                prevWindowStateMapping.put(currentState, prevLaucherState)
                 interactionPrevWindowStateMapping.put(lastInteraction, prevLaucherState)
             }
             return
@@ -862,12 +827,12 @@ class ATUAMF(
                 && !prevWindowAbstractState.isOpeningKeyboard
                 && !prevWindowAbstractState.isOpeningMenus
             ) {
-                prevWindowStateMapping[currentState] = prevWindowState
+
                 interactionPrevWindowStateMapping[lastInteraction] = prevWindowState
                 break
             }
             if (tempCandidate != null && prevWindowAbstractState.window != prevWindow) {
-                prevWindowStateMapping[currentState] = tempCandidate
+
                 interactionPrevWindowStateMapping[lastInteraction] = tempCandidate
                 break
             }
@@ -879,7 +844,6 @@ class ATUAMF(
             }
             if (i == 1) {
                 val lastHomeScreen = stateList.findLast { it.isHomeScreen }!!
-                prevWindowStateMapping[currentState] = lastHomeScreen
                 interactionPrevWindowStateMapping[lastInteraction] = lastHomeScreen
             }
         }
@@ -1765,6 +1729,11 @@ class ATUAMF(
         val newAbstractState = AbstractStateManager.INSTANCE.getOrCreateNewAbstractState(
             newState, currentActivity, currentRotation, null
         )
+        newAbstractState.getAvailableActions(newState).forEach {
+            if (ProbabilityBasedPathFinder.disableAbstractActions.contains(it)) {
+                ProbabilityBasedPathFinder.disableAbstractActions.remove(it)
+            }
+        }
         val windowId =
             newState.widgets.find { !it.isKeyboard }?.metaInfo?.find { it.contains("windowId") }?.split(" = ")?.get(1)
         if (getAbstractState(newState) == null)
@@ -1919,17 +1888,10 @@ class ATUAMF(
             if (lastInteractions.isNotEmpty()) {
                 lastExecutedTransition = null
                 isActivityResult = false
-                if (windowStack.contains(currentAbstractState.window) && windowStack.size > 1
-                    && !(prevAbstractState?.isOpeningKeyboard ?: false)
-                    && !currentAbstractState.isOpeningMenus
-                ) {
-                    // Return to the prev window
-                    isActivityResult = true
-                }
+                registerPrevWindowState(prevState, newState, lastInteractions.last())
                 deriveAbstractInteraction(ArrayList(lastInteractions), prevState, newState, statementCovered)
                 guiStateStack.push(prevState)
                 updateWindowStack(prevAbstractState, prevState, currentAbstractState, newState, fromLaunch)
-                registerPrevWindowState(prevState, newState, lastInteractions.last())
                 //update lastExecutedEvent
                 if (lastExecutedTransition == null) {
                     org.atua.modelFeatures.ATUAMF.Companion.log.debug("lastExecutedEvent is null")

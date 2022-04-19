@@ -218,7 +218,7 @@ class PhaseThreeStrategy(
         val currentAppState = atuaMF.getAbstractState(currentState)
         if (currentAppState==null)
             return transitionPaths
-        val runtimeAbstractStates = getUnexhaustedExploredAbstractState(currentState)
+        val runtimeAbstractStates = getUnexhaustedExploredAbstractState()
         val goalByAbstractState = HashMap<AbstractState, List<Goal>>()
         runtimeAbstractStates.groupBy { it.window }.forEach { window, appStates ->
             var virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window)
@@ -229,12 +229,13 @@ class PhaseThreeStrategy(
             appStates.forEach { appState ->
                 val meaningfulAbstractActions = appState.getUnExercisedActions(currentState, atuaMF)
                     .filter { action->
-                        !action.isCheckableOrTextInput(appState) && action.isWidgetAction()
+                        !action.isCheckableOrTextInput(appState)
                                 && appState.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
+                                && !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
+
                     }
                 meaningfulAbstractActions.forEach { action ->
-                    if (!ProbabilityBasedPathFinder.disableAbstractActions.contains(action))
-                        toExploreInputs.add(Goal(input = null,abstractAction = action))
+                    toExploreInputs.add(Goal(input = null,abstractAction = action))
                 }
             }
             goalByAbstractState.put(virtualAbstractState, toExploreInputs.distinct())

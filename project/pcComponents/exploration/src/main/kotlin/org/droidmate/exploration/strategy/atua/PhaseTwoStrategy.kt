@@ -14,10 +14,12 @@ import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractTransition
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
+import org.atua.modelFeatures.dstg.PredictedAbstractState
 import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.modelFeatures.helper.PathFindingHelper
 import org.atua.modelFeatures.helper.ProbabilityDistribution
 import org.atua.modelFeatures.ewtg.*
+import org.atua.modelFeatures.ewtg.window.FakeWindow
 import org.atua.modelFeatures.ewtg.window.Launcher
 import org.atua.modelFeatures.ewtg.window.OptionsMenu
 import org.atua.modelFeatures.ewtg.window.Window
@@ -94,9 +96,12 @@ class PhaseTwoStrategy(
         statementMF = atuaTestingStrategy.eContext.getOrCreateWatcher()
         atuaMF.updateMethodCovFromLastChangeCount = 0
         val allTargetWindows = atuaMF.notFullyExercisedTargetInputs.map { it.sourceWindow }.distinct()
-        val seenWindows = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it !is VirtualAbstractState && it.ignored == false}.map { it.window }.distinct()
+        val seenWindows = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it !is VirtualAbstractState
+                && it !is PredictedAbstractState
+                && it.ignored == false }.map { it.window }.distinct()
         atuaMF.modifiedMethodsByWindow.keys
             .filter{ it !is Launcher
+                    && it !is FakeWindow
                     && it !is OptionsMenu
                     && ( allTargetWindows.contains(it) || seenWindows.contains(it))}.forEach { window ->
             targetWindowsCount.put(window, 0)
@@ -112,7 +117,7 @@ class PhaseTwoStrategy(
                 }*//*
             }*/
         }
-        attempt = (targetWindowsCount.size * budgetScale*gamma).toInt()
+        attempt = (targetWindowsCount.size * budgetScale*gamma).toInt()+1
         initialCoverage = atuaMF.statementMF!!.getCurrentModifiedMethodStatementCoverage()
     }
 
@@ -360,7 +365,7 @@ class PhaseTwoStrategy(
                                          pathConstraints: Map<PathConstraint,Boolean>): List<TransitionPath> {
         val transitionPaths = ArrayList<TransitionPath>()
         val currentAbstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)!!
-        val toExploreAppStates = getUnexhaustedExploredAbstractState(currentState)
+        val toExploreAppStates = getUnexhaustedExploredAbstractState()
         val stateByActionCount = HashMap<AbstractState, Double>()
         val goalByAbstractState = HashMap<AbstractState, List<Goal>>()
         toExploreAppStates.groupBy { it.window }.forEach { window, appStates ->
@@ -372,12 +377,12 @@ class PhaseTwoStrategy(
             appStates.forEach { appState ->
                 val meaningfulAbstractActions = appState.getUnExercisedActions(currentState, atuaMF)
                     .filter { action->
-                        !action.isCheckableOrTextInput(appState) && action.isWidgetAction()
+                        !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
+                                && !action.isCheckableOrTextInput(appState)
                                 && appState.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
                     }
                 meaningfulAbstractActions.forEach { action ->
-                    if (!ProbabilityBasedPathFinder.disableAbstractActions.contains(action))
-                        toExploreInputs.add(Goal(input = null,abstractAction = action))
+                    toExploreInputs.add(Goal(input = null,abstractAction = action))
                 }
             }
 
@@ -502,7 +507,7 @@ class PhaseTwoStrategy(
         }
         val meaningfulAbstractActions = currentAppState.getUnExercisedActions(currentState, atuaMF)
             .filter {
-                !it.isCheckableOrTextInput(currentAppState) && it.isWidgetAction()
+                !it.isCheckableOrTextInput(currentAppState)
                         && currentAppState.getInputsByAbstractAction(it).any { it.meaningfulScore > 0 }
             }
         if (meaningfulAbstractActions.isNotEmpty()
@@ -674,7 +679,7 @@ class PhaseTwoStrategy(
         }
         val meaningfulAbstractActions = currentAppState.getUnExercisedActions(currentState, atuaMF)
             .filter {
-                !it.isCheckableOrTextInput(currentAppState) && it.isWidgetAction()
+                !it.isCheckableOrTextInput(currentAppState)
                         && currentAppState.getInputsByAbstractAction(it).any { it.meaningfulScore > 0 }
             }
         if (meaningfulAbstractActions.isNotEmpty()
@@ -739,7 +744,7 @@ class PhaseTwoStrategy(
         }
         val meaningfulAbstractActions = currentAppState.getUnExercisedActions(currentState, atuaMF)
             .filter {
-                !it.isCheckableOrTextInput(currentAppState) && it.isWidgetAction()
+                !it.isCheckableOrTextInput(currentAppState)
                         && currentAppState.getInputsByAbstractAction(it).any { it.meaningfulScore > 0 }
             }
         if (meaningfulAbstractActions.isNotEmpty()
@@ -782,7 +787,7 @@ class PhaseTwoStrategy(
         }
         val meaningfulAbstractActions = currentAppState.getUnExercisedActions(currentState, atuaMF)
             .filter {
-                !it.isCheckableOrTextInput(currentAppState) && it.isWidgetAction()
+                !it.isCheckableOrTextInput(currentAppState)
                         && currentAppState.getInputsByAbstractAction(it).any { it.meaningfulScore > 0 }
             }
         if (meaningfulAbstractActions.isNotEmpty()
@@ -829,7 +834,7 @@ class PhaseTwoStrategy(
         }
         val meaningfulAbstractActions = currentAppState.getUnExercisedActions(currentState, atuaMF)
             .filter {
-                !it.isCheckableOrTextInput(currentAppState) && it.isWidgetAction()
+                !it.isCheckableOrTextInput(currentAppState)
                         && currentAppState.getInputsByAbstractAction(it).any { it.meaningfulScore > 0 }
             }
         if (meaningfulAbstractActions.isNotEmpty()) {
@@ -842,7 +847,7 @@ class PhaseTwoStrategy(
             return
         }
         if (strategyTask is GoToAnotherWindowTask) {
-            if ((strategyTask as GoToAnotherWindowTask).isReachExpectedState(currentState)) {
+            if ((strategyTask as GoToAnotherWindowTask).reachedDestination) {
                 setRandomExploration(randomExplorationTask, currentState,currentAppState)
                 return
             }
@@ -904,7 +909,7 @@ class PhaseTwoStrategy(
         }
         val meaningfulAbstractActions = currentAppState.getUnExercisedActions(currentState, atuaMF)
             .filter {
-                !it.isCheckableOrTextInput(currentAppState) && it.isWidgetAction()
+                !it.isCheckableOrTextInput(currentAppState)
                         && currentAppState.getInputsByAbstractAction(it).any { it.meaningfulScore > 0 }
             }
         if (meaningfulAbstractActions.isNotEmpty()

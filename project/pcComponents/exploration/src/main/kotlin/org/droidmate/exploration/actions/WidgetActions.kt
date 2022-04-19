@@ -86,7 +86,7 @@ fun Widget.setText(newContent: String, ignoreVisibility: Boolean = false,
 fun Widget.dragTo(x: Int, y: Int, stepSize: Int): ExplorationAction = TODO()
 //FIXME the center points may be overlayed by other elements, swiping the corners would be safer
 fun Widget.swipeUp(stepSize: Int = 35): ExplorationAction = Swipe(Pair(this.visibleBounds.center.first, this.visibleBounds.center.second+this.visibleBounds.height/4) , Pair(this.visibleBounds.center.first, this.visibleBounds.topY), stepSize, true)
-fun Widget.swipeDown(stepSize: Int = 35): ExplorationAction = Swipe(Pair(this.visibleBounds.center.first, this.visibleBounds.center.second-this.visibleBounds.height/4), Pair(this.visibleBounds.center.first, this.visibleBounds.topY + this.visibleBounds.height-10), stepSize, true)
+fun Widget.swipeDown(stepSize: Int = 35): ExplorationAction = 	Swipe(Pair(this.visibleBounds.center.first, this.visibleBounds.center.second-this.visibleBounds.height/4), Pair(this.visibleBounds.center.first, this.visibleBounds.topY + this.visibleBounds.height-10), stepSize, true)
 fun Widget.swipeLeft(stepSize: Int = 35): ExplorationAction = Swipe(Pair(this.visibleBounds.center.first+this.visibleBounds.width/4, this.visibleBounds.center.second), Pair(this.visibleBounds.leftX, this.visibleBounds.center.second), stepSize, true)
 fun Widget.swipeRight(stepSize: Int = 35): ExplorationAction = Swipe(Pair(this.visibleBounds.center.first-this.visibleBounds.width/4, this.visibleBounds.center.second), Pair(this.visibleBounds.leftX + this.visibleBounds.width-10, this.visibleBounds.center.second), stepSize, true)
 

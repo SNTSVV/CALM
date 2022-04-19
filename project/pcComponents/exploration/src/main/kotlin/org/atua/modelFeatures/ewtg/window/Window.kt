@@ -28,6 +28,7 @@ abstract class Window(var classType: String,
                       val isRuntimeCreated: Boolean,
                       baseModel: Boolean)
 {
+    val MAX_SCORE: Int = 100
     var ignored: Boolean = false
 
     //var activityClass = ""
@@ -40,7 +41,7 @@ abstract class Window(var classType: String,
     var landscapeKeyboardDimension: Rectangle = Rectangle.empty()
     val windowRuntimeIds = HashSet<String>()
 
-    var meaningfullScore = 200
+    var meaningfullScore = 50
     init {
         if (!baseModel)
             WindowManager.instance.updatedModelWindows.add(this)
@@ -128,7 +129,7 @@ abstract class Window(var classType: String,
     abstract fun getWindowType(): String
     abstract fun copyToRunningModel(): Window
     fun resetMeaningfulScore() {
-        meaningfullScore = 200
+        meaningfullScore = 50
     }
 
     companion object{

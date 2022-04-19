@@ -19,4 +19,5 @@ data class WindowTransition (val source: Window,
                         val input: Input,
                         val prevWindow: Window?) {
 
+    var disabled: Boolean = false
 }

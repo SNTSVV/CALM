@@ -8,6 +8,7 @@ import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.modelFeatures.ewtg.Input
 import org.atua.modelFeatures.ewtg.TransitionPath
 import org.atua.modelFeatures.ewtg.window.Dialog
+import org.atua.modelFeatures.ewtg.window.FakeWindow
 import org.atua.modelFeatures.ewtg.window.Launcher
 import org.atua.modelFeatures.ewtg.window.OutOfApp
 import org.atua.modelFeatures.ewtg.window.Window
@@ -62,23 +63,24 @@ abstract class AbstractPhaseStrategy(
         return diff > interval
     }
 
-    fun getUnexhaustedExploredAbstractState(currentState: State<*>): List<AbstractState> {
-        val currentAbstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)
-        if (currentAbstractState == null)
-            return emptyList()
+    open fun getUnexhaustedExploredAbstractState(): List<AbstractState> {
         val runtimeAbstractStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES
             .filterNot {
-                it is VirtualAbstractState
-                        || it.ignored
-                        || it == currentAbstractState
+                it.window is FakeWindow
                         || it.window is Launcher
                         || it.window is OutOfApp
+                || it is VirtualAbstractState
+                        || it.ignored
                         || (it.window is Dialog && (it.window as Dialog).ownerActivitys.all { it is OutOfApp })
                         || it.isRequestRuntimePermissionDialogBox
                         || it.isAppHasStoppedDialogBox
                         || it.attributeValuationMaps.isEmpty()
                         || it.guiStates.isEmpty()
-                        || it.getUnExercisedActions2(null).isEmpty()
+                        || it.getUnExercisedActions(null, atuaMF).filter { action->
+                            !action.isCheckableOrTextInput(it)
+                            && it.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
+                            && !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
+                }.isEmpty()
 
             }
         return runtimeAbstractStates
@@ -102,46 +104,32 @@ abstract class AbstractPhaseStrategy(
             return transitionPaths
         val goalByAbstractState = HashMap<AbstractState, List<Goal>>()
         val stateWithScores = HashMap<AbstractState, Double>()
-        var targetStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
-            it.window == targetWindow
-                    && it.ignored == false
-                    && it.guiStates.isNotEmpty()
-                    && (pathType == PathFindingHelper.PathType.FULLTRACE
-                    || pathType == PathFindingHelper.PathType.PARTIAL_TRACE
-                    || !AbstractStateManager.INSTANCE.unreachableAbstractState.contains(it))
-                    && it != currentAbstractState
-                    && (it is VirtualAbstractState ||
-                    (it.getUnExercisedActions(null,atuaMF).filter { action->
-                        !action.isCheckableOrTextInput(it) }.isNotEmpty()))
-        }.toHashSet()
+        var targetStates = getUnexhaustedExploredAbstractState().filter{it.window == targetWindow}.toHashSet()
         if (explore) {
             targetStates.removeIf {
                 it is VirtualAbstractState
             }
-
-            var unexercisedInputs1 = ArrayList<Goal>()
-            var unexercisedInputs2 = ArrayList<Goal>()
+            var unexercisedInputs = ArrayList<Goal>()
             val canExploreAppStatesWithAbstractActions1 = targetStates.associateWith {  it.getUnExercisedActions(currentState, atuaMF)
                 .filter { action ->
-                    !action.isCheckableOrTextInput(it) && action.isWidgetAction()
+                    !action.isCheckableOrTextInput(it)
                             && it.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
+                            && !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
                 }}.filter { it.value.isNotEmpty() }
             if (canExploreAppStatesWithAbstractActions1.isNotEmpty()) {
                 canExploreAppStatesWithAbstractActions1.forEach { s, actions ->
 //                    unexercisedInputs1.addAll(inputs.filter { it.exerciseCount==0 })
                     actions.forEach {
-                        if (!ProbabilityBasedPathFinder.disableAbstractActions.contains(it))
-                            unexercisedInputs2.add(Goal(input = null,abstractAction = it))
+                            unexercisedInputs.add(Goal(input = null,abstractAction = it))
                     }
 
 
                 }
             }
-            unexercisedInputs1 = ArrayList(unexercisedInputs1.distinct())
-            unexercisedInputs2 = ArrayList(unexercisedInputs2.distinct())
-            if (unexercisedInputs1.isNotEmpty()) {
+            unexercisedInputs = ArrayList(unexercisedInputs.distinct())
+            if (unexercisedInputs.isNotEmpty()) {
                 val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window = targetWindow)!!
-                goalByAbstractState.put(virtualAbstractState, unexercisedInputs1)
+                goalByAbstractState.put(virtualAbstractState, unexercisedInputs)
                 stateWithScores.put(virtualAbstractState, 1.0)
                 getPathToStatesBasedOnPathType(
                     pathType,
@@ -156,27 +144,19 @@ abstract class AbstractPhaseStrategy(
                     emptyList(),
                     pathConstraints
                 )
-            }
-            if (transitionPaths.isEmpty()) {
-                if (unexercisedInputs2.isNotEmpty()) {
-                    val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window = targetWindow)!!
-                    goalByAbstractState.put(virtualAbstractState, unexercisedInputs2)
-                    stateWithScores.put(virtualAbstractState, 1.0)
-                    getPathToStatesBasedOnPathType(
-                        pathType,
-                        transitionPaths,
-                        stateWithScores,
-                        currentAbstractState,
-                        currentState,
-                        true,
-                        false,
-                        goalByAbstractState,
-                        maxCost,
-                        emptyList(),
-                        pathConstraints
-                    )
+                if (transitionPaths.isEmpty()) {
+                    goalByAbstractState.forEach {
+                        it.value.forEach {
+                            if (it.abstractAction != null) {
+                                ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction)
+                            } else {
+                                ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
+                            }
+                        }
+                    }
                 }
             }
+
             return transitionPaths
 
         }

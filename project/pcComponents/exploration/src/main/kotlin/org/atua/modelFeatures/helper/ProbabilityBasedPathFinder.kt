@@ -619,7 +619,13 @@ class ProbabilityBasedPathFinder {
                     val targetInputs =
                         goalsByTarget.filter {
                             it.key.window == abstractTransition.dest.window }.values.flatten()
-                            .distinct()
+                            .distinct().filter {
+                                if (it.abstractAction!=null) {
+                                    abstractTransition.dest.getAvailableActions(null).contains(it.abstractAction)
+                                } else {
+                                    abstractTransition.dest.getAvailableInputs().contains(it.input)
+                                }
+                            }
                     fullGraph.goal.addAll(targetInputs)
                     cost = fullGraph.cost(final = true)
                     val finalmaxCost = foundPaths.map { it.cost(final = true) }.minOrNull()?:maxCost
@@ -711,7 +717,7 @@ class ProbabilityBasedPathFinder {
                     || windowAsTarget
                     || goals.any {
                             if (it.abstractAction != null) {
-                                it.abstractAction.isWidgetAction()
+                                !it.abstractAction.isWidgetAction()
                             } else {
                         !it.input!!.witnessed || !it.input!!.eventType.isWidgetEvent() }  }) {
                     /*if (destination.getUnExercisedActions2(null).isNotEmpty()
@@ -744,25 +750,31 @@ class ProbabilityBasedPathFinder {
         ): Stack<AbstractState> {
             val appStateStack = AbstractStateStack.clone() as Stack<AbstractState>
             if (appStateStack.isNotEmpty()) {
-                val lastWindow = appStateStack.peek().window
-                if (nextState.window != lastWindow
-                    && appStateStack.map { it.window }.contains(nextState.window)
-                    && appStateStack.size > 1 ) {
-                    // Return to the prev window
-                    // Pop the window
-                    while (appStateStack.pop().window != nextState.window) {
-                    }
-                }
-                if (nextState is PredictedAbstractState || nextState is VirtualAbstractState) {
-                    appStateStack.removeIf { it.window == nextState.window }
-                } else {
+                val topWindow = appStateStack.peek().window
+                if (topWindow == nextState.window){
+                    // Stay in the same window
+                    // Just remove any state similar to the current state
                     appStateStack.removeIf {
-                        it.isSimlarAbstractState(nextState, 0.8)
+                        it.isSimlarAbstractState(nextState,0.8)
+                    }
+                } else {
+                    if (appStateStack.map { it.window }.contains(nextState.window)
+                        && appStateStack.size > 1 ) {
+                        // Return to one of the previous windows
+                        while(appStateStack.peek().window!=nextState.window) {
+                            appStateStack.pop()
+                            if (appStateStack.isEmpty())
+                                break
+                        }
+                        if (appStateStack.isNotEmpty()) {
+                            appStateStack.removeIf {
+                                it.isSimlarAbstractState(nextState,0.8)
+                            }
+                        }
                     }
                 }
             }
             appStateStack.push(nextState)
-
             return appStateStack
         }
     }

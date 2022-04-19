@@ -20,6 +20,7 @@ import org.atua.modelFeatures.ewtg.window.Window
 import org.droidmate.explorationModel.emptyUUID
 import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
+import org.droidmate.explorationModel.sanitize
 import org.droidmate.explorationModel.toUUID
 import java.io.BufferedWriter
 import java.time.Instant
@@ -566,14 +567,22 @@ class AttributeValuationMap {
     }
 
     override fun toString(): String {
-        return "WidgetGroup[${getClassName()}]" +
-                "[${getResourceId()}]" +
-                "[${getContentDesc()}]" +
-                "[${getText()}]" +
+        val sb = StringBuilder()
+        sb.append("WidgetGroup[${getClassName()}]" +
+                "[resourceId=${getResourceId()}]" +
+                "[contentDesc=\"${getContentDesc().take(50)}]\"" +
+                "[text=\"${getText().take(50).sanitize()}\"]" +
                 "[clickable=${isClickable()}]" +
                 "[longClickable=${isLongClickable()}]" +
                 "[scrollable=${isScrollable()}]" +
-                "[checkable=${isCheckable()}]"
+                "[checkable=${isCheckable()}]")
+        if (this.localAttributes.containsKey(AttributeType.childrenText)) {
+            sb.append("[childrenText=\"${localAttributes[AttributeType.childrenText]!!.take(50).sanitize()}\"]")
+        }
+        if (this.localAttributes.containsKey(AttributeType.childrenStructure)) {
+            sb.append("[childrenStructure=${localAttributes[AttributeType.childrenStructure]}]")
+        }
+        return sb.toString()
     }
 
     fun fullAttributeValuationMap(window: Window): String {

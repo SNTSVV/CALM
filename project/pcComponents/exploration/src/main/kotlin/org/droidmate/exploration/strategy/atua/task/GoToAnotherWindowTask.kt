@@ -41,6 +41,7 @@ open class GoToAnotherWindowTask constructor(
     delay: Long, useCoordinateClicks: Boolean
 ) : AbstractStrategyTask(atuaTestingStrategy, autautMF, delay, useCoordinateClicks) {
 
+    var reachedDestination: Boolean = false
     private val DEFAULT_MAX_COST: Double = 25.0
     protected var maxCost: Double = DEFAULT_MAX_COST
     private var tryOpenNavigationBar: Boolean = false
@@ -156,6 +157,7 @@ open class GoToAnotherWindowTask constructor(
                         }) {
                         log.info("Reached destination.")
                         succeededCount++
+                        reachedDestination = true
                         return true
                     }
                 }
@@ -249,6 +251,7 @@ open class GoToAnotherWindowTask constructor(
                 if (pathTraverser!!.isEnded()) {
                     log.info("Reached destination.")
                     succeededCount++
+                    reachedDestination = true
                     return true
                 }
                 if (pathTraverser!!.transitionPath.goal.isNotEmpty()) {
@@ -262,6 +265,7 @@ open class GoToAnotherWindowTask constructor(
                     ) {
                         log.info("Reached destination.")
                         succeededCount++
+                        reachedDestination = true
                         return true
                     }
                 }
@@ -304,7 +308,7 @@ open class GoToAnotherWindowTask constructor(
                     AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.hashCode == currentPath!!.getFinalDestination().hashCode } }
             else
                 AbstractStateManager.INSTANCE.getVirtualAbstractState(currentPath!!.getFinalDestination().window)
-            val maxCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!!,false)
+            val maxCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!!,true)
             if (finalTarget != null) {
                 val pathConstraints = HashMap<PathConstraint, Boolean>()
                 pathConstraints.put(PathConstraint.INCLUDE_RESET, false)
@@ -341,9 +345,9 @@ open class GoToAnotherWindowTask constructor(
 //            AbstractStateManager.INSTANCE.unreachableAbstractState.add(finalTarget!!)
         }
         val retryBudget = if (includeResetAction) {
-            (10 * atuaStrategy.scaleFactor).toInt()
+            (5 * atuaStrategy.scaleFactor).toInt()
         } else
-            (10 * atuaStrategy.scaleFactor).toInt()
+            (5 * atuaStrategy.scaleFactor).toInt()
         if (retryTimes < retryBudget) {
             retryTimes += 1
             log.debug("Retry-time: $retryTimes")
@@ -419,7 +423,7 @@ open class GoToAnotherWindowTask constructor(
         return true
     }
 
-    fun isReachExpectedState(currentState: State<*>): Boolean {
+    private fun isReachExpectedState(currentState: State<*>): Boolean {
         var reached = false
         val currentAppState = atuaMF.getAbstractState(currentState)!!
         var expectedAbstractState = pathTraverser!!.getCurrentTransition()!!.dest
@@ -586,6 +590,7 @@ open class GoToAnotherWindowTask constructor(
         useTrace = true
         saveBudget = false
         maxCost = DEFAULT_MAX_COST
+        reachedDestination = false
     }
 
     var useTrace: Boolean = true
@@ -994,6 +999,25 @@ open class GoToAnotherWindowTask constructor(
             }
         }*/
         if (lastTransition.isImplicit ) {
+            if (lastTransition.fromWTG) {
+                val sameWindowAppStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
+                    it.window == lastTransition.source.window
+                }
+                atuaMF.wtg.edges(lastTransition.source.window).filter {
+                    it.destination?.data == lastTransition.dest.window
+                            && lastTransition.source.getInputsByAbstractAction(lastTransition.abstractAction).contains(it.label.input)
+                }.forEach { edge ->
+                    edge.label.disabled = true
+                    atuaMF.wtg.remove(edge)
+                    sameWindowAppStates.forEach { appState ->
+                        appState.abstractTransitions.removeIf {
+                            it.fromWTG
+                                    && it.dest.window == edge.source.data
+                                    && it.abstractAction == lastTransition.abstractAction
+                        }
+                    }
+                }
+            }
 //            lastTransition.activated = false
             if (lastTransition.dependentAbstractStates.isNotEmpty()
                 && !currentAbstractState.isSimlarAbstractState(lastTransition.dest,0.8)) {
