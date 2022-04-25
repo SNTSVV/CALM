@@ -86,10 +86,6 @@ abstract class AbstractPhaseStrategy(
         return runtimeAbstractStates
     }
 
-    fun hasUnexploreWidgets(currentState: State<*>): Boolean {
-        return atuaMF.actionCount.getUnexploredWidget2(currentState).isNotEmpty()
-    }
-
     open fun getPathsToWindowToExplore(
         currentState: State<*>,
         targetWindow: Window,

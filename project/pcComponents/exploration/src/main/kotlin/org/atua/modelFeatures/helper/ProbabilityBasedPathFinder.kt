@@ -42,7 +42,7 @@ class ProbabilityBasedPathFinder {
         @JvmStatic
         private val log: Logger by lazy { LoggerFactory.getLogger(this::class.java) }
 
-        val DEFAULT_MAX_COST: Double = 15.0
+        val DEFAULT_MAX_COST: Double = 25.0
         val allAvailableTransitionPaths = HashMap<Pair<AbstractState, AbstractState>, ArrayList<TransitionPath>>()
         private val disableEdges = HashSet<Edge<AbstractState, AbstractTransition>>()
         private val disablePaths = HashSet<Pair<List<AbstractTransition>, DisablePathType>>()
@@ -360,15 +360,20 @@ class ProbabilityBasedPathFinder {
             }
 
             validAbstractActions.forEach { abstractAction ->
-                val abstractTransitions = source.abstractTransitions.filter {
-                    (!it.abstractAction.isItemAction() || it.abstractAction.isWebViewAction())
-                    && it.abstractAction == abstractAction
-                            && it.activated == true
-                            && (!considerGuardedTransitions || !it.guardEnabled ||
-                                    it.dependentAbstractStates.intersect(abstractStateStack.toList()).isNotEmpty())
-                            && (pathContraints[PathConstraint.INCLUDE_WTG]?:false || !it.fromWTG)
-                            && !traveredAbstractTransitions.contains(it)
+                val abstractTransitions = source.abstractTransitions.filter { absTransition ->
+                    (!absTransition.abstractAction.isItemAction() || absTransition.abstractAction.isWebViewAction())
+                    && absTransition.abstractAction == abstractAction
+                            && absTransition.activated == true
+                            && (!considerGuardedTransitions || !absTransition.guardEnabled ||
+                                    absTransition.dependentAbstractStates.intersect(abstractStateStack.toList()).isNotEmpty())
+                            && (pathContraints[PathConstraint.INCLUDE_WTG]?:false
+                            || !absTransition.fromWTG )
+                            && (!absTransition.fromWTG || !source.abstractTransitions.any {
+                                !it.fromWTG && it.abstractAction == abstractAction
+                            } )
+                            && !traveredAbstractTransitions.contains(absTransition)
                 }
+
                 val goodAbstactTransitions = abstractTransitions.filter {
                     it.dest.window !is Launcher &&
                             it.dest !is PredictedAbstractState
@@ -632,16 +637,15 @@ class ProbabilityBasedPathFinder {
                     if (cost <= finalmaxCost || (maximumDSTG
                                 && fullGraph.path.values.all {
                             it.dest.guiStates.isNotEmpty()
-                                    && it.abstractAction.actionType!=AbstractActionType.RESET_APP})) {
+                                   })) {
                         foundPaths.add(fullGraph)
                     }
                 } else {
                     cost = fullGraph.cost(final = false)
                 }
-                if (cost < maxCost || (maximumDSTG
+                if (cost <= maxCost || (maximumDSTG
                             && fullGraph.path.values.all {
-                        it.dest.guiStates.isNotEmpty()
-                                && it.abstractAction.actionType!=AbstractActionType.RESET_APP})) {
+                        it.dest.guiStates.isNotEmpty() })) {
                     if (!isDisablePath(fullGraph, pathType)) {
                         result = true
                         val nextAbstateStack = if (abstractTransition.abstractAction.isLaunchOrReset()) {

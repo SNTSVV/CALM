@@ -238,7 +238,7 @@ open class Input{
 
                 val prevWindows = abstractTransition.dependentAbstractStates.map { it.window }
 
-                createWindowTransition(prevWindows, wtg, prevAbstractState, newAbstractState, newInput)
+//                createWindowTransition(prevWindows, wtg, prevAbstractState, newAbstractState, newInput)
                 associateAbstractActionsWithInput(prevAbstractState, abstractTransition, newInput)
             } else {
                 val attributeValuationSet = abstractTransition.abstractAction.attributeValuationMap!!
@@ -289,7 +289,7 @@ open class Input{
                     newInput.eventHandlers.addAll(abstractTransition.handlers.map { it.key })
 
                     val prevWindows = abstractTransition.dependentAbstractStates.map { it.window }
-                    createWindowTransition(prevWindows, wtg, prevAbstractState, newAbstractState, newInput)
+//                    createWindowTransition(prevWindows, wtg, prevAbstractState, newAbstractState, newInput)
                     associateAbstractActionsWithInput(prevAbstractState, abstractTransition, newInput)
                 }
             }

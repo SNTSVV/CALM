@@ -442,7 +442,7 @@ class PhaseThreeStrategy(
             setGoToRelatedWindow(goToAnotherNode, currentState)
             return
         }
-        if (hasUnexploreWidgets(currentState) || currentAppState.getUnExercisedActions(atuaMF = atuaMF,currentState = currentState)
+        if (currentAppState.getUnExercisedActions(atuaMF = atuaMF,currentState = currentState)
                 .filter { it.isWidgetAction() && !it.isCheckableOrTextInput(currentAppState)}.isNotEmpty()) {
             setRandomExploration(randomExplorationTask, currentState)
         }
@@ -482,17 +482,19 @@ class PhaseThreeStrategy(
             log.info("Continue ${strategyTask!!.javaClass.name}")
             return
         }
-        if (goToAnotherNode.isAvailable(currentState, relatedWindow!!,true, true, true,false)) {
+        if (strategyTask !is GoToAnotherWindowTask &&
+            goToAnotherNode.isAvailable(currentState, relatedWindow!!,true, true, true,false)) {
             setGoToRelatedWindow(goToAnotherNode, currentState)
             return
         }
-        if (hasUnexploreWidgets(currentState)
-            || currentAppState.getUnExercisedActions(atuaMF = atuaMF,currentState = currentState)
-                .filter { it.isWidgetAction() && !it.isCheckableOrTextInput(currentAppState)}.isNotEmpty()) {
+       /* if (currentAppState.getUnExercisedActions(atuaMF = atuaMF,currentState = currentState)
+                .filter { it.isWidgetAction()
+                        && !it.isCheckableOrTextInput(currentAppState)
+                        && currentAppState.getInputsByAbstractAction(it).any { it.meaningfulScore>0 }}.isNotEmpty()) {
             setRandomExploration(randomExplorationTask, currentState)
             phaseState = PhaseState.P3_GO_TO_RELATED_NODE
             return
-        }
+        }*/
         selectTargetStaticEvent(currentState)
         //setRandomExploration(randomExplorationTask, currentState)
         phaseState = PhaseState.P3_INITIAL
@@ -617,20 +619,8 @@ class PhaseThreeStrategy(
                 setGoToRelatedWindow(goToAnotherNode, currentState)
                 return
             }
-            if (hasUnexploreWidgets(currentState)
-                || currentAppState.getUnExercisedActions(atuaMF = atuaMF,currentState = currentState)
-                    .filter { it.isWidgetAction() && !it.isCheckableOrTextInput(currentAppState)}.isNotEmpty()) {
-                setRandomExploration(randomExplorationTask, currentState)
-                phaseState = PhaseState.P3_GO_TO_RELATED_NODE
-                return
-            }
-            if (goToAnotherNode.isAvailable(currentState)) {
-                setGoToExploreState(goToAnotherNode, currentState)
-                phaseState = PhaseState.P3_GO_TO_RELATED_NODE
-                return
-            }
             setFullyRandomExploration(randomExplorationTask, currentState)
-            phaseState = PhaseState.P3_GO_TO_RELATED_NODE
+            phaseState = PhaseState.P3_EXPLORATION_IN_RELATED_WINDOW
             return
         } else {
             if (currentAppState.window == targetWindow) {
@@ -706,13 +696,7 @@ class PhaseThreeStrategy(
             log.info("Continue ${strategyTask!!.javaClass.name}")
             return
         }
-        if (hasUnexploreWidgets(currentState)
-            || currentAppState.getUnExercisedActions(atuaMF = atuaMF,currentState = currentState)
-                .filter { it.isWidgetAction() && !it.isCheckableOrTextInput(currentAppState)}.isNotEmpty()) {
-            setRandomExploration(randomExplorationTask, currentState)
-            phaseState = PhaseState.P3_GO_TO_TARGET_NODE
-            return
-        }
+
         targetEvent = null
         if (targetEvent==null) {
             selectTargetWindow(currentState, 0, 0)

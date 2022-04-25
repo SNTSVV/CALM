@@ -406,12 +406,12 @@ class PhaseOneStrategy(
             .filter { window -> !fullyExploredWindows.contains(window)
                     && AbstractStateManager.INSTANCE.ABSTRACT_STATES.any {
                 it.window == window &&  it.guiStates.isNotEmpty() } }
-        meaningfulWindows.forEach {
+        /*meaningfulWindows.forEach {
             if (it.meaningfullScore<=0) {
                 fullyExploredWindows.add(it)
             }
-        }
-        val availableAbState_Window =  meaningfulWindows.filter { it.meaningfullScore>0 }
+        }*/
+        val availableAbState_Window =  meaningfulWindows/*.filter { it.meaningfullScore>0 }*/
             .associateWith {window-> unexhaustedExploredAbstractStates.filter{it.window == window } }
 
         availableAbState_Window.forEach {
@@ -794,7 +794,7 @@ class PhaseOneStrategy(
             }
         if (strategyTask !is RandomExplorationTask && meaningfulAbstractActions.isNotEmpty() && currentAppState.window.meaningfullScore>0
         ) {
-            setRandomExploration(randomExplorationTask, currentState, false, false)
+            setRandomExploration(randomExplorationTask, currentState, true, false)
             return
         }
        /* if (strategyTask is RandomExplorationTask
@@ -809,12 +809,12 @@ class PhaseOneStrategy(
             if (continueOrEndCurrentTask(currentState)) return
         }
 
-        if ((meaningfulAbstractActions.isNotEmpty() && currentAppState.window.meaningfullScore > 0)
+        if ((meaningfulAbstractActions.isNotEmpty() /*&& currentAppState.window.meaningfullScore > 0*/)
             || (strategyTask is GoToAnotherWindowTask && (strategyTask as GoToAnotherWindowTask).reachedDestination)) {
-            setRandomExploration(randomExplorationTask, currentState, false, false)
+            setRandomExploration(randomExplorationTask, currentState, true, false)
             return
         }
-        if (hasBudgetLeft(currentAppState.window)) {
+        if (strategyTask is GoToAnotherWindowTask && hasBudgetLeft(currentAppState.window)) {
             setRandomExploration(randomExplorationTask, currentState, false, true)
             return
         }
@@ -1006,7 +1006,25 @@ class PhaseOneStrategy(
     }
 
     private fun exploreApp(currentState: State<*>, goToAnotherWindow: GoToAnotherWindowTask): Boolean {
-        if (goToAnotherWindow.isAvailable(currentState)) {
+        if (goToAnotherWindow.isAvailable(
+                currentState = currentState,
+                destWindow = null,
+                includeResetApp = false,
+                isExploration = true,
+                includePressback = true,
+                isWindowAsTarget = false
+            )) {
+            setGoToExploreState(goToAnotherWindow, currentState)
+            return true
+        }
+        if (goToAnotherWindow.isAvailable(
+                currentState = currentState,
+                destWindow = null,
+                includeResetApp = true,
+                isExploration = true,
+                includePressback = true,
+                isWindowAsTarget = false
+            )) {
             setGoToExploreState(goToAnotherWindow, currentState)
             return true
         }
@@ -1386,17 +1404,6 @@ class PhaseOneStrategy(
         return false
     }
 
-    private fun randomlyExploreTargetIfHasBudgetAndUnexploredWidgets(
-        currentState: State<*>,
-        randomExplorationTask: RandomExplorationTask
-    ): Boolean {
-        if (hasBudgetLeft(targetWindow!!) && hasUnexploreWidgets(currentState)) {
-            setRandomExplorationInTargetWindow(randomExplorationTask, currentState)
-            //setRandomExplorationInTargetWindow(randomExplorationTask, currentState)
-            return true
-        }
-        return false
-    }
 
     private fun exerciseTargetIfAvailable(
         exerciseTargetComponentTask: ExerciseTargetComponentTask,
@@ -1571,7 +1578,6 @@ class PhaseOneStrategy(
         return super.getUnexhaustedExploredAbstractState().filter {
             !fullyExploredWindows.contains(it.window)
                     && !unreachableWindows.contains(it.window)
-                    && it.window.meaningfullScore > 0
         }
     }
     override fun getPathsToExploreStates(
@@ -1628,22 +1634,6 @@ class PhaseOneStrategy(
             abandonedAppStates = emptyList(),
             pathConstraints = pathConstraints
         )
-        if (transitionPaths.isEmpty()) {
-            goalByAbstractState.entries.removeIf { it.key.window is Dialog }
-            getPathToStatesBasedOnPathType(
-                pathType,
-                transitionPaths,
-                stateByActionCount,
-                currentAbstractState,
-                currentState,
-                true,
-                windowAsTarget = true,
-                goalByAbstractState = goalByAbstractState,
-                maxCost = maxCost,
-                abandonedAppStates = emptyList(),
-                pathConstraints = pathConstraints
-            )
-        }
         return transitionPaths
     }
 
@@ -1830,7 +1820,7 @@ class PhaseOneStrategy(
     }
 
     private fun hasBudgetLeft(window: Window): Boolean {
-        if (outofbudgetWindows.contains(window) || fullyExploredWindows.contains(window))
+        if (outofbudgetWindows.contains(window))
             return false
         return true
     }
@@ -1853,11 +1843,13 @@ class PhaseOneStrategy(
         strategyTask = randomExplorationTask.also {
             it.initialize(currentState)
             it.stopWhenHavingTestPath = stopWhenTestPathIdentified
-            val randomBudgetLeft = if (windowRandomExplorationBudget.containsKey(currentAbstractState.window))
+            /*val randomBudgetLeft = if (windowRandomExplorationBudget.containsKey(currentAbstractState.window))
                 windowRandomExplorationBudget[currentAbstractState.window]!! - windowRandomExplorationBudgetUsed[currentAbstractState.window]!!
             else
-                (5 * scaleFactor).toInt()
-            val minRandomBudget = (5 * scaleFactor).toInt()
+                (1 * scaleFactor).toInt()*/
+            val randomBudgetLeft =
+                (2 * scaleFactor).toInt()
+            val minRandomBudget = (2 * scaleFactor).toInt()
             if (randomBudgetLeft <= minRandomBudget) {
                 it.setMaxiumAttempt(minRandomBudget)
             } else {

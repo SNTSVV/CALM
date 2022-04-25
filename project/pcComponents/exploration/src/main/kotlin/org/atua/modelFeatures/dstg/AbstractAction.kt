@@ -71,7 +71,7 @@ class AbstractAction private constructor (
 
     fun getScore(): Double {
         var actionScore = when(actionType) {
-            AbstractActionType.PRESS_BACK -> 0.5
+            AbstractActionType.PRESS_BACK -> 0.1 // Press back should be the last action to be executedd
             AbstractActionType.SWIPE -> 0.5
             AbstractActionType.LONGCLICK,AbstractActionType.ITEM_LONGCLICK -> 2.0
             AbstractActionType.CLICK,AbstractActionType.ITEM_CLICK -> 4.0
@@ -130,14 +130,16 @@ class AbstractAction private constructor (
 //        val unexploredActionableWidgets = atuaMF.actionCount.getUnexploredWidget(newState).filter { !Helper.isUserLikeInput(it) }
         val unexploredAbstractActions = newAppState.getUnExercisedActions(currentState = newState,atuaMF = atuaMF).filter {
             !it.isCheckableOrTextInput(newAppState) && it.isWidgetAction() }
+        val windowWidgetFrequency = AbstractStateManager.INSTANCE.attrValSetsFrequency[newAppState.window]!!
+        val firstAppearActions = unexploredAbstractActions.filter { windowWidgetFrequency[it.attributeValuationMap!!]!! == 1 }
         if (coverageIncreased
 //            || atuaMF.stateVisitCount[structureUuid] == 1 )
-            || (unexploredAbstractActions.isNotEmpty()
-                    && unexploredAbstractActions.map { newAppState.getInputsByAbstractAction(it) }.flatten().any { it.meaningfulScore>0 }
+            || (firstAppearActions.isNotEmpty()
+                    && firstAppearActions.map { newAppState.getInputsByAbstractAction(it) }.flatten().any { it.meaningfulScore>0 }
                     && atuaMF.abstractStateVisitCount[newAppState]==1
                     && newAppState.window !is OutOfApp
                     && newAppState.window !is Launcher)) {
-            meaningfulScore = min(meaningfulScore+50,MAX_SCORE)
+            meaningfulScore = min(meaningfulScore+25,MAX_SCORE)
             if (randomExploration) {
                 window.meaningfullScore = min (window.meaningfullScore+5, window.MAX_SCORE)
                 inputs.forEach {
@@ -162,11 +164,11 @@ class AbstractAction private constructor (
             if (randomExploration) {
                 window.meaningfullScore = max(window.meaningfullScore-5,0)
                 inputs.forEach {
-                    it.meaningfulScore = max(it.meaningfulScore-10,0)
+                    it.meaningfulScore = max(it.meaningfulScore-20,0)
                 }
             }
         }
-
+        inputs.size
     }
 
     override fun toString(): String {

@@ -83,9 +83,9 @@ class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.Pa
         } else {
             cost = baseCost + (baseCost/2 * failurePb)
         }
-        if (final && destination !is VirtualAbstractState && destination !is PredictedAbstractState) {
+       /* if (final && destination !is VirtualAbstractState && destination !is PredictedAbstractState) {
             finalEffectiveness = finalEffectiveness+ log10(destination.getUnExercisedActions2(null).size.toDouble())
-        }
+        }*/
         val finalCost = cost/finalEffectiveness
         return finalCost
     }

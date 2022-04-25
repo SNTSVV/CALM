@@ -19,6 +19,7 @@ import org.droidmate.deviceInterface.exploration.ExplorationAction
 import org.droidmate.deviceInterface.exploration.GlobalAction
 import org.droidmate.deviceInterface.exploration.LongClick
 import org.droidmate.deviceInterface.exploration.LongClickEvent
+import org.droidmate.deviceInterface.exploration.Rectangle
 import org.droidmate.deviceInterface.exploration.Swipe
 import org.droidmate.deviceInterface.exploration.Tick
 import org.droidmate.deviceInterface.exploration.isClick
@@ -56,6 +57,8 @@ import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.random.Random
 
 abstract class AbstractStrategyTask(
@@ -580,7 +583,26 @@ abstract class AbstractStrategyTask(
         }
         val swipeAction =
             when (data) {
-                "SwipeUp" -> scrollWidget.swipeUp()
+                "SwipeUp" -> {
+                    if (scrollWidget.className == "androidx.recyclerview.widget.RecyclerView") {
+                        val childWidgets = currentState.widgets.filter { it.parentId == scrollWidget.id }
+                        if (childWidgets.isNotEmpty() && !childWidgets.any { it.boundaries.topY == scrollWidget.boundaries.topY }) {
+                            // Here, the children of this RecyclerView are layout specially (i.e., there is a space before the first item)
+                            val visibleBounderies = childWidgets.fold(Rectangle.empty(), {r,w->
+                                val left = min(r.leftX,w.visibleBounds.leftX)
+                                val right = max(r.rightX,w.visibleBounds.rightX)
+                                val top = min(r.topY,w.visibleBounds.topY)
+                                val bottom = max(r.bottomY,w.visibleBounds.bottomY)
+                                Rectangle(left,top,right-left,bottom-top)
+                            })
+                            Swipe(Pair(visibleBounderies.center.first, visibleBounderies.center.second+visibleBounderies.height/4) , Pair(visibleBounderies.center.first, visibleBounderies.topY), 35, true)
+                        } else {
+                            scrollWidget.swipeUp()
+                        }
+                    } else {
+                        scrollWidget.swipeUp()
+                    }
+                }
                 "SwipeDown" -> scrollWidget.swipeDown()
                 "SwipeLeft" -> scrollWidget.swipeLeft()
                 "SwipeRight" -> scrollWidget.swipeRight()
@@ -705,9 +727,9 @@ abstract class AbstractStrategyTask(
             else
                 lessTryWidgets.random()
             log.info("Item widget: $chosenWidget")
-            if (abstractAction!=null && currentAbstractState.getAttributeValuationSet(chosenWidget, currentState, atuaMF)!=null) {
-                currentAbstractState.increaseActionCount2(abstractAction,true)
-            }
+//            if (abstractAction!=null && currentAbstractState.getAttributeValuationSet(chosenWidget, currentState, atuaMF)!=null) {
+//                currentAbstractState.increaseActionCount2(abstractAction,true)
+//            }
             val chosenAction = when (action) {
                     AbstractActionType.ITEM_CLICK -> chosenWidget.click()
                     AbstractActionType.ITEM_LONGCLICK -> chosenWidget.longClick()

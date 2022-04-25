@@ -140,7 +140,12 @@ open class GoToAnotherWindowTask constructor(
                 }
                 if (isExploration) {
                     if (destWindow==null || currentAppState.window == destWindow) {
-                        if (currentAppState.getUnExercisedActions(currentState, atuaMF).filter{it.isWidgetAction()}.isNotEmpty()) {
+                        if (currentAppState.getUnExercisedActions(currentState, atuaMF)
+                                .filter{
+                                    it.isWidgetAction()
+                                            && !it.isCheckableOrTextInput(currentAppState)
+                                            && currentAppState.getInputsByAbstractAction(it).any { it.meaningfulScore>0 }
+                                }.isNotEmpty()) {
                             log.info("Reached destination.")
                             succeededCount++
                             return true
@@ -611,7 +616,7 @@ open class GoToAnotherWindowTask constructor(
 
     open fun isAvailable(
         currentState: State<*>,
-        destWindow: Window,
+        destWindow: Window?,
         isWindowAsTarget: Boolean = false,
         includePressback: Boolean = true,
         includeResetApp: Boolean = true,

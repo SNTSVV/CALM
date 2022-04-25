@@ -26,8 +26,10 @@ class GoToTargetWindowTask (
         else
             computeNextPathType(currentPath!!.pathType,includeResetAction)*/
         val pathConstraints = HashMap<PathConstraint,Boolean>()
-        pathConstraints.put(PathConstraint.INCLUDE_RESET,includeResetAction)
-        pathConstraints.put(PathConstraint.INCLUDE_LAUNCH,true)
+        if (!continueMode) {
+            pathConstraints.put(PathConstraint.INCLUDE_RESET, includeResetAction)
+            pathConstraints.put(PathConstraint.INCLUDE_LAUNCH, true)
+        }
         pathConstraints.put(PathConstraint.MAXIMUM_DSTG,true)
 
         while (possiblePaths.isEmpty()) {

@@ -417,6 +417,7 @@ class ExerciseTargetComponentTask private constructor(
         fillingData = false
         if (chosenAbstractAction!=null)
         {
+            atuaMF.isRandomExploration = true
             val input = currentAbstractState.getInputsByAbstractAction(chosenAbstractAction!!)
             log.info("Exercise Event: $input")
             var chosenWidget: Widget? = null

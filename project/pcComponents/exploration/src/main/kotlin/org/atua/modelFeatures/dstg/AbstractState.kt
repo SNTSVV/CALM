@@ -12,6 +12,7 @@
 
 package org.atua.modelFeatures.dstg
 
+import org.atua.calm.modelReuse.ModelHistoryInformation
 import org.atua.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.dstg.reducer.WidgetReducer
 import org.atua.modelFeatures.ewtg.*
@@ -462,7 +463,11 @@ open class AbstractState(
                     && it.key.actionType != AbstractActionType.CLICK
                     && it.key.actionType != AbstractActionType.LONGCLICK
                     && it.key.actionType != AbstractActionType.SEND_INTENT
-                    && getInputsByAbstractAction(it.key).any { it.meaningfulScore > 0 }
+                    && it.key.actionType != AbstractActionType.CLOSE_KEYBOARD
+                    && getInputsByAbstractAction(it.key).any { it.meaningfulScore > 0
+                        && it.exerciseCount==0
+                         &&(!atuaMF.reuseBaseModel
+                    || ModelHistoryInformation.INSTANCE.inputUsefulness[it]?.second?:1>0)}
                     && it.value==0
         }.map { it.key })
         val widgetActionCounts = if (currentState != null) {
@@ -495,7 +500,7 @@ open class AbstractState(
             inputMappings[abstractAction]?.any {
                 it.isUseless == true &&
                         (!abstractAction.isWidgetAction() || it.exerciseCount > 0)
-            } ?: true
+            } ?: false
         }
         return unexcerisedActions.toList()
     }

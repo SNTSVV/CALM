@@ -223,7 +223,11 @@ class RandomExplorationTask constructor(
         val unexercisedActions = currentAbstractState.getUnExercisedActions(currentState,atuaMF)
             .filter {
                 !it.isCheckableOrTextInput(currentAbstractState)
-                    && currentAbstractState.getInputsByAbstractAction(it).any { it.meaningfulScore>0 } }
+                    && currentAbstractState.getInputsByAbstractAction(it).any {
+                    it.meaningfulScore>0
+                }
+            }
+
         val widgetActions1 = unexercisedActions.filter {
             it.attributeValuationMap != null
         }
@@ -387,7 +391,14 @@ class RandomExplorationTask constructor(
                 fillingData = false
             }
         }
-        if (!dataFilled && !fillingData && !stopGenerateUserlikeInput) {
+
+        val affectedByUserlikeinput = atuaMF.dstg.edges().any {
+            it.label.interactions.isNotEmpty()
+                    && it.label.abstractAction.isCheckableOrTextInput(it.label.source)
+                    && it.label.source.getAvailableActions().intersect(unexercisedActions).isNotEmpty()
+                    && it.label.dest.getAvailableActions().intersect(unexercisedActions).isEmpty()
+        }
+        if (!dataFilled && !fillingData && !stopGenerateUserlikeInput && !affectedByUserlikeinput) {
             val lastAction = atuaStrategy.eContext.getLastAction()
             if (!lastAction.actionType.isTextInsert() && !currentAbstractState.isOpeningKeyboard) {
                 if (fillDataTask.isAvailable(currentState, alwaysUseRandomInput)) {
@@ -440,7 +451,7 @@ class RandomExplorationTask constructor(
             randomInDialogCnt = 0
         }
 
-        if(randomAction==null) {
+/*        if(randomAction==null) {
             tryLastAction = 0
             //val widgetActions = currentAbstractState.getAvailableActions().filter { it.widgetGroup != null }
             val prioritizeActions1 = unexercisedActions.filter {
@@ -452,13 +463,14 @@ class RandomExplorationTask constructor(
             if (prioritizeActions1.isNotEmpty()) {
                 randomAction = exerciseUnexercisedWidgetAbstractActions(prioritizeActions1, currentAbstractState)
             }
-        }
+        }*/
 
         if (randomAction == null) {
             val priotizeActions = unexercisedActions.filter {
                 val inputs = currentAbstractState.getInputsByAbstractAction(it)
                 val usefulInputs = inputs.filter {
-                    if (ModelHistoryInformation.INSTANCE.inputUsefulness.containsKey(it)) {
+                    if ((it.eventType == EventType.long_click || it.eventType == EventType.item_long_click || it.eventType == EventType.swipe)
+                        && ModelHistoryInformation.INSTANCE.inputUsefulness.containsKey(it)) {
                         ModelHistoryInformation.INSTANCE.inputUsefulness[it]!!.second>0
                     } else {
                         true
@@ -476,7 +488,7 @@ class RandomExplorationTask constructor(
         if (randomAction == null) {
             if (unexercisedActions.any { it.attributeValuationMap != null }) {
                 val widgetActions = unexercisedActions.filter { it.attributeValuationMap != null }
-                randomAction =  widgetActions.random()
+                randomAction =  exerciseUnexercisedWidgetAbstractActions(widgetActions, currentAbstractState)
             }
         }
 
@@ -894,10 +906,10 @@ class RandomExplorationTask constructor(
                 val pb = ProbabilityDistribution<AbstractAction>(actionByScore)
                 randomAction1 = pb.getRandomVariable()
             } else {
-                randomAction1 = candidateActions.random()
+                randomAction1 = candidateActions.maxByOrNull { it.getScore() }
             }
         } else {
-            randomAction1 = toExerciseActionsn.random()
+            randomAction1 = toExerciseActionsn.maxByOrNull { it.getScore() }
         }
         return randomAction1
     }

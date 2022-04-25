@@ -510,8 +510,7 @@ class PhaseTwoStrategy(
                 !it.isCheckableOrTextInput(currentAppState)
                         && currentAppState.getInputsByAbstractAction(it).any { it.meaningfulScore > 0 }
             }
-        if (meaningfulAbstractActions.isNotEmpty()
-            || hasUnexploreWidgets(currentState)) {
+        if (meaningfulAbstractActions.isNotEmpty()) {
             setRandomExploration(randomExplorationTask, currentState, currentAppState)
             return
         }
@@ -525,9 +524,10 @@ class PhaseTwoStrategy(
             phaseState = PhaseState.P2_GO_TO_EXPLORE_STATE
             return
         }
-        selectTargetWindow(currentState,0)
-        attempt++
-        setFullyRandomExploration(randomExplorationTask, currentState)
+        setRandomExploration(randomExplorationTask, currentState, currentAppState)
+//        selectTargetWindow(currentState,0)
+//        attempt++
+//        setFullyRandomExploration(randomExplorationTask, currentState)
         return
     }
 
@@ -683,7 +683,7 @@ class PhaseTwoStrategy(
                         && currentAppState.getInputsByAbstractAction(it).any { it.meaningfulScore > 0 }
             }
         if (meaningfulAbstractActions.isNotEmpty()
-            || hasUnexploreWidgets(currentState)) {
+            ) {
             setRandomExploration(randomExplorationTask, currentState, currentAppState)
             return
         }
@@ -748,7 +748,7 @@ class PhaseTwoStrategy(
                         && currentAppState.getInputsByAbstractAction(it).any { it.meaningfulScore > 0 }
             }
         if (meaningfulAbstractActions.isNotEmpty()
-            || hasUnexploreWidgets(currentState)) {
+          ) {
             setRandomExploration(randomExplorationTask, currentState, currentAppState)
             return
         }
@@ -791,7 +791,7 @@ class PhaseTwoStrategy(
                         && currentAppState.getInputsByAbstractAction(it).any { it.meaningfulScore > 0 }
             }
         if (meaningfulAbstractActions.isNotEmpty()
-            || hasUnexploreWidgets(currentState)) {
+           ) {
             setRandomExploration(randomExplorationTask, currentState, currentAppState)
             return
         }
@@ -913,7 +913,7 @@ class PhaseTwoStrategy(
                         && currentAppState.getInputsByAbstractAction(it).any { it.meaningfulScore > 0 }
             }
         if (meaningfulAbstractActions.isNotEmpty()
-            || hasUnexploreWidgets(currentState)) {
+            ) {
             setRandomExploration(randomExplorationTask, currentState, currentAppState)
             return
         }

@@ -284,10 +284,14 @@ object DefaultStrategies: Logging {
 				}
 				// by default, if it cannot explore, presses back
 				else -> {
-					if (s.widgets.all { it.boundaries.equals(s.widgets.first().boundaries) } || !clickScreen)   {
+					if ( !s.widgets.any { it.packageName == eContext.model.config.appName }) {
+						pressbackCnt +=1
+						ExplorationAction.pressBack()
+					}
+					else if (s.widgets.all { it.boundaries.equals(s.widgets.first().boundaries) })   {
 						log.debug("Click on Screen")
 						val largestWidget = s.widgets.maxByOrNull { it.boundaries.width+it.boundaries.height }
-						if (largestWidget !=null) {
+						if (largestWidget !=null && !clickScreen) {
 							clickScreen = true
 							largestWidget.click()
 						} else {
@@ -303,10 +307,7 @@ object DefaultStrategies: Logging {
 							GlobalAction(ActionType.MinimizeMaximize)
 					}
 					// if current state is not a relevent state
-					else if ( !s.widgets.any { it.packageName == eContext.model.config.appName }) {
-						pressbackCnt +=1
-						ExplorationAction.pressBack()
-					} else if ( !s.visibleTargets.any { it.clickable }  ) {
+					 else if ( !s.visibleTargets.any { it.clickable }  ) {
 						// for example: vlc video player
 						log.debug("Cannot explore because of no actionable widgets. Randomly choose PressBack or Click")
 						if (pressEnter || clickScreen) {

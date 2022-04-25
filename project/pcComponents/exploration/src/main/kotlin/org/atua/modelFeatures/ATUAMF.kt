@@ -296,6 +296,7 @@ class ATUAMF(
             org.atua.modelFeatures.ATUAMF.Companion.log.info("Loading base model...")
             loadBaseModel()
             AbstractStateManager.INSTANCE.initVirtualAbstractStates()
+
         }
 
         postProcessingTargets()
@@ -1729,13 +1730,17 @@ class ATUAMF(
         val newAbstractState = AbstractStateManager.INSTANCE.getOrCreateNewAbstractState(
             newState, currentActivity, currentRotation, null
         )
+        if (newAbstractState.abstractTransitions.isEmpty()) {
+            AbstractStateManager.INSTANCE.initAbstractInteractions(newAbstractState, newState)
+        }
         newAbstractState.getAvailableActions(newState).forEach {
             if (ProbabilityBasedPathFinder.disableAbstractActions.contains(it)) {
                 ProbabilityBasedPathFinder.disableAbstractActions.remove(it)
             }
         }
-        val windowId =
+      /*  val windowId =
             newState.widgets.find { !it.isKeyboard }?.metaInfo?.find { it.contains("windowId") }?.split(" = ")?.get(1)
+      */
         if (getAbstractState(newState) == null)
             throw Exception("State has not been derived")
 //        AbstractStateManager.INSTANCE.updateLaunchAndResetAbstractTransitions(newAbstractState)
@@ -3188,8 +3193,6 @@ class ATUAMF(
             val reuseBaseModel by booleanType
             val reuseSameVersionModel by booleanType
         }
-
-
     }
 }
 

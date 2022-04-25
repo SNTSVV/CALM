@@ -662,7 +662,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                     input.usefullOnce = true
                 }*/
                 input.coveredMethods.putAll(abstractTransition.methodCoverage.associateWith { false })
-                if (prevWindows.isEmpty())
+                /*if (prevWindows.isEmpty())
                     atuaMF.wtg.add(
                         abstractTransition.source.window, abstractTransition.dest.window, WindowTransition(
                             abstractTransition.source.window,
@@ -682,7 +682,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                             )
                         )
 
-                    }
+                    }*/
             }
 
         }
