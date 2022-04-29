@@ -273,7 +273,7 @@ class RandomExplorationTask constructor(
                 }
             }
             else if (currentAbstractState.isRequireRandomExploration() && randomInDialogCnt>10) {
-                if (currentAbstractState.window.inputs.all { it.witnessed && it.exerciseCount>0 }) {
+                if (unexercisedActions.isEmpty()) {
                     if (canReturnToLockedWindow(currentState)) {
                         atuaMF.isRandomExploration = false
                         return goToLockedWindowTask!!.chooseAction(currentState)
@@ -284,8 +284,10 @@ class RandomExplorationTask constructor(
                     }
                 }
             }
-        } else if (currentAbstractState.isRequireRandomExploration() && randomInDialogCnt>10) {
-            if (currentAbstractState.window.inputs.all { it.witnessed && it.exerciseCount>0 }) {
+        } else if (lockedWindow==null
+            && currentAbstractState.isRequireRandomExploration()
+            && randomInDialogCnt>10) {
+            if (unexercisedActions.isEmpty()) {
                 atuaMF.isRandomExploration = false
                 return ExplorationAction.pressBack()
             }
@@ -309,6 +311,7 @@ class RandomExplorationTask constructor(
                 }
             }
         }
+
         goToLockedWindowTask = null
         isClickedShutterButton = false
         if (currentState.widgets.any { it.isKeyboard } && currentAbstractState.shouldNotCloseKeyboard == false) {
@@ -394,9 +397,9 @@ class RandomExplorationTask constructor(
 
         val affectedByUserlikeinput = atuaMF.dstg.edges().any {
             it.label.interactions.isNotEmpty()
+                    && it.label.source.window == currentAbstractState.window
                     && it.label.abstractAction.isCheckableOrTextInput(it.label.source)
-                    && it.label.source.getAvailableActions().intersect(unexercisedActions).isNotEmpty()
-                    && it.label.dest.getAvailableActions().intersect(unexercisedActions).isEmpty()
+                    && it.label.source.getAvailableActions().intersect(unexercisedActions).size != it.label.dest.getAvailableActions().intersect(unexercisedActions).size
         }
         if (!dataFilled && !fillingData && !stopGenerateUserlikeInput && !affectedByUserlikeinput) {
             val lastAction = atuaStrategy.eContext.getLastAction()
@@ -441,6 +444,7 @@ class RandomExplorationTask constructor(
             log.info("Widget: ${selectedWidget}")
             return selectedAction
         }
+
         if (lockedWindow == null || lockedWindow != currentAbstractState.window) {
             if (currentAbstractState.isRequireRandomExploration()) {
                 randomInDialogCnt++
@@ -682,7 +686,7 @@ class RandomExplorationTask constructor(
                 isExploration = true
             )
         ) {
-            if (goToLockedWindowTask!!.possiblePaths.any { it.cost(final = true) <= 5 * atuaStrategy.scaleFactor }) {
+            if (goToLockedWindowTask!!.possiblePaths.any { it.cost(final = true) <= 15 * atuaStrategy.scaleFactor }) {
                 goToLockedWindowTask!!.initialize(currentState)
                 return true
             } else {

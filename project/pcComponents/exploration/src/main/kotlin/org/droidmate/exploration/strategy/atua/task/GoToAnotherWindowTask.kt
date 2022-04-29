@@ -3,6 +3,7 @@ package org.droidmate.exploration.strategy.atua.task
 import kotlinx.coroutines.runBlocking
 import org.atua.calm.ModelBackwardAdapter
 import org.atua.calm.modelReuse.ModelVersion
+import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
@@ -361,11 +362,13 @@ open class GoToAnotherWindowTask constructor(
                 val maxCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!! + 1,true)
                 if (saveBudget && !possiblePaths.any { it.cost(final = true) <= maxCost }) {
                     log.debug("Fail to reach destination.")
-                    currentPath!!.goal.forEach {
-                        if (it.input!=null)
-                            ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
-                        else
-                            ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction!!)
+                    if (includeResetAction) {
+                        currentPath!!.goal.forEach {
+                            if (it.input != null)
+                                ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
+                            else
+                                ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction!!)
+                        }
                     }
                     failedCount++
                     return true
@@ -378,11 +381,13 @@ open class GoToAnotherWindowTask constructor(
                     val maxCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!! + 1,true)
                     if (saveBudget && !possiblePaths.any { it.cost(final = true) <= maxCost }) {
                         log.debug("Fail to reach destination.")
-                        currentPath!!.goal.forEach {
-                            if (it.input!=null)
-                                ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
-                            else
-                                ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction!!)
+                        if (includeResetAction) {
+                            currentPath!!.goal.forEach {
+                                if (it.input != null)
+                                    ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
+                                else
+                                    ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction!!)
+                            }
                         }
                         failedCount++
                         return true
@@ -390,11 +395,13 @@ open class GoToAnotherWindowTask constructor(
                     initialize(currentState)
                     return false
                 } else {
-                    currentPath!!.goal.forEach {
-                        if (it.input != null)
-                            ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
-                        else
-                            ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction!!)
+                    if (includeResetAction) {
+                        currentPath!!.goal.forEach {
+                            if (it.input != null)
+                                ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
+                            else
+                                ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction!!)
+                        }
                     }
                 }
             }
@@ -404,7 +411,7 @@ open class GoToAnotherWindowTask constructor(
             initPossiblePaths(currentState, true,PathFindingHelper.PathType.PARTIAL_TRACE)
             if (possiblePaths.isNotEmpty() && possiblePaths.any { it.pathType == PathFindingHelper.PathType.PARTIAL_TRACE || it.pathType == PathFindingHelper.PathType.FULLTRACE }) {
                 initialize(currentState)
-                log.debug(" Paths is not empty")
+                log.debug(" Paths is not empty")oran
                 return false
             }
         } */
@@ -417,11 +424,13 @@ open class GoToAnotherWindowTask constructor(
                 return false
             }
         }*/
-        currentPath!!.goal.forEach {
-            if (it.input!=null)
-                ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
-            else
-                ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction!!)
+        if (includeResetAction) {
+            currentPath!!.goal.forEach {
+                if (it.input != null)
+                    ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
+                else
+                    ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction!!)
+            }
         }
         log.debug("Fail to reach destination.")
         failedCount++
@@ -866,7 +875,7 @@ open class GoToAnotherWindowTask constructor(
                 if (pathTraverser!!.transitionPath.pathType != PathFindingHelper.PathType.FULLTRACE
                     && pathTraverser!!.transitionPath.pathType != PathFindingHelper.PathType.PARTIAL_TRACE
                 ) {
-                    if (nextTransition.userInputs.isNotEmpty()) {
+                    if (nextTransition.userInputs.isNotEmpty() && !nextTransition.abstractAction.isCheckableOrTextInput(currentAbstractState)) {
                         val inputData = nextTransition!!.userInputs.random()
                         inputData.forEach {
                             val inputWidget = currentState.visibleTargets.find { w -> it.key.equals(w.uid) }
@@ -998,13 +1007,35 @@ open class GoToAnotherWindowTask constructor(
             return
         }
         lastTransition.activated = false
+        if (lastTransition.dest == currentAbstractState || lastTransition.dest.hashCode == currentAbstractState.hashCode) {
+            if (!pathTraverser!!.isEnded()) {
+                val nextTransition = pathTraverser!!.transitionPath.path[pathTraverser!!.latestEdgeId!! + 1]!!
+                val missingAction = nextTransition.abstractAction
+                lastTransition.dest.removeAction(missingAction)
+            } else {
+                pathTraverser!!.transitionPath.goal.forEach {
+                    if (it.abstractAction!=null) {
+                        lastTransition.dest.removeAction(it.abstractAction)
+                    }
+                }
+
+            }
+
+        }
         /*if (pathTraverser!!.transitionPath.pathType == PathFindingHelper.PathType.FULLTRACE) {
             if (lastTransition.interactions.isNotEmpty()) {
                 lastTransition.activated = false
             }
         }*/
+        if (lastTransition.modelVersion == ModelVersion.BASE && lastTransition.interactions.isEmpty()) {
+            val backwardTransitions = ModelBackwardAdapter.instance.backwardEquivalentAbstractTransitionMapping.get(lastTransition)
+            backwardTransitions?.forEach { abstractTransition ->
+                abstractTransition.activated = false
+            }
+        }
         if (lastTransition.isImplicit ) {
             if (lastTransition.fromWTG) {
+                lastTransition.activated = false
                 val sameWindowAppStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
                     it.window == lastTransition.source.window
                 }

@@ -522,9 +522,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                 if (dependentAbstractState != null)
                     dependentAbstractStates.add(dependentAbstractState)
             }
-            if (dependentAbstractStates.isEmpty()) {
-                dependentAbstractStates.add(AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.window is Launcher }!!)
-            } else {
+            if (dependentAbstractStates.isNotEmpty()) {
                 if (dependentAbstractStates.map { it.window }.contains(destState!!.window)) {
                     guardEnabled = true
                 }
@@ -570,7 +568,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                         && it.isImplicit == false
                         && it.source == sourceState
                         && it.dest == destState
-                        && it.dependentAbstractStates.containsAll(dependentAbstractStates)
+                        && it.dependentAbstractStates.intersect(dependentAbstractStates).isNotEmpty()
             }
             if (abstractTransition == null) {
                 val newAbstractTransition = AbstractTransition(
@@ -604,6 +602,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             }
             else {
                 abstractTransition.userInputs.addAll(userlikeInputList)
+                abstractTransition.dependentAbstractStates.addAll(dependentAbstractStates)
             }
 
         }

@@ -382,19 +382,20 @@ class ATUAMF(
                 }
             }
 
-        AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
-            it.modelVersion == ModelVersion.BASE
-                    && it.window is OutOfApp
-        }.forEach {
-            it.abstractTransitions.forEach {
-                if (it.modifiedMethods.isNotEmpty()) {
-                    modifiedMethodsByWindow.putIfAbsent(it.dest.window, HashSet())
-                    modifiedMethodsByWindow[it.dest.window]!!.addAll(it.modifiedMethods.keys)
-                }
-            }
-        }
+
 
         if (reuseBaseModel) {
+            AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
+                it.modelVersion == ModelVersion.BASE
+                        && it.window is OutOfApp
+            }.forEach {
+                it.abstractTransitions.forEach {
+                    if (it.modifiedMethods.isNotEmpty()) {
+                        modifiedMethodsByWindow.putIfAbsent(it.dest.window, HashSet())
+                        modifiedMethodsByWindow[it.dest.window]!!.addAll(it.modifiedMethods.keys)
+                    }
+                }
+            }
             AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.modelVersion == ModelVersion.BASE }
                 .forEach { abSt ->
                     abSt.abstractTransitions.filter { !it.isImplicit }.forEach {
@@ -404,6 +405,13 @@ class ATUAMF(
                         }
                         if (it.source != it.dest && !it.dest.ignored)
                             dstg.updateAbstractActionEnability(abstractTransition = it,atua = this)
+                        wtg.edges(it.source.window).filter { edge->
+                            edge.destination?.data != it.dest.window
+                                    && it.source.getInputsByAbstractAction(it.abstractAction).contains(edge.label.input)
+                        }.forEach { edge ->
+                            edge.label.disabled = true
+                            wtg.remove(edge)
+                        }
                     }
                 }
             val newWindows = if (!reuseSameVersionModel)
@@ -803,7 +811,8 @@ class ATUAMF(
         }
         if (abstractStateStack.size<=1)
             return
-        if (abstractStateStack.contains(prevAppState)) {
+        if (abstractStateStack.contains(prevAppState)
+            && abstractStateStack.indexOf(prevAppState)>0) {
             val i = abstractStateStack.indexOf(prevAppState)
             prevprevAppState = abstractStateStack[i-1]
         } else {
@@ -1738,6 +1747,11 @@ class ATUAMF(
                 ProbabilityBasedPathFinder.disableAbstractActions.remove(it)
             }
         }
+        newAbstractState.getAvailableInputs().forEach {
+            if (ProbabilityBasedPathFinder.disableInputs.contains(it)) {
+                ProbabilityBasedPathFinder.disableInputs.remove(it)
+            }
+        }
       /*  val windowId =
             newState.widgets.find { !it.isKeyboard }?.metaInfo?.find { it.contains("windowId") }?.split(" = ")?.get(1)
       */
@@ -2486,9 +2500,11 @@ class ATUAMF(
                 if (!notFullyExercisedTargetInputs.contains(input) && !input.sourceWindow.ignored) {
 //                val handlerMethods = input.verifiedEventHandlers.map { statementMF!!.getMethodName(it) }
                     notFullyExercisedTargetInputs.add(input)
-                    modifiedMethodsByWindow.putIfAbsent(input.sourceWindow, HashSet())
-                    modifiedMethodsByWindow[input.sourceWindow]!!.addAll(input.modifiedMethods.keys)
                 }
+                if (!modifiedMethodsByWindow.containsKey(input.sourceWindow)) {
+                    modifiedMethodsByWindow.putIfAbsent(input.sourceWindow, HashSet())
+                }
+                modifiedMethodsByWindow[input.sourceWindow]!!.addAll(input.modifiedMethods.keys)
             }
         }
         if (coverageIncreased > 0) {

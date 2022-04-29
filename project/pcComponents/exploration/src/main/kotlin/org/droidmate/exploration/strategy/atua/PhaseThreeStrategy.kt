@@ -232,6 +232,7 @@ class PhaseThreeStrategy(
                         !action.isCheckableOrTextInput(appState)
                                 && appState.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
                                 && !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
+                                && ProbabilityBasedPathFinder.disableInputs.intersect(appState.getInputsByAbstractAction(action)).isEmpty()
 
                     }
                 meaningfulAbstractActions.forEach { action ->
@@ -470,6 +471,21 @@ class PhaseThreeStrategy(
             setRandomExplorationInRelatedWindow(randomExplorationTask, currentState)
             return
         }
+        if (strategyTask is GoToAnotherWindowTask) {
+            if ((strategyTask!! as GoToAnotherWindowTask).includeResetAction == false) {
+                if (goToAnotherNode.isAvailable(
+                        currentState= currentState,
+                        destWindow= relatedWindow!!,
+                         isWindowAsTarget = true,
+                        includePressback = true,
+                        includeResetApp =  true,
+                        isExploration = false)) {
+                    setGoToRelatedWindow(goToAnotherNode, currentState)
+                    return
+                }
+            }
+
+        }
         if (strategyTask is RandomExplorationTask
                 && (strategyTask as RandomExplorationTask).stopWhenHavingTestPath
                 && !currentAppState.isRequireRandomExploration()) {
@@ -702,8 +718,8 @@ class PhaseThreeStrategy(
             selectTargetWindow(currentState, 0, 0)
             selectTargetStaticEvent(currentState)
         }
-        setRandomExploration(randomExplorationTask, currentState)
         phaseState = PhaseState.P3_INITIAL
+        nextActionOnInitial(currentAppState, randomExplorationTask, currentState, goToAnotherNode)
         return
     }
 

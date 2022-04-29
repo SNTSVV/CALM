@@ -45,7 +45,6 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.text.SimpleDateFormat
 import java.time.Duration
-import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -470,6 +469,7 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
         log.info("Producing coverage reports finished")
         log.info("Producing action coverage report...")
         dumpActionTraceWithCoverage(context)
+        produceTargetActionCoverageHTMLReport(context)
         produceActionCoverageHTMLReport(context)
         log.info("Producing action coverage report finished.")
     }
@@ -591,7 +591,7 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
 
     }
 
-    fun produceActionCoverageHTMLReport(context: ExplorationContext<*, *, *>) {
+    fun produceTargetActionCoverageHTMLReport(context: ExplorationContext<*, *, *>) {
         val actionCoverageHTMLFolderPath = context.model.config.baseDir.resolve("actionCoverageHTML")
         // Files.createDirectory(actionCoverageHTMLFolderPath)
         // Copy the folder with the required resources
@@ -628,6 +628,147 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
             val actionIdStr = it.actionId.toString()
             if (actionIncreasingUpdatedCoverageTracking.containsKey(actionIdStr)
                 && actionIncreasingUpdatedCoverageTracking.get(actionIdStr)!!.size>0) {
+                val actionJSONObject = JSONObject()
+                dataJson.put(actionIdStr, actionJSONObject)
+                actionJSONObject.put("from", it.prevState.uid)
+                actionJSONObject.put("to", it.resState.uid)
+                actionJSONObject.put("actionType", it.actionType)
+                actionJSONObject.put("actionId", it.actionId)
+                actionJSONObject.put("data", it.data)
+                if (prevActionId != 0) {
+                    val prevActionScreenshotPath = context.model.config.baseDir
+                        .resolve("images")
+                        .resolve("${prevActionId}.jpg")
+                    val newPrevActionScreenshotPath = actionCoverageHTMLFolderPath.resolve("screenshot").resolve("${prevActionId}.jpg")
+                    if (!Files.exists(newPrevActionScreenshotPath)) {
+                        if (Files.exists(prevActionScreenshotPath)) {
+                            Files.copy(prevActionScreenshotPath,newPrevActionScreenshotPath)
+                        }
+                    }
+                    actionJSONObject.put(
+                        "prevImage",
+                        actionCoverageHTMLFolderPath.relativize(newPrevActionScreenshotPath).toString()
+                    )
+                } else {
+                    actionJSONObject.put(
+                        "prevImage",
+                        ""
+                    )
+                }
+                val screenshotFile = context.model.config.baseDir
+                    .resolve("images")
+                    .resolve("${it.actionId}.jpg")
+                if (!Files.exists(screenshotFile)) {
+                    actionJSONObject.put("image", actionJSONObject.get("prevImage"))
+                } else {
+                    val newScreenshotFile =
+                        actionCoverageHTMLFolderPath.resolve("screenshot").resolve("${it.actionId}.jpg")
+                    if (!Files.exists(newScreenshotFile))
+                        Files.copy(screenshotFile, newScreenshotFile)
+                    actionJSONObject.put("image", actionCoverageHTMLFolderPath.relativize(newScreenshotFile).toString())
+                }
+                actionJSONObject.put("coverageHash", actionCoverageTracking.get(actionIdStr)?.hashCode())
+                actionJSONObject.put("executedStatements", actionCoverageTracking.get(actionIdStr)?.size ?: 0)
+                actionJSONObject.put(
+                    "newExecutedStatements",
+                    actionIncreasingCoverageTracking.get(actionIdStr)?.size ?: 0
+                )
+                actionJSONObject.put(
+                    "executedUpdatedStatements",
+                    actionUpdatedCoverageTracking.get(actionIdStr)?.size ?: 0
+                )
+                actionJSONObject.put(
+                    "newExecutedUpdatedStatements",
+                    actionIncreasingUpdatedCoverageTracking.get(actionIdStr)?.size ?: 0
+                )
+                val executedUpdatedMethods = actionIncreasingUpdatedCoverageTracking.get(actionIdStr)?.map { statementMethodInstrumentationMap[it]!! }?.distinct()?.map { getMethodName(it) }?: emptyList()
+                actionJSONObject.put(
+                    "executedUpdatedMethods",
+                    executedUpdatedMethods
+                )
+                if (it.targetWidget != null) {
+                    val widget = it.targetWidget!!
+                    val widgetJSONObject = JSONObject()
+                    actionJSONObject.put("targetWidget", widgetJSONObject)
+                    widgetJSONObject.put("id", widget.id)
+                    widgetJSONObject.put("uid", widget.uid)
+                    widgetJSONObject.put("configId", widget.configId)
+                    widgetJSONObject.put("text", widget.text.sanitize())
+                    widgetJSONObject.put("contentDesc", widget.contentDesc.sanitize())
+                    widgetJSONObject.put("className", widget.className)
+                    widgetJSONObject.put("resourceId",widget.resourceId)
+                    val visibleBounds = JSONObject()
+                    visibleBounds.put("leftX", widget.visibleBounds.leftX)
+                    visibleBounds.put("topY", widget.visibleBounds.topY)
+                    visibleBounds.put("width", widget.visibleBounds.width)
+                    visibleBounds.put("height", widget.visibleBounds.height)
+                    widgetJSONObject.put("visibleBounds", visibleBounds)
+                }
+            }
+            prevActionId = it.actionId
+        }
+        val jsonFile = File(actionCoverageHTMLFolderPath.resolve("data.js").toString())
+        val jsonString = dataJson.toString(1)
+        jsonFile.writeText("var data = " + jsonString)
+
+//        generate html files
+        val templateHTMLFile = actionCoverageHTMLFolderPath.resolve("template.html")
+        val file = File(templateHTMLFile.toUri())
+        val content = file.readLines()
+
+        actions.forEach {
+            val actionIdStr = it.actionId.toString()
+            if (actionIncreasingUpdatedCoverageTracking.containsKey(actionIdStr)
+                && actionIncreasingUpdatedCoverageTracking.get(actionIdStr)!!.size>0) {
+                val newHTMLFilePath = actionCoverageHTMLFolderPath.resolve("${it.actionId}.html")
+                if (!Files.exists(newHTMLFilePath)) {
+                    Files.createFile(newHTMLFilePath)
+                    val newHTMLFile = File(newHTMLFilePath.toUri())
+                    content.forEach { line ->
+                        newHTMLFile.appendText(line.replace("##action_id##", actionIdStr))
+                    }
+                }
+            }
+        }
+    }
+
+    fun produceActionCoverageHTMLReport(context: ExplorationContext<*, *, *>) {
+        val actionCoverageHTMLFolderPath = context.model.config.baseDir.resolve("actionCoverageHTML_All")
+        // Files.createDirectory(actionCoverageHTMLFolderPath)
+        // Copy the folder with the required resources
+        Files.deleteIfExists(actionCoverageHTMLFolderPath)
+        val zippedVisDir = Resource("actionCoverageHTML.zip").extractTo(context.model.config.baseDir)
+        runBlocking {
+            try {
+                log.debug("Start unzip...")
+                zippedVisDir.unzip(actionCoverageHTMLFolderPath)
+                log.debug("Unzip done ...")
+                log.debug("Delete zip file.")
+                Files.delete(zippedVisDir)
+                log.debug("Delete zip file done.")
+            } catch (e: FileSystemException) { // FIXME temporary work-around for windows file still used issue
+                log.warn("resource zip could not be unzipped/removed ${e.localizedMessage}")
+            }
+        }
+        val screenshotFolder = actionCoverageHTMLFolderPath.resolve("screenshot")
+        if (!Files.exists(screenshotFolder)) {
+            Files.createDirectories(screenshotFolder)
+        }
+        val actions = ArrayList<Interaction<*>>()
+        runBlocking {
+            val temp = context.explorationTrace.P_getActions()
+            temp.forEach { action ->
+
+                actions.add(action)
+            }
+        }
+//        generate data.json
+        val dataJson = JSONObject()
+        var prevActionId: Int = 0
+        actions.forEach {
+            val actionIdStr = it.actionId.toString()
+            if (actionIncreasingCoverageTracking.containsKey(actionIdStr)
+                && actionIncreasingCoverageTracking.get(actionIdStr)!!.size>0) {
                 val actionJSONObject = JSONObject()
                 dataJson.put(actionIdStr, actionJSONObject)
                 actionJSONObject.put("from", it.prevState.uid)

@@ -111,6 +111,7 @@ abstract class AbstractPhaseStrategy(
                     !action.isCheckableOrTextInput(it)
                             && it.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
                             && !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
+                            && ProbabilityBasedPathFinder.disableInputs.intersect(it.getInputsByAbstractAction(action)).isEmpty()
                 }}.filter { it.value.isNotEmpty() }
             if (canExploreAppStatesWithAbstractActions1.isNotEmpty()) {
                 canExploreAppStatesWithAbstractActions1.forEach { s, actions ->

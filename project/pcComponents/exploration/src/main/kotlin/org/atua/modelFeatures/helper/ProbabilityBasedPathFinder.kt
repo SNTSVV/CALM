@@ -35,6 +35,7 @@ import org.droidmate.explorationModel.interaction.State
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
 class ProbabilityBasedPathFinder {
@@ -49,6 +50,7 @@ class ProbabilityBasedPathFinder {
         val disableActionSequences = HashMap<AbstractState, ArrayList<LinkedList<AbstractAction>>>()
         val disableInputs = HashSet<Input>()
         val disableAbstractActions = HashSet<AbstractAction>()
+        val unavailableActions = HashMap<AbstractState, ArrayList<AbstractAction>>()
 
         fun findPathToTargetComponent(
             autautMF: org.atua.modelFeatures.ATUAMF,
@@ -708,7 +710,8 @@ class ProbabilityBasedPathFinder {
             abandonedAppStates: List<AbstractState>,
             windowAsTarget: Boolean
         ): Boolean {
-            if (finalTargets.contains(destination)) {
+            if (finalTargets.contains(destination)
+                && destination !is VirtualAbstractState) {
                 return true
             }
             if (abandonedAppStates.contains(destination))
@@ -717,13 +720,13 @@ class ProbabilityBasedPathFinder {
                 return false
             if (finalTargets.map { it.window }.contains(destination.window)) {
                 val goals = goalsByTarget.filter { it.key.window == destination.window && it.value.isNotEmpty() }.values.flatten()
-                if (goals.isEmpty()
-                    || windowAsTarget
-                    || goals.any {
+                if ((goals.isEmpty()
+                            && windowAsTarget)
+                    /*|| goals.any {
                             if (it.abstractAction != null) {
                                 !it.abstractAction.isWidgetAction()
                             } else {
-                        !it.input!!.witnessed || !it.input!!.eventType.isWidgetEvent() }  }) {
+                        !it.input!!.witnessed || !it.input!!.eventType.isWidgetEvent() }  }*/) {
                     /*if (destination.getUnExercisedActions2(null).isNotEmpty()
                         || destination is VirtualAbstractState)
 

@@ -498,8 +498,9 @@ open class AbstractState(
         }
         unexcerisedActions.removeIf { abstractAction ->
             inputMappings[abstractAction]?.any {
-                it.isUseless == true &&
-                        (!abstractAction.isWidgetAction() || it.exerciseCount > 0)
+                it.isUseless == true ||
+                        (it.exerciseCount > 0 && it.meaningfulScore == 0)
+
             } ?: false
         }
         return unexcerisedActions.toList()

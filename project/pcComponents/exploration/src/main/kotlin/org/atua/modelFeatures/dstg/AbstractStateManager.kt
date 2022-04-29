@@ -476,10 +476,12 @@ class AbstractStateManager() {
             else
                 initWindowInputForAbstractState(abstractState, input)
         }
-        abstractState.getAvailableActions(guiState).forEach {
-            if (!abstractState.isAbstractActionMappedWithInputs(it)) {
-                if (!it.isLaunchOrReset() && !it.isActionQueue()) {
-                    Input.getOrCreateInputFromAbstractAction(abstractState, it,abstractState.modelVersion)
+        if (guiState != null) {
+            abstractState.getAvailableActions(guiState).forEach {
+                if (!abstractState.isAbstractActionMappedWithInputs(it)) {
+                    if (!it.isLaunchOrReset() && !it.isActionQueue()) {
+                        Input.getOrCreateInputFromAbstractAction(abstractState, it, abstractState.modelVersion)
+                    }
                 }
             }
         }
@@ -497,7 +499,9 @@ class AbstractStateManager() {
 //        createAbstractActionsFromVirtualAbstractState(abstractState, guiState)
 
 //        createAbstractTransitionsFromVirtualAbstractState(abstractState)
-        updateLaunchAndResetAbstractTransitions(abstractState)
+        if (guiState!=null) {
+            updateLaunchAndResetAbstractTransitions(abstractState)
+        }
         createAbstractTransitionsFromWTG(abstractState)
 
         createAbstractTransitionsForImplicitIntents(abstractState)
@@ -1342,7 +1346,9 @@ class AbstractStateManager() {
                 it.window == originalActionAbstractState.window
                         && it.guiStates.isNotEmpty()
             }.forEach {
-                initAbstractInteractions(it)
+
+                    initAbstractInteractions(it,it.guiStates.first())
+
             }
         }
         log.debug("Refinement grain increased count: $refinementGrainCount")

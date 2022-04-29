@@ -193,7 +193,8 @@ class AbstractTransition(
                         this.dependentAbstractStates.add(maxScores.key)
                     }
                 }
-            } else if (!this.dest.isSimlarAbstractState(this.source,0.8)) {
+            }
+            else if (!this.dest.isSimlarAbstractState(this.source,0.8)) {
                 val previousSameWindowAbstractStates: List<AbstractState> =
                     AbstractStateManager.INSTANCE.getPrevSameWindowAbstractState(currentState, traceId, transitionId, false)
                 for (prevAppState in previousSameWindowAbstractStates) {

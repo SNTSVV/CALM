@@ -176,9 +176,9 @@ class PrepareContextTask constructor(
     val inputFillDecision = HashMap<Widget,Boolean>()
 
     private fun hasInput(currentState: State<*>): Boolean {
-        val userInputFields = Helper.getUserInputFields(currentState)
+        val appState = atuaMF.getAbstractState(currentState)!!
         val userlikeInputWidgets = getUserLikeInputWidgets(currentState)
-        return  userInputFields.isNotEmpty() || userlikeInputWidgets.isNotEmpty()
+        return  userlikeInputWidgets.isNotEmpty()
 }
 
     var isOpeningInputDialog: Boolean = false
@@ -230,9 +230,11 @@ class PrepareContextTask constructor(
         if (inputCoverageType == InputCoverage.FILL_NONE) {
             return inputFillDecision.isNotEmpty()
         }
-        val inputFields = Helper.getUserInputFields(currentState)
+//        val inputFields = Helper.getUserInputFields(currentState)
+        val userInputFields = Helper.getUserInputFields(currentState)
+        val userlikeInputWidgets = getUserLikeInputWidgets(currentState)
         // we group widgets by its resourceId to easily deal with radio button
-        val groupedInputWidgets = inputFields.groupBy { it.resourceId }
+        val groupedInputWidgets = userlikeInputWidgets.filter { userInputFields.contains(it) }.groupBy { it.resourceId }
         groupedInputWidgets.forEach { resourceId, widgets ->
             val processingWidgets = widgets.toMutableList()
             processingWidgets.forEach {
@@ -276,8 +278,7 @@ class PrepareContextTask constructor(
         }
 
         // we consider widgets as user-inputs that will open a dialog to input the data
-        val userlikeInputWidgets = getUserLikeInputWidgets(currentState)
-        userlikeInputWidgets.forEach {
+        userlikeInputWidgets.filter { !userInputFields.contains(it) }. forEach {
             when (inputCoverageType) {
                 InputCoverage.FILL_ALL -> inputFillDecision.put(it,true)
                 InputCoverage.FILL_RANDOM -> {
@@ -294,7 +295,7 @@ class PrepareContextTask constructor(
     private fun getUserLikeInputWidgets(currentState: State<*>): List<Widget> {
         val currentAbstractState = atuaMF.getAbstractState(currentState)!!
         val userlikeInputAVMs = currentAbstractState.EWTGWidgetMapping.filter {
-            it.value.isUserLikeInput && !it.value.verifiedNotUserlikeInput }
+            (it.value.isUserLikeInput || it.key.isUserLikeInput(appState = currentAbstractState)) && !it.value.verifiedNotUserlikeInput }
         val userlikeInputWidgets = userlikeInputAVMs.map {
             it.key.getGUIWidgets(currentState,currentAbstractState.window)
         }.flatten()

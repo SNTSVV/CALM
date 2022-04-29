@@ -470,6 +470,9 @@ class ModelBackwardAdapter {
                 }
             }
         }
+        if (dependendAbstractStates.isEmpty() && baseTransition.dependentAbstractStates.isNotEmpty()) {
+            return
+        }
         val dest = if (baseTransition.dest.guiStates.isNotEmpty())
             baseTransition.dest
         else
