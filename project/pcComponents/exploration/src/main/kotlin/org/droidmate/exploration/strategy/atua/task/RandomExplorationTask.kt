@@ -791,9 +791,11 @@ class RandomExplorationTask constructor(
                         maxCost = 25.0
                     )
                 ) {
-                    recentGoToExploreState = true
-                    goToLockedWindowTask!!.initialize(currentState)
-                    return true
+                    if (goToLockedWindowTask!!.possiblePaths.any { it.path.size<=5 }) {
+                        recentGoToExploreState = true
+                        goToLockedWindowTask!!.initialize(currentState)
+                        return true
+                    }
                     /*if (goToLockedWindowTask!!.possiblePaths)
                     if (goToLockedWindowTask!!.possiblePaths.any { it.cost()<=5*atuaStrategy.scaleFactor }) {
                     } else {

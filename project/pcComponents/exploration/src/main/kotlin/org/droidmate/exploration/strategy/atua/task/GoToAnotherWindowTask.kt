@@ -461,6 +461,9 @@ open class GoToAnotherWindowTask constructor(
                     return true
                 }
                 if (expectedAbstractState is PredictedAbstractState) {
+                    val missingAbstractActions = expectedAbstractState.getAvailableActions().subtract(currentAppState.getAvailableActions(currentState))
+                    val dependentWindows = ArrayList(pathTraverser!!.getCurrentTransition()!!.dependentAbstractStates.map { it.window })
+                    
                     if (pathTraverser!!.transitionPath.goal.isNotEmpty()) {
                         val goal = pathTraverser!!.transitionPath.goal
                         val isContainingGoal = goal.any {
@@ -685,16 +688,32 @@ open class GoToAnotherWindowTask constructor(
                 } else {
                     pathConstraints.put(PathConstraint.INCLUDE_WTG,false)
                 }
-                possiblePaths.addAll(
-                    atuaStrategy.phaseStrategy.getPathsToWindowToExplore(
+                if (pathConstraints[PathConstraint.INCLUDE_RESET] == true) {
+                    val notResetConstraints = HashMap<PathConstraint,Boolean>()
+                    notResetConstraints.putAll(pathConstraints)
+                    notResetConstraints[PathConstraint.INCLUDE_RESET] = false
+                    val paths = atuaStrategy.phaseStrategy.getPathsToWindowToExplore(
+                        currentState =  currentState,
+                        targetWindow =  destWindow!!,
+                        pathType =  nextPathType,
+                        explore =  isExploration || !isWindowAsTarget,
+                        maxCost = maxCost,
+                        pathConstraints = notResetConstraints
+                    )
+                    if (paths.isNotEmpty()) {
+                        possiblePaths.addAll( paths)
+                    }
+                }
+                if (possiblePaths.isEmpty()) {
+                    possiblePaths.addAll(atuaStrategy.phaseStrategy.getPathsToWindowToExplore(
                         currentState =  currentState,
                         targetWindow =  destWindow!!,
                         pathType =  nextPathType,
                         explore =  isExploration || !isWindowAsTarget,
                         maxCost = maxCost,
                         pathConstraints = pathConstraints
-                    )
-                )
+                    ))
+                }
                 if (computeNextPathType(nextPathType, includeResetAction) == PathFindingHelper.PathType.WIDGET_AS_TARGET)
                     break
                 nextPathType = computeNextPathType(nextPathType, includeResetAction)
@@ -706,11 +725,27 @@ open class GoToAnotherWindowTask constructor(
                 } else {
                     pathConstraints.put(PathConstraint.INCLUDE_WTG,false)
                 }
-                possiblePaths.addAll(atuaStrategy.phaseStrategy.getPathsToExploreStates(
-                    currentState = currentState,
-                    pathType = nextPathType,
-                    maxCost = maxCost,
-                    pathConstraints = pathConstraints))
+                if (pathConstraints[PathConstraint.INCLUDE_RESET] == true) {
+                    val notResetConstraints = HashMap<PathConstraint,Boolean>()
+                    notResetConstraints.putAll(pathConstraints)
+                    notResetConstraints[PathConstraint.INCLUDE_RESET] = false
+                    val paths = atuaStrategy.phaseStrategy.getPathsToExploreStates(
+                        currentState = currentState,
+                        pathType = nextPathType,
+                        maxCost = maxCost,
+                        pathConstraints = notResetConstraints)
+                    if (paths.isNotEmpty()) {
+                        possiblePaths.addAll( paths)
+                    }
+                }
+                if (possiblePaths.isEmpty()) {
+                    possiblePaths.addAll(atuaStrategy.phaseStrategy.getPathsToExploreStates(
+                        currentState = currentState,
+                        pathType = nextPathType,
+                        maxCost = maxCost,
+                        pathConstraints = pathConstraints))
+                }
+
                 if (computeNextPathType(nextPathType, includeResetAction) == PathFindingHelper.PathType.WIDGET_AS_TARGET)
                     break
                 nextPathType = computeNextPathType(nextPathType, includeResetAction)

@@ -38,7 +38,27 @@ class GoToTargetWindowTask (
             } else {
                 pathConstraints.put(PathConstraint.INCLUDE_WTG,false)
             }
-            possiblePaths.addAll(atuaStrategy.phaseStrategy.getPathsToTargetWindows(currentState,pathType = nextPathType,maxCost = maxCost,pathConstraint =pathConstraints ))
+            if (pathConstraints[PathConstraint.INCLUDE_RESET] == true) {
+                val notResetConstraints = java.util.HashMap<PathConstraint, Boolean>()
+                notResetConstraints.putAll(pathConstraints)
+                notResetConstraints[PathConstraint.INCLUDE_RESET] = false
+                val paths = atuaStrategy.phaseStrategy.getPathsToTargetWindows(
+                    currentState = currentState,
+                    pathType = nextPathType,
+                    maxCost = maxCost,
+                    pathConstraint =notResetConstraints )
+                if (paths.isNotEmpty()) {
+                    possiblePaths.addAll( paths)
+                }
+            }
+            if (possiblePaths.isEmpty()) {
+                possiblePaths.addAll(atuaStrategy.phaseStrategy.getPathsToTargetWindows(
+                    currentState = currentState,
+                    pathType = nextPathType,
+                    maxCost = maxCost,
+                    pathConstraint =pathConstraints ))
+            }
+
             nextPathType = computeNextPathType(nextPathType,includeResetAction)
             if (nextPathType ==PathFindingHelper.PathType.WIDGET_AS_TARGET)
                 break

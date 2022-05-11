@@ -191,6 +191,27 @@ abstract class AbstractPhaseStrategy(
         abandonedAppStates: List<AbstractState>,
         pathConstraints: Map<PathConstraint,Boolean>
     ) {
+  /*      if (pathConstraints[PathConstraint.INCLUDE_RESET] == true) {
+            val notResetConstraints = HashMap<PathConstraint,Boolean>()
+            notResetConstraints.putAll(pathConstraints)
+            notResetConstraints[PathConstraint.INCLUDE_RESET] = false
+            getPathToStates(
+                transitionPaths = transitionPaths,
+                stateByScore = statesWithScore,
+                currentAbstractState = currentAbstractState,
+                currentState = currentState,
+                pathType = pathType,
+                shortest = shortest,
+                windowAsTarget = windowAsTarget,
+                goalByAbstractState = goalByAbstractState,
+                maxCost = maxCost,
+                abandonedAppStates = abandonedAppStates,
+                pathConstraints = notResetConstraints
+            )
+            if (transitionPaths.isNotEmpty()) {
+                return
+            }
+        }*/
         getPathToStates(
             transitionPaths = transitionPaths,
             stateByScore = statesWithScore,

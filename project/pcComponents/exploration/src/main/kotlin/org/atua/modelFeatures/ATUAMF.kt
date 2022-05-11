@@ -479,7 +479,7 @@ class ATUAMF(
                             && windowHandlersHashMap[entry.key]!!.all { !targetHandlers.contains(it) }
                     ))
         }
-
+        processOptionsMenusWindow()
         log.info("Before processed target inputs: $beforeProcessedTargetCount")
         log.info("After processed target inputs: ${notFullyExercisedTargetInputs.size}")
     }
@@ -590,6 +590,7 @@ class ATUAMF(
         mutex.lock()
         try {
             log.info("ATUAMF: Start OnContextUpdate")
+            modifiedMethodsByWindow.entries.removeIf { it.key is Launcher || it.key is OptionsMenu || it.key is FakeWindow }
             val interactions = ArrayList<Interaction<Widget>>()
             val lastAction = context.getLastAction()
             if (lastAction.actionType != "Terminate") {
@@ -1889,7 +1890,7 @@ class ATUAMF(
             if (prevAbstractState != null) {
                 if (!actionProcessedByATUAStrategy)
                     prevAbstractState.ignored = true
-                    prevAbstractState.window.ignored = true
+//                    prevAbstractState.window.ignored = true
             }
             necessaryCheckModel = true
             if (!newState.isHomeScreen && firstRun) {
@@ -2165,7 +2166,10 @@ class ATUAMF(
                     }
                 }
                 modifiedMethodsByWindow.entries.removeIf {
-                    it.key.ignored || it.value.all { statementMF!!.fullyCoveredMethods.contains(it) }
+                    it.value.all { statementMF!!.fullyCoveredMethods.contains(it) }
+                }
+                modifiedMethodsByWindow.entries.removeIf {
+                    AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { appState -> appState.window == it.key  }.all { it.ignored }
                 }
                 if (abstractTransition.methodCoverage.isEmpty() && !stateChanged) {
                     if (it.isUseless == null)

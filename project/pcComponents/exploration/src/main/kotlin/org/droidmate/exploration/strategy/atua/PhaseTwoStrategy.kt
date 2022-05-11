@@ -119,6 +119,9 @@ class PhaseTwoStrategy(
                 }*//*
             }*/
         }
+        witnessedTargetWindows.filter {it !is OptionsMenu}.forEach {
+            targetWindowsCount.putIfAbsent(it,0)
+        }
         attempt = (targetWindowsCount.size * budgetScale*gamma).toInt()+1
         initialCoverage = atuaMF.statementMF!!.getCurrentModifiedMethodStatementCoverage()
     }
@@ -141,6 +144,7 @@ class PhaseTwoStrategy(
         targetWindowsCount.entries.removeIf { !atuaMF.modifiedMethodsByWindow.containsKey(it.key) }
         phase2TargetEvents.entries.removeIf { !atuaMF.notFullyExercisedTargetInputs.contains(it.key) }
         atuaMF.modifiedMethodsByWindow.keys.filter { it !is Launcher
+                && it !is OptionsMenu
                 && !targetWindowsCount.containsKey(it)}.forEach {window ->
             val abstractStates = AbstractStateManager.INSTANCE.getPotentialAbstractStates().filter { it.window == window }
             if (abstractStates.isNotEmpty()) {
@@ -371,7 +375,9 @@ class PhaseTwoStrategy(
         }
         val targetAbstractStatesPbMap = HashMap<AbstractState, Double>()
         val targetAbstractStateWithGoals = HashMap<AbstractState,List<Goal>> ()
-        val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(targetWindow!!)!!
+        val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(targetWindow!!)
+        if (virtualAbstractState == null)
+            return emptyList()
         targetAbstractStatesPbMap.put(virtualAbstractState,1.0)
         targetAbstractStateWithGoals.put(virtualAbstractState,inputScore.keys.map { Goal(input = it,abstractAction = null) })
 

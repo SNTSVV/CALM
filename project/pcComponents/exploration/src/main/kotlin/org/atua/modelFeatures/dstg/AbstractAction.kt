@@ -123,15 +123,22 @@ class AbstractAction private constructor (
         val actionId = lastInteraction.actionId
 //        val actionableWidgets = Helper.getVisibleWidgets(prevState)
 
-        val structureUuid = atuaMF.stateStructureHashMap[newState.uid]
-        val newAppState = atuaMF.getAbstractState(newState)!!
-        val prevAppState = atuaMF.getAbstractState(prevState)!!
+        val newAppState = atuaMF.getAbstractState(newState)
+        val prevAppState = atuaMF.getAbstractState(prevState)
+        if (newAppState == null)
+            return
+        if (prevAppState == null)
+            return
         val inputs = prevAppState.getInputsByAbstractAction(this)
 //        val unexploredActionableWidgets = atuaMF.actionCount.getUnexploredWidget(newState).filter { !Helper.isUserLikeInput(it) }
         val unexploredAbstractActions = newAppState.getUnExercisedActions(currentState = newState,atuaMF = atuaMF).filter {
             !it.isCheckableOrTextInput(newAppState) && it.isWidgetAction() }
-        val windowWidgetFrequency = AbstractStateManager.INSTANCE.attrValSetsFrequency[newAppState.window]!!
-        val firstAppearActions = unexploredAbstractActions.filter { windowWidgetFrequency[it.attributeValuationMap!!]!! == 1 }
+        val windowWidgetFrequency = AbstractStateManager.INSTANCE.attrValSetsFrequency[newAppState.window]
+        val firstAppearActions =
+            if (windowWidgetFrequency == null)
+                unexploredAbstractActions
+            else
+                unexploredAbstractActions.filter { windowWidgetFrequency[it.attributeValuationMap!!]!! == 1 }
         if (coverageIncreased
 //            || atuaMF.stateVisitCount[structureUuid] == 1 )
             || (firstAppearActions.isNotEmpty()
@@ -316,5 +323,6 @@ enum class  AbstractActionType(val actionName: String) {
     UNKNOWN("Underived"),
     FAKE_ACTION("FakeAction"),
     TERMINATE("Terminate"),
-    WAIT("FetchGUI")
+    WAIT("FetchGUI"),
+    PRESS_ENTER("PressEnter")
 }

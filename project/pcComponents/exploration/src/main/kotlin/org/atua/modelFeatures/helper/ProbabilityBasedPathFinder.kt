@@ -51,6 +51,7 @@ class ProbabilityBasedPathFinder {
         val disableInputs = HashSet<Input>()
         val disableAbstractActions = HashSet<AbstractAction>()
         val unavailableActions = HashMap<AbstractState, ArrayList<AbstractAction>>()
+        val disableActionsTriggeredByActions = HashMap<AbstractAction, HashMap<Window,ArrayList<AbstractAction>>>()
 
         fun findPathToTargetComponent(
             autautMF: org.atua.modelFeatures.ATUAMF,
@@ -493,6 +494,7 @@ class ProbabilityBasedPathFinder {
                                 val reachableStates = atuaMF.dstg.abstractActionStateEnable[abstractAction]!!
                                 reachableAbstractActionsByWindow.keys.forEach { dependentWindow->
                                     val reachableAbstractActions = reachableAbstractActionsByWindow[dependentWindow]!!
+                                    val disableActions = disableActionsTriggeredByActions[abstractAction]?.get(dependentWindow)?:emptyList<AbstractAction>()
                                     val abstractActionsByWindow = reachableAbstractActions.keys.groupBy { it.window }
                                     abstractActionsByWindow.filter { it.key !is Launcher }. forEach { window, abstractActions ->
                                         val activity = window.classType
@@ -510,7 +512,7 @@ class ProbabilityBasedPathFinder {
                                             val totalCnt = totalcntByWindow[dependentWindow]!!
                                             val prob =
                                                 reachableAbstractActions[action]!! * 1.0 / totalCnt
-                                            if (prob>=0.1){
+                                            if (prob>=0.1 && !disableActions.contains(action)){
                                                 if (!action.isWidgetAction()) {
                                                     if (!predictAbstractState.containsActionCount(action))
                                                         predictAbstractState.setActionCount(action, 0)
