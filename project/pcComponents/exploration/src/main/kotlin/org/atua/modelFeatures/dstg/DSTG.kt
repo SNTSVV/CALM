@@ -16,6 +16,7 @@ import org.atua.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.ewtg.window.FakeWindow
 import org.atua.modelFeatures.ewtg.window.Window
+import org.atua.modelFeatures.helper.ProbabilityBasedPathFinder
 import org.droidmate.exploration.ExplorationContext
 import org.droidmate.exploration.modelFeatures.graph.*
 import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF
@@ -140,8 +141,12 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
                 }
 
             }
+            if (ProbabilityBasedPathFinder.disableActionsTriggeredByActions.containsKey(abstractAction)) {
+                if (ProbabilityBasedPathFinder.disableActionsTriggeredByActions[abstractAction]!!.containsKey(window)) {
+                    ProbabilityBasedPathFinder.disableActionsTriggeredByActions[abstractAction]!![window]!!.removeAll(availableAbstractActions)
+                }
+            }
             abstractActionCounts[window]!!.put(abstractAction,totalCnt+bonus)
-
             abstractActionStateEnable.putIfAbsent(abstractAction, HashSet())
             val enabledState = abstractActionStateEnable[abstractAction]!!
             enabledState.add(abstractTransition.dest)

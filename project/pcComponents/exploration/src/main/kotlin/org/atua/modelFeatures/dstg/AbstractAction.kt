@@ -134,11 +134,12 @@ class AbstractAction private constructor (
         val unexploredAbstractActions = newAppState.getUnExercisedActions(currentState = newState,atuaMF = atuaMF).filter {
             !it.isCheckableOrTextInput(newAppState) && it.isWidgetAction() }
         val windowWidgetFrequency = AbstractStateManager.INSTANCE.attrValSetsFrequency[newAppState.window]
+
         val firstAppearActions =
-            if (windowWidgetFrequency == null)
+            if (windowWidgetFrequency == null || windowWidgetFrequency.isEmpty())
                 unexploredAbstractActions
             else
-                unexploredAbstractActions.filter { windowWidgetFrequency[it.attributeValuationMap!!]!! == 1 }
+                unexploredAbstractActions.filter { windowWidgetFrequency[it.attributeValuationMap!!] == 1 }
         if (coverageIncreased
 //            || atuaMF.stateVisitCount[structureUuid] == 1 )
             || (firstAppearActions.isNotEmpty()

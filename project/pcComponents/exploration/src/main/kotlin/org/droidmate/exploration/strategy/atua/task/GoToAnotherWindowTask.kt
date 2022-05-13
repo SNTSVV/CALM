@@ -15,6 +15,7 @@ import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.PathTraverser
 import org.atua.modelFeatures.ewtg.TransitionPath
 import org.atua.modelFeatures.ewtg.WindowManager
+import org.atua.modelFeatures.ewtg.window.FakeWindow
 import org.atua.modelFeatures.ewtg.window.Window
 import org.atua.modelFeatures.helper.PathConstraint
 import org.atua.modelFeatures.helper.PathFindingHelper
@@ -35,6 +36,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.*
 import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 
 open class GoToAnotherWindowTask constructor(
     autautMF: org.atua.modelFeatures.ATUAMF,
@@ -410,7 +412,7 @@ open class GoToAnotherWindowTask constructor(
             retryTimes += 1
             initPossiblePaths(currentState, true,PathFindingHelper.PathType.PARTIAL_TRACE)
             if (possiblePaths.isNotEmpty() && possiblePaths.any { it.pathType == PathFindingHelper.PathType.PARTIAL_TRACE || it.pathType == PathFindingHelper.PathType.FULLTRACE }) {
-                initialize(currentState)
+                initialize(currentState)Ï
                 log.debug(" Paths is not empty")oran
                 return false
             }
@@ -461,9 +463,16 @@ open class GoToAnotherWindowTask constructor(
                     return true
                 }
                 if (expectedAbstractState is PredictedAbstractState) {
+                    val lastExecutedAction = pathTraverser!!.getCurrentTransition()!!.abstractAction
                     val missingAbstractActions = expectedAbstractState.getAvailableActions().subtract(currentAppState.getAvailableActions(currentState))
                     val dependentWindows = ArrayList(pathTraverser!!.getCurrentTransition()!!.dependentAbstractStates.map { it.window })
-                    
+                    if (dependentWindows.isEmpty())
+                        dependentWindows.add(FakeWindow.getOrCreateNode(false))
+                    dependentWindows.forEach {
+                        ProbabilityBasedPathFinder.disableActionsTriggeredByActions.putIfAbsent(lastExecutedAction, HashMap())
+                        ProbabilityBasedPathFinder.disableActionsTriggeredByActions[lastExecutedAction]!!.putIfAbsent(it, ArrayList())
+                        ProbabilityBasedPathFinder.disableActionsTriggeredByActions[lastExecutedAction]!![it]!!.addAll(missingAbstractActions)
+                    }
                     if (pathTraverser!!.transitionPath.goal.isNotEmpty()) {
                         val goal = pathTraverser!!.transitionPath.goal
                         val isContainingGoal = goal.any {
@@ -497,13 +506,23 @@ open class GoToAnotherWindowTask constructor(
             }
             return false
         }
-        val nextAbstractTransition = pathTraverser!!.transitionPath.path[pathTraverser!!.latestEdgeId!! + 1]
-        if (nextAbstractTransition != null
-            && nextAbstractTransition.dest is PredictedAbstractState) {
-            if (nextAbstractTransition.source.window == currentAppState.window) {
+        val lastAbstractTransition = pathTraverser!!.getCurrentTransition()!!
+        if (lastAbstractTransition != null
+            && lastAbstractTransition.dest is PredictedAbstractState) {
+            if (lastAbstractTransition.dest.window == currentAppState.window) {
                 if (pathTraverser!!.canContinue(currentAppState)) {
                     return true
                 }
+            }
+            val lastExecutedAction = lastAbstractTransition.abstractAction
+            val missingAbstractActions = expectedAbstractState.getAvailableActions().subtract(currentAppState.getAvailableActions(currentState))
+            val dependentWindows = ArrayList(pathTraverser!!.getCurrentTransition()!!.dependentAbstractStates.map { it.window })
+            if (dependentWindows.isEmpty())
+                dependentWindows.add(FakeWindow.getOrCreateNode(false))
+            dependentWindows.forEach {
+                ProbabilityBasedPathFinder.disableActionsTriggeredByActions.putIfAbsent(lastExecutedAction, HashMap())
+                ProbabilityBasedPathFinder.disableActionsTriggeredByActions[lastExecutedAction]!!.putIfAbsent(it, ArrayList())
+                ProbabilityBasedPathFinder.disableActionsTriggeredByActions[lastExecutedAction]!![it]!!.addAll(missingAbstractActions)
             }
         }
         val tmpPathTraverser = PathTraverser(currentPath!!)
@@ -541,6 +560,7 @@ open class GoToAnotherWindowTask constructor(
                     break
                 }
             } else if (expectedAbstractState1 is PredictedAbstractState) {
+
                 if (expectedAbstractState1.window == currentAppState.window
                     && tmpPathTraverser.canContinue(currentAppState)) {
                     reached = true

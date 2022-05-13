@@ -542,35 +542,38 @@ class ProbabilityBasedPathFinder {
                                             AbstractStateManager.INSTANCE.initAbstractInteractions(predictAbstractState)
 
                                         }
-                                        predictAbstractState.updateHashCode()
-                                        val newAbstractTransition = AbstractTransition(
-                                            abstractAction = abstractAction,
-                                            source = source,
-                                            dest = predictAbstractState,
-                                            isImplicit = true
-                                        )
-                                        source.abstractTransitions.add(newAbstractTransition)
-                                        atuaMF.dstg.add(source, predictAbstractState, newAbstractTransition)
+                                        if (predictAbstractState.attributeValuationMaps.isNotEmpty()) {
+                                            predictAbstractState.updateHashCode()
+                                            val newAbstractTransition = AbstractTransition(
+                                                abstractAction = abstractAction,
+                                                source = source,
+                                                dest = predictAbstractState,
+                                                isImplicit = true
+                                            )
+                                            source.abstractTransitions.add(newAbstractTransition)
+                                            atuaMF.dstg.add(source, predictAbstractState, newAbstractTransition)
 
-                                        processAbstractTransition(
-                                            abstractTransition = newAbstractTransition,
-                                            traversedEdges = traversedEdges,
-                                            pathType = pathType,
-                                            prevEdgeId = prevEdgeId,
-                                            root = root,
-                                            pathTracking = pathTracking,
-                                            foundPaths = foundPaths,
-                                            abstractStateStack = abstractStateStack,
-                                            source = source,
-                                            nextTransitions = nextTransitions,
-                                            finalTargets = finalTargets,
-                                            maxCost = maxCost,
-                                            goalsByTarget = goalsByTarget,
-                                            atuaMF = atuaMF,
-                                            abandonedAppStates = abandonedAppStates,
-                                            windowAsTarget = windowAsTarget,
-                                            maximumDSTG = pathContraints[PathConstraint.MAXIMUM_DSTG]?:false
-                                        )
+                                            processAbstractTransition(
+                                                abstractTransition = newAbstractTransition,
+                                                traversedEdges = traversedEdges,
+                                                pathType = pathType,
+                                                prevEdgeId = prevEdgeId,
+                                                root = root,
+                                                pathTracking = pathTracking,
+                                                foundPaths = foundPaths,
+                                                abstractStateStack = abstractStateStack,
+                                                source = source,
+                                                nextTransitions = nextTransitions,
+                                                finalTargets = finalTargets,
+                                                maxCost = maxCost,
+                                                goalsByTarget = goalsByTarget,
+                                                atuaMF = atuaMF,
+                                                abandonedAppStates = abandonedAppStates,
+                                                windowAsTarget = windowAsTarget,
+                                                maximumDSTG = pathContraints[PathConstraint.MAXIMUM_DSTG]?:false
+                                            )
+                                        }
+
                                     }
                                 }
 
