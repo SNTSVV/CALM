@@ -475,11 +475,11 @@ class ExerciseTargetComponentTask private constructor(
         currentAbstractState: AbstractState
     ) {
         if (!availableActions.any { it.attributeValuationMap != null && !it.attributeValuationMap.isInputField() }) {
-            chosenAbstractAction = availableActions.first()
+            chosenAbstractAction = availableActions.random()
         } else {
             chosenAbstractAction =
                 availableActions.filter { it.attributeValuationMap != null && !it.attributeValuationMap.isInputField() }
-                    .first()
+                    .random()
         }
     }
 

@@ -223,7 +223,8 @@ class AbstractStateManager() {
                 val guiWidget_ewtgWidgets = HashMap<Widget, EWTGWidget>()
 //                log.info("Retrieving current window...")
                 val matchedWindow = if (window == null) {
-                    val similarAbstractStates = ABSTRACT_STATES.filter { it.guiStates.any { it.uid == guiState.uid } }
+                    val similarAbstractStates = ABSTRACT_STATES.filter { it.guiStates.any { it.uid == guiState.uid }
+                            && it.activity == activity}
                     if (similarAbstractStates.isEmpty() || similarAbstractStates.groupBy { it.window }.size > 1) {
                         //log.info("Matching window")
                         matchWindow(guiState, activity, rotation, guiWidget_ewtgWidgets)
@@ -941,7 +942,8 @@ class AbstractStateManager() {
         val guiTreeDimension = Helper.computeGuiTreeDimension(guiState)
         val isOpeningKeyboard = guiState.visibleTargets.any { it.isKeyboard }
         val isMenuOpen = Helper.isOptionsMenuLayout(guiState)
-        var activityNode: Window? = WindowManager.instance.updatedModelWindows.find { it.classType == activity }
+        var activityNode: Window? = WindowManager.instance.updatedModelWindows.find {
+            it.classType == activity && it is Activity }
         if (activityNode == null) {
             val visibleWidgets = Helper.getVisibleWidgets(guiState)
             val windowIds = visibleWidgets.map { it.metaInfo?.find { it.contains("windowId") }?.split(" = ")?.get(1) }.distinct()
@@ -2305,7 +2307,7 @@ class AbstractStateManager() {
                 }
             }
             if (tracing != null) {
-               newAbstractionTransition.updateDependentAppState(destState,tracing.first,tracing.second,atuaMF)
+                newAbstractionTransition.updateDependentAppState(destState,tracing.first,tracing.second,atuaMF)
                 updateImplicitAppTransitions(sourceAbstractState,newAbstractionTransition)
             }
             if (toUpdateMeaningfulScoreActions.contains(newAbstractionTransition.abstractAction)) {
@@ -2326,7 +2328,9 @@ class AbstractStateManager() {
             if (newAbstractionTransition.source != newAbstractionTransition.dest
                 && !newAbstractionTransition.dest.ignored)
                 atuaMF.dstg.updateAbstractActionEnability(newAbstractionTransition, atuaMF)
+            newAbstractionTransition!!.markNondeterministicTransitions()
         }
+
         return newEdge
     }
 

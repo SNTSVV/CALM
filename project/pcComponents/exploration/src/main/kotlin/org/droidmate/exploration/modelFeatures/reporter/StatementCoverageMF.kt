@@ -859,8 +859,8 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
 
         actions.forEach {
             val actionIdStr = it.actionId.toString()
-            if (actionIncreasingUpdatedCoverageTracking.containsKey(actionIdStr)
-                && actionIncreasingUpdatedCoverageTracking.get(actionIdStr)!!.size>0) {
+            if (actionIncreasingCoverageTracking.containsKey(actionIdStr)
+                && actionIncreasingCoverageTracking.get(actionIdStr)!!.size>0) {
                 val newHTMLFilePath = actionCoverageHTMLFolderPath.resolve("${it.actionId}.html")
                 if (!Files.exists(newHTMLFilePath)) {
                     Files.createFile(newHTMLFilePath)

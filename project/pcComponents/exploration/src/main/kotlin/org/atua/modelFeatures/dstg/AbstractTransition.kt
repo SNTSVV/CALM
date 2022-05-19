@@ -54,7 +54,20 @@ class AbstractTransition(
 
     var guardEnabled: Boolean = false
     var activated: Boolean = true
+        set(value) {
+            if (value == false) {
+                if (this.nondeterministic || this.interactions.isNotEmpty()) {
+                    disableAbstractTransitions.put(this, 50)
+                } else {
+                    this.source.abstractTransitions.remove(this)
+                }
+            } else {
+                disableAbstractTransitions.remove(this)
+            }
+            field = value
+        }
     var isUsefullOnce: Boolean = true
+    var nondeterministic: Boolean = false
     // --------------
     init {
         source.abstractTransitions.add(this)
@@ -216,7 +229,53 @@ class AbstractTransition(
             }
         }
     }
+
+    fun markNondeterministicTransitions() {
+        if (this.modelVersion == ModelVersion.RUNNING || this.interactions.isNotEmpty()) {
+            val explicitTransitions = this.source.abstractTransitions.filter { it.interactions.isNotEmpty() }
+            val nondeterministicTransitions = explicitTransitions.filter {
+                it != this
+                        && it.abstractAction == this.abstractAction
+                        && it.userInputs.intersect(this.userInputs).isNotEmpty()
+                        && (it.dependentAbstractStates.isEmpty()
+                        || this.dependentAbstractStates.isEmpty()
+                        || it.dependentAbstractStates.intersect(this.dependentAbstractStates).isNotEmpty())
+            }
+            if (nondeterministicTransitions.isNotEmpty()) {
+                this.nondeterministic = true
+                nondeterministicTransitions.forEach {
+                    it.nondeterministic = true
+                }
+            }
+        } else {
+            val explicitTransitions = this.source.abstractTransitions.filter { it.modelVersion == ModelVersion.BASE && it.isExplicit()}
+            val nondeterministicTransitions = explicitTransitions.filter {
+                it != this
+                        && it.abstractAction == this.abstractAction
+                        && it.userInputs.intersect(this.userInputs).isNotEmpty()
+                        && (it.dependentAbstractStates.isEmpty()
+                        || this.dependentAbstractStates.isEmpty()
+                        || it.dependentAbstractStates.intersect(this.dependentAbstractStates).isNotEmpty())
+            }
+            if (nondeterministicTransitions.isNotEmpty()) {
+                this.nondeterministic = true
+                nondeterministicTransitions.forEach {
+                    it.nondeterministic = true
+                }
+            }
+        }
+    }
     companion object{
+        val disableAbstractTransitions = HashMap<AbstractTransition, Int>()
+        fun updateDisableTransitions() {
+            disableAbstractTransitions.keys.forEach {
+                disableAbstractTransitions.replace(it, disableAbstractTransitions[it]!!-1)
+            }
+            val toActivateTransitions = disableAbstractTransitions.filter { it.value == 0 }.keys
+            toActivateTransitions.forEach {
+                it.activated = true
+            }
+        }
         fun computeAbstractTransitionData(actionType: AbstractActionType, interaction: Interaction<Widget>, guiState: State<Widget>, abstractState: AbstractState, atuaMF: org.atua.modelFeatures.ATUAMF): Any? {
             if (actionType == AbstractActionType.RANDOM_KEYBOARD) {
                 return interaction.targetWidget

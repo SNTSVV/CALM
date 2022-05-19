@@ -364,14 +364,14 @@ open class GoToAnotherWindowTask constructor(
                 val maxCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!! + 1,true)
                 if (saveBudget && !possiblePaths.any { it.cost(final = true) <= maxCost }) {
                     log.debug("Fail to reach destination.")
-                    if (includeResetAction) {
+                   /* if (includeResetAction) {
                         currentPath!!.goal.forEach {
                             if (it.input != null)
                                 ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
                             else
                                 ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction!!)
                         }
-                    }
+                    }*/
                     failedCount++
                     return true
                 }
@@ -383,28 +383,28 @@ open class GoToAnotherWindowTask constructor(
                     val maxCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!! + 1,true)
                     if (saveBudget && !possiblePaths.any { it.cost(final = true) <= maxCost }) {
                         log.debug("Fail to reach destination.")
-                        if (includeResetAction) {
+                      /*  if (includeResetAction) {
                             currentPath!!.goal.forEach {
                                 if (it.input != null)
                                     ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
                                 else
                                     ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction!!)
                             }
-                        }
+                        }*/
                         failedCount++
                         return true
                     }
                     initialize(currentState)
                     return false
                 } else {
-                    if (includeResetAction) {
+                   /* if (includeResetAction) {
                         currentPath!!.goal.forEach {
                             if (it.input != null)
                                 ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
                             else
                                 ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction!!)
                         }
-                    }
+                    }*/
                 }
             }
         }
@@ -426,14 +426,14 @@ open class GoToAnotherWindowTask constructor(
                 return false
             }
         }*/
-        if (includeResetAction) {
+       /* if (includeResetAction) {
             currentPath!!.goal.forEach {
                 if (it.input != null)
                     ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
                 else
                     ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction!!)
             }
-        }
+        }*/
         log.debug("Fail to reach destination.")
         failedCount++
         return true
@@ -560,16 +560,17 @@ open class GoToAnotherWindowTask constructor(
                     break
                 }
             } else if (expectedAbstractState1 is PredictedAbstractState) {
-
                 if (expectedAbstractState1.window == currentAppState.window
                     && tmpPathTraverser.canContinue(currentAppState)) {
                     reached = true
                     break
+                } else {
+                    reached = false
                 }
             }
             tmpPathTraverser.next()
         }
-        if (tmpPathTraverser.isEnded()) {
+        if (tmpPathTraverser.isEnded() && reached == false) {
             val currentTransition = tmpPathTraverser.getCurrentTransition()!!
             val expectedAbstractState1 = currentTransition.dest
             if (expectedAbstractState1.window == currentAppState.window
@@ -1061,7 +1062,7 @@ open class GoToAnotherWindowTask constructor(
             lastTransition.source.abstractTransitions.remove(lastTransition)
             return
         }
-        lastTransition.activated = false
+
         if (lastTransition.dest == currentAbstractState || lastTransition.dest.hashCode == currentAbstractState.hashCode) {
             if (!pathTraverser!!.isEnded()) {
                 val nextTransition = pathTraverser!!.transitionPath.path[pathTraverser!!.latestEdgeId!! + 1]!!
@@ -1082,15 +1083,19 @@ open class GoToAnotherWindowTask constructor(
                 lastTransition.activated = false
             }
         }*/
+        val abstractStateStacks = atuaMF.getAbstractStateStack()
+        val lastTransitionDependentState = lastTransition.dependentAbstractStates
         if (lastTransition.modelVersion == ModelVersion.BASE && lastTransition.interactions.isEmpty()) {
+            lastTransition.activated = false
             val backwardTransitions = ModelBackwardAdapter.instance.backwardEquivalentAbstractTransitionMapping.get(lastTransition)
             backwardTransitions?.forEach { abstractTransition ->
                 abstractTransition.activated = false
             }
         }
         if (lastTransition.isImplicit ) {
+            lastTransition.activated = false
             if (lastTransition.fromWTG) {
-                lastTransition.activated = false
+
                 val sameWindowAppStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
                     it.window == lastTransition.source.window
                 }

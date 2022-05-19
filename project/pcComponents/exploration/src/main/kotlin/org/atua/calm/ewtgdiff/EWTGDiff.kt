@@ -22,6 +22,7 @@ import org.atua.modelFeatures.dstg.AbstractStateManager
 import org.atua.modelFeatures.dstg.AbstractTransition
 import org.atua.modelFeatures.dstg.AttributePath
 import org.atua.modelFeatures.dstg.AttributeValuationMap
+import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.modelFeatures.dstg.reducer.AbstractionFunction2
 import org.atua.modelFeatures.dstg.reducer.DecisionNode2
 import org.atua.modelFeatures.ewtg.EWTGWidget
@@ -122,10 +123,15 @@ class EWTGDiff private constructor(){
         WindowManager.instance.baseModelWindows.filter {
                     it is Dialog || it is OutOfApp || it is Activity
         }.forEach {w->
-            val newWindow = w.copyToRunningModel()
-            replaceWindow(Replacement(w,newWindow),atuamf)
-            WindowManager.instance.updatedModelWindows.add(newWindow)
-            WindowManager.instance.baseModelWindows.remove(w)
+            if (AbstractStateManager.INSTANCE.ABSTRACT_STATES.any { it !is VirtualAbstractState
+                        && it.window == w}) {
+                val newWindow = w.copyToRunningModel()
+                replaceWindow(Replacement(w, newWindow), atuamf)
+                WindowManager.instance.updatedModelWindows.add(newWindow)
+                WindowManager.instance.baseModelWindows.remove(w)
+            } else {
+                log.debug("Outdated window: $w")
+            }
             /*val exisitingWindow = WindowManager.instance.updatedModelWindows.find { it.javaClass == w.javaClass && it.classType == w.classType }
             if (exisitingWindow != null) {
                 // replace old window with the exisiting one

@@ -599,6 +599,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                         transitionId = null
                 )*/
                 newAbstractTransition.userInputs.addAll (userlikeInputList)
+                newAbstractTransition.markNondeterministicTransitions()
             }
             else {
                 abstractTransition.userInputs.addAll(userlikeInputList)

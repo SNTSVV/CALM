@@ -99,6 +99,7 @@ import org.droidmate.configuration.ConfigProperties.UiAutomatorServer.waitForIdl
 import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF.Companion.StatementCoverage.coverageDir
 import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF.Companion.StatementCoverage.enableCoverage
 import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF.Companion.StatementCoverage.onlyCoverAppPackageName
+import org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy
 import org.droidmate.legacy.Resource
 import org.droidmate.logging.Markers.Companion.runData
 import org.droidmate.misc.EnvironmentConstants
@@ -216,11 +217,13 @@ public class ConfigurationBuilder : IConfigurationBuilder {
 			CommandLineOption(onlyCoverAppPackageName, description = "Only instrument statement coverage for statements belong inside the app package name scope. Libraries with other package names will be ignored. Be aware that this filtering might not be always correct."),
 			CommandLineOption(coverageDir, description = "Path to the directory that will contain the coverage data."),
 			CommandLineOption(org.droidmate.explorationModel.config.ConfigProperties.Output.debugMode, description = "enable debug output"),
-			CommandLineOption(org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.use , description = "If true, regression testing is used"),
-			CommandLineOption(org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.budgetScale, description = "Budget scale. Increase this for longer testing time."),
-			CommandLineOption(org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.reuseBaseModel, description = "Enable base model reuse."),
-			CommandLineOption(org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.baseModelDir, description = "Base model dir."),
-			CommandLineOption(org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.reuseSameVersionModel, description = "Reuse model of the same version.")
+			CommandLineOption(RegressionStrategy.use , description = "If true, regression testing is used"),
+			CommandLineOption(RegressionStrategy.budgetScale, description = "Budget scale. Increase this for longer testing time."),
+			CommandLineOption(RegressionStrategy.reuseBaseModel, description = "Enable base model reuse."),
+			CommandLineOption(RegressionStrategy.baseModelDir, description = "Base model dir."),
+			CommandLineOption(RegressionStrategy.reuseSameVersionModel, description = "Reuse model of the same version."),
+			CommandLineOption(RegressionStrategy.randomAfterTesting,description = "Enable random exploration after ATUA/CALM"),
+		CommandLineOption(RegressionStrategy.randomTimeout,description = "Random exploration timeout")
 			).first, fs)
 
 	@Throws(ConfigurationException::class)

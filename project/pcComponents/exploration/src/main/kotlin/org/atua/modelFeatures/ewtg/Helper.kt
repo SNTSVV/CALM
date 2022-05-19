@@ -965,14 +965,15 @@ class Helper {
         fun isSameFullScreenDimension(rotation: org.atua.modelFeatures.Rotation, guiTreeDimension: Rectangle, autautMF: org.atua.modelFeatures.ATUAMF): Boolean {
             if (rotation == org.atua.modelFeatures.Rotation.PORTRAIT) {
                 if (guiTreeDimension.leftX == 0 && guiTreeDimension.width >= autautMF.portraitScreenSurface.width) {
-                    if (guiTreeDimension.height / autautMF.portraitScreenSurface.height.toDouble() > 0.9) {
+                    if (guiTreeDimension.height / autautMF.portraitScreenSurface.height.toDouble() > 0.95) {
                         return true
                     }
                 }
+
                 return false
             }
-            if (guiTreeDimension.leftX == 0 && guiTreeDimension.width > 0.9 * autautMF.portraitScreenSurface.height) {
-                if (guiTreeDimension.height / autautMF.portraitScreenSurface.width.toDouble() > 0.9) {
+            if (guiTreeDimension.leftX == 0 && guiTreeDimension.width > 0.95 * autautMF.portraitScreenSurface.height) {
+                if (guiTreeDimension.height / autautMF.portraitScreenSurface.width.toDouble() > 0.95) {
                     return true
                 }
             }

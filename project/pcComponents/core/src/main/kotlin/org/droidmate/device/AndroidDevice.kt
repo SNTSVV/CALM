@@ -139,8 +139,15 @@ class AndroidDevice constructor(private val serialNumber: String,
 		val command = "shell dumpsys input"
 		val param = command.split(' ').toTypedArray()
 		try {
-			val inputs = this.adbWrapper.executeCommand(this.serialNumber,"","Get device rotation",
-					*param)
+			var inputs = this.adbWrapper.executeCommand(this.serialNumber,"","Get device rotation",
+					*param).toString()
+			val disableDeviceStr = "SurfaceWidth: -1px"
+			while (inputs.contains(disableDeviceStr)) {
+				val startIdx = inputs.indexOf(disableDeviceStr)
+				val startSurfaceRotation = inputs.indexOf("SurfaceOrientation",startIdx)
+				val endSurfaceRotation = inputs.indexOf("Translation",startSurfaceRotation)
+				inputs = inputs.removeRange(startIdx,endSurfaceRotation)
+			}
 			val matchLineRegex = "SurfaceOrientation.*".toRegex()
 			val matchedLines = matchLineRegex.findAll(inputs)
 			val iter = matchedLines.iterator()

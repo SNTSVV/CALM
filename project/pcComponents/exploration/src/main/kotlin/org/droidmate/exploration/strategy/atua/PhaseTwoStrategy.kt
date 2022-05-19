@@ -268,13 +268,12 @@ class PhaseTwoStrategy(
                 log.info("Random budget left: $randomBudgetLeft")
             if (strategyTask !is RandomExplorationTask && targetWindowsCount.keys.contains(currentAppState.window)) {
                 val unexercisedInputs = currentAppState.getAvailableInputs().filter {
-                    it.eventType != EventType.implicit_launch_event
-                        && it.eventType != EventType.resetApp
+                    it.eventType.isWidgetEvent()
                             && (it.widget?.isUserLikeInput?:false == false
                             || it.widget?.verifiedNotUserlikeInput?:false == true)
                         && it.exerciseCount == 0 }
                 if (unexercisedInputs.isNotEmpty()) {
-                    setRandomExploration(randomExplorationTask, currentState, currentAppState)
+                    setRandomExploration(randomExplorationTask, currentState, currentAppState,budget=unexercisedInputs.size)
                     return
                 }
             }
@@ -1125,16 +1124,20 @@ class PhaseTwoStrategy(
                                      currentState: State<*>,
                                      currentAbstractState: AbstractState,
                                      stopWhenTestPathIdentified: Boolean = false,
-                                     lockWindow: Boolean = false) {
+                                     lockWindow: Boolean = false,
+                                    budget: Int =-1) {
         setRandomExplorationBudget(currentState)
         strategyTask = randomExplorationTask.also {
             it.initialize(currentState)
             it.environmentChange = true
             it.alwaysUseRandomInput = true
-            it.setMaxiumAttempt((10 * scaleFactor).toInt())
+            if (budget != -1)
+                it.setMaxiumAttempt((10 * scaleFactor).toInt())
+            else
+                it.setMaxiumAttempt(budget)
             it.stopWhenHavingTestPath = stopWhenTestPathIdentified
         }
-        log.info("Cannot find path the target node.")
+//        log.info("Cannot find path the target node.")
         log.info("Random exploration")
         phaseState = PhaseState.P2_RANDOM_EXPLORATION
     }

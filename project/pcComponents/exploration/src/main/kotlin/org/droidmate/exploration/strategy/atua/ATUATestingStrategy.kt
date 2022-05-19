@@ -24,6 +24,7 @@ import org.droidmate.explorationModel.interaction.State
 
 open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
                                                          val scaleFactor: Double = 1.0,
+                                                         val timeout: Int,
                                                          dictionary: List<String> = emptyList(),
                                                          useCoordinateClicks: Boolean = true
 ) : RandomWidget(priority, dictionary,useCoordinateClicks) {
@@ -67,6 +68,13 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
 
     var prevNode: AbstractState? = null
 
+    override suspend fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> hasNext(eContext: ExplorationContext<M, S, W>): Boolean {
+        val diff = eContext.getExplorationTimeInMs()
+        if (timeout in 1..diff) {
+            return false
+        }
+        return super.hasNext(eContext)
+    }
 
 
     internal suspend fun<M: AbstractModel<S, W>,S: State<W>,W: Widget> chooseRegression(eContext: ExplorationContext<M,S,W>): ExplorationAction {
@@ -211,6 +219,7 @@ class HandleTargetAbsent():  AExplorationStrategy() {
     override fun getPriority(): Int = 1
 
     override suspend fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> hasNext(eContext: ExplorationContext<M, S, W>): Boolean {
+
         val hasNext = !eContext.explorationCanMoveOn().also {
             if(it) {
                 cnt = 0  // reset the counter if we can proceed

@@ -60,6 +60,7 @@ import org.droidmate.tools.DeviceTools
 import org.droidmate.tools.IDeviceTools
 import java.nio.file.Path
 import java.util.*
+import org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy
 
 @Suppress("unused", "MemberVisibilityCanBePrivate")
 open class ExploreCommandBuilder(
@@ -122,7 +123,19 @@ open class ExploreCommandBuilder(
         pressBackOnAds()
         //dealWithAndroidDialog()
         resetOnInvalidState()
+        conditionalEnable(cfg[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.use]
+                && !cfg[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.budgetScale].isNaN()) {
+            conditionalEnable(!cfg[RegressionStrategy.randomAfterTesting]) {
+                addATUATestingStrategy(cfg[RegressionStrategy.budgetScale],-1)
+            }
+            conditionalEnable(cfg[RegressionStrategy.randomAfterTesting]) {
+                val randomTime = cfg[RegressionStrategy.randomTimeout]*60*1000
+                val atuaTime = cfg[timeLimit]*60*1000 - randomTime
+                addATUATestingStrategy(cfg[RegressionStrategy.budgetScale],atuaTime)
+                addRandomStrategy(useCoordinationClick = true)
+            }
 
+        }
         conditionalEnable(cfg[resetEvery] > 0, cfg) { resetOnIntervals(cfg) }
         conditionalEnable(cfg[pressBackProbability] > 0, cfg) { randomBack(cfg) }
 
@@ -132,10 +145,7 @@ open class ExploreCommandBuilder(
 
         conditionalEnable(cfg[ConfigProperties.Strategies.explore], cfg) { addRandomStrategy() }
 
-        conditionalEnable(cfg[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.use]
-                && !cfg[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.budgetScale].isNaN()) {
-            addATUATestingStrategy(cfg[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.budgetScale])
-        }
+
 
 
         conditionalEnable(
@@ -234,13 +244,15 @@ open class ExploreCommandBuilder(
         return this
     }
 
-    fun addRandomStrategy(): ExploreCommandBuilder {
-        strategies.add(RandomWidget(getNextSelectorPriority()))
+    fun addRandomStrategy(useCoordinationClick: Boolean = false): ExploreCommandBuilder {
+        strategies.add(RandomWidget(getNextSelectorPriority(),useCoordinateClicks = useCoordinationClick))
         return this
     }
 
-    fun addATUATestingStrategy(budgetScale: Double): ExploreCommandBuilder{
-        strategies.add(ATUATestingStrategy(getNextSelectorPriority(),budgetScale))
+    fun addATUATestingStrategy(budgetScale: Double, timeoutMS: Int): ExploreCommandBuilder{
+        strategies.add(ATUATestingStrategy(getNextSelectorPriority(),
+             scaleFactor= budgetScale,
+        timeout = timeoutMS))
 
         return this
     }
