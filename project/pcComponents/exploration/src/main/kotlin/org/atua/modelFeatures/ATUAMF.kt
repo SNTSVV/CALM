@@ -3252,6 +3252,7 @@ class ATUAMF(
             val reuseSameVersionModel by booleanType
             val randomAfterTesting by booleanType
             val randomTimeout by intType
+            val randomStrategy by intType
         }
     }
 }

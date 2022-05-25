@@ -156,6 +156,7 @@ class PhaseOneStrategy(
         if (atuaMF.lastUpdatedStatementCoverage == 1.0) {
             return false
         }
+
         phaseTargetInputs.removeIf { (it.exerciseCount > 0 && !it.eventType.isItemEvent) || it.exerciseCount > 3 }
         if (atuaMF.appPrevState!!.isRequestRuntimePermissionDialogBox
             && atuaTestingStrategy.eContext.getLastActionType() != "ResetApp"
@@ -591,12 +592,7 @@ class PhaseOneStrategy(
             }.map { it.sourceWindow }
                 .filter { !unreachableWindows.contains(it) }.distinct()
         val isTargetAppState = getCurrentTargetInputs(currentState).isNotEmpty()
-        if (targetWindow != null) {
-            if (!isTargetAppState && !isCandidateWindow(targetWindow!!)) {
-                targetWindow = null
-                resetStrategyTask(currentState)
-            }
-        }
+
         if (targetWindow != currentAppState.window) {
             if (isTargetAppState) {
                 resetStrategyTask(currentState)
@@ -647,36 +643,66 @@ class PhaseOneStrategy(
                 }*//*
             }*/
         }
-        if (episodeCountDown == 0 && targetWindow != null && !explicitTargetWindows.contains(targetWindow!!)) {
-            val oldTargetWindow = targetWindow!!
-            if (episodeCountDown == 0
-                && explicitTargetWindows.isNotEmpty()
-                && explicitTargetWindows.any {
-                    isAvailableTargetWindow(
-                        it
-                    )
-                }
-            ) {
-                selectTargetWindow(currentState, true).also {
-                    if (targetWindow != null
-                        && targetWindow != oldTargetWindow
-                        && explicitTargetWindows.contains(targetWindow!!)
-                    ) {
-                        resetStrategyTask(currentState)
-                        log.info("Switch target window to $targetWindow")
-                    } else {
-                        targetWindow = oldTargetWindow
+        if (episodeCountDown == 0 && targetWindow != null ) {
+            if (targetWindow != null) {
+                if (!isTargetAppState && (!isCandidateWindow(targetWindow!!)
+                            )) {
+                    if (!isCandidateWindow(targetWindow!!)) {
+                        if (isExplicitCandidateWindow(targetWindow!!)){
+                            if (strategyTask !is GoToTargetWindowTask
+                                && strategyTask !is ExerciseTargetComponentTask) {
+                                log.info("Unset target window.")
+                                targetWindow = null
+                                resetStrategyTask(currentState)
+                            }
+                        } else {
+                            log.info("Unset target window.")
+                            targetWindow = null
+                            resetStrategyTask(currentState)
+                        }
                     }
                 }
             }
-        } else {
-            if (targetWindow == null) {
-                //try select a target window
-                selectTargetWindow(currentState, false).also {
-                    if (targetWindow != null) {
-                        resetStrategyTask(currentState)
-                        log.info("Switch target window to $targetWindow")
+            if (targetWindow!=null) {
+                val oldTargetWindow = targetWindow!!
+                if (episodeCountDown == 0
+                    && !explicitTargetWindows.contains(targetWindow!!)
+                    && explicitTargetWindows.isNotEmpty()
+                    && explicitTargetWindows.any {
+                        isAvailableTargetWindow(
+                            it
+                        )
                     }
+                ) {
+                    selectTargetWindow(currentState, true).also {
+                        if (targetWindow != null
+                            && targetWindow != oldTargetWindow
+                            && explicitTargetWindows.contains(targetWindow!!)
+                        ) {
+                            resetStrategyTask(currentState)
+                            log.info("Switch target window to $targetWindow")
+                        } else {
+                            targetWindow = oldTargetWindow
+                        }
+                    }
+                }
+            }
+        }
+        if (targetWindow == null) {
+            //try select a target window
+            selectTargetWindow(currentState, true).also {
+                if (targetWindow != null) {
+                    resetStrategyTask(currentState)
+                    log.info("Switch target window to $targetWindow")
+                }
+            }
+        }
+        if (targetWindow == null) {
+            //try select a target window
+            selectTargetWindow(currentState, false).also {
+                if (targetWindow != null) {
+                    resetStrategyTask(currentState)
+                    log.info("Switch target window to $targetWindow")
                 }
             }
         }
@@ -940,9 +966,6 @@ class PhaseOneStrategy(
             setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
-        if (exploreApp(currentState, goToAnotherWindowTask, randomExplorationTask,false)) {
-            return
-        }
         if (goToTargetNodeTask.isAvailable(
                 currentState = currentState,
                 isWindowAsTarget = false,
@@ -1072,9 +1095,6 @@ class PhaseOneStrategy(
             )
         ) {
             setGoToTarget(goToTargetNodeTask, currentState)
-            return
-        }
-        if (exploreApp(currentState, goToAnotherWindowTask, randomExplorationTask,false)) {
             return
         }
         if (goToTargetNodeTask.isAvailable(
@@ -1247,9 +1267,6 @@ class PhaseOneStrategy(
                 setGoToTarget(goToTargetNodeTask, currentState)
                 return
             }
-            if (exploreApp(currentState, goToAnotherWindowTask, randomExplorationTask,false)) {
-                return
-            }
             if (goToTargetNodeTask.isAvailable(
                     currentState = currentState,
                     isWindowAsTarget = true,
@@ -1262,7 +1279,16 @@ class PhaseOneStrategy(
                 return
             }
         } else {
-            if (exploreApp(currentState, goToAnotherWindowTask, randomExplorationTask,false)) {
+            if ( goToAnotherWindowTask.isAvailable(
+                    currentState = currentState,
+                    destWindow = null,
+                    includeResetApp = false,
+                    isExploration = true,
+                    includePressback = true,
+                    isWindowAsTarget = false
+                )
+            ) {
+                setGoToExploreState(goToAnotherWindowTask, currentState)
                 return
             }
             if (goToTargetNodeTask.includeResetAction == false) {
@@ -1376,9 +1402,6 @@ class PhaseOneStrategy(
             )
         ) {
             setGoToTarget(goToTargetNodeTask, currentState)
-            return
-        }
-        if (exploreApp(currentState, goToAnotherWindowTask, randomExplorationTask,false)) {
             return
         }
         if (goToTargetNodeTask.isAvailable(
@@ -1607,9 +1630,6 @@ class PhaseOneStrategy(
         if (continueOrEndCurrentTask(currentState))
             return
         if (randomExplorationInSpecialWindows(currentAppState, randomExplorationTask, currentState)) return
-        if (exploreApp(currentState, goToAnotherWindowTask, randomExplorationTask,false)) {
-            return
-        }
         if (goToTargetNodeTask.isAvailable(
                 currentState = currentState,
                 destWindow = targetWindow!!,
@@ -1878,10 +1898,10 @@ class PhaseOneStrategy(
             phaseTargetInputs.any {
                 it.sourceWindow == window
                         && (it.widget==null ||
-                        (it.widget!!.witnessed)) }
+                        (it.widget!!.witnessed)) && ProbabilityBasedPathFinder.disableInputs.contains(it) }
         }
         return explicitTargetWindows.contains(window)
-                && !outofbudgetWindows.contains(window)
+//                && !outofbudgetWindows.contains(window)
                 && !fullyCoveredWindows.contains(window)
                 && !unreachableWindows.contains(window)
                 && !fullyExploredWindows.contains(window)

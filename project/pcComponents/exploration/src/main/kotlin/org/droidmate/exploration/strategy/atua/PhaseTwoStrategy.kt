@@ -601,7 +601,7 @@ class PhaseTwoStrategy(
         if (budgetType == BudgetType.RANDOM_EXPLORATION)
             return
         if (budgetType == BudgetType.EXERCISE_TARGET) {
-            budgetType == BudgetType.RANDOM_EXPLORATION
+            budgetType = BudgetType.RANDOM_EXPLORATION
             return
         }
         budgetType = BudgetType.RANDOM_EXPLORATION

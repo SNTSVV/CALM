@@ -126,13 +126,14 @@ open class ExploreCommandBuilder(
         conditionalEnable(cfg[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.use]
                 && !cfg[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.budgetScale].isNaN()) {
             conditionalEnable(!cfg[RegressionStrategy.randomAfterTesting]) {
-                addATUATestingStrategy(cfg[RegressionStrategy.budgetScale],-1)
+                addATUATestingStrategy(cfg[RegressionStrategy.budgetScale],-1,-1,1)
             }
             conditionalEnable(cfg[RegressionStrategy.randomAfterTesting]) {
                 val randomTime = cfg[RegressionStrategy.randomTimeout]*60*1000
-                val atuaTime = cfg[timeLimit]*60*1000 - randomTime
-                addATUATestingStrategy(cfg[RegressionStrategy.budgetScale],atuaTime)
-                addRandomStrategy(useCoordinationClick = true)
+                val atuaTime = cfg[timeLimit]*60*1000
+                addATUATestingStrategy(cfg[RegressionStrategy.budgetScale],atuaTime,randomTime ,cfg[RegressionStrategy.randomStrategy])
+
+//                addRandomStrategy(useCoordinationClick = true)
             }
 
         }
@@ -249,10 +250,12 @@ open class ExploreCommandBuilder(
         return this
     }
 
-    fun addATUATestingStrategy(budgetScale: Double, timeoutMS: Int): ExploreCommandBuilder{
+    fun addATUATestingStrategy(budgetScale: Double, timeoutMS: Int, randomTimeMS: Int, randomStrategy: Int): ExploreCommandBuilder{
         strategies.add(ATUATestingStrategy(getNextSelectorPriority(),
              scaleFactor= budgetScale,
-        timeout = timeoutMS))
+        timeout = timeoutMS,
+            randomTimeout = randomTimeMS,
+        randomStrategy = randomStrategy ))
 
         return this
     }

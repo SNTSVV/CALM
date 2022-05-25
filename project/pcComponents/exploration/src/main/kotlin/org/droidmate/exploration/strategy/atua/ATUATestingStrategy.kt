@@ -25,6 +25,8 @@ import org.droidmate.explorationModel.interaction.State
 open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
                                                          val scaleFactor: Double = 1.0,
                                                          val timeout: Int,
+                                                         val randomTimeout: Int,
+                                                         val randomStrategy: Int,
                                                          dictionary: List<String> = emptyList(),
                                                          useCoordinateClicks: Boolean = true
 ) : RandomWidget(priority, dictionary,useCoordinateClicks) {
@@ -54,6 +56,7 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
     lateinit var phaseStrategy1: AbstractPhaseStrategy
     lateinit var phaseStrategy2: AbstractPhaseStrategy
     lateinit var phaseStrategy3: AbstractPhaseStrategy
+    lateinit var phaseStrategy4: AbstractPhaseStrategy
     var currentPhase: Int = 1
 
     //lateinit var phaseTwoStrategy: AbstractPhaseStrategy
@@ -67,12 +70,17 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
     }
 
     var prevNode: AbstractState? = null
+    var doResetBeforeStop: Boolean = false
 
     override suspend fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> hasNext(eContext: ExplorationContext<M, S, W>): Boolean {
-        val diff = eContext.getExplorationTimeInMs()
+
+     /*   val diff = eContext.getExplorationTimeInMs()
         if (timeout in 1..diff) {
-            return false
-        }
+            if (doResetBeforeStop)
+                return false
+            else
+                return true
+        }*/
         return super.hasNext(eContext)
     }
 
@@ -82,8 +90,16 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
             return handleTargetAbsent.nextAction(eContext)
         }*/
         atuaMF.actionProcessedByATUAStrategy = true
+
         var chosenAction: ExplorationAction = ExplorationAction.pressBack()
         ExplorationTrace.widgetTargets.clear()
+/*        if (timeout in 1..diff) {
+            if (!doResetBeforeStop) {
+                chosenAction = eContext.resetApp()
+                doResetBeforeStop = true
+                return chosenAction
+            }
+        }*/
         val currentState = eContext.getCurrentState()
         val currentAbstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)
         if (currentAbstractState == null) {
@@ -105,6 +121,14 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
 //        if(currentAbstractState.isOpeningKeyboard && !AbstractStateManager.instance.ABSTRACT_STATES.any { it !is VirtualAbstractState && it.window == currentAbstractState.window && !it.isOpeningKeyboard }) {
 //            return GlobalAction(actionType = ActionType.CloseKeyboard)
 //        }
+        if (timeout > 0) {
+            val diff = eContext.getExplorationTimeInMs()
+            if (currentPhase != 4 && (timeout-randomTimeout) in 1..diff) {
+                phaseStrategy4 = RandomExplorationStrategy(this,scaleFactor, delay, useCoordinateClicks,strategy = randomStrategy)
+                phaseStrategy = phaseStrategy4
+                currentPhase = 4
+            }
+        }
         if  (currentPhase == 1) {
             if (phaseStrategy1.hasNextAction(eContext.getCurrentState())) {
                 phaseStrategy = phaseStrategy1
@@ -139,6 +163,13 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
                 chosenAction = phaseStrategy3.nextAction(eContext)
             } else {
                 return ExplorationAction.terminateApp()
+            }
+        }
+        if (currentPhase == 4) {
+            if (phaseStrategy.hasNextAction(eContext.getCurrentState())) {
+                chosenAction = phaseStrategy.nextAction(eContext)
+            } else {
+                chosenAction = ExplorationAction.pressBack()
             }
         }
         /*if (!phaseStrategy.hasNextAction(eContext.getCurrentState())) {

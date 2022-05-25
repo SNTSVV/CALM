@@ -223,7 +223,8 @@ public class ConfigurationBuilder : IConfigurationBuilder {
 			CommandLineOption(RegressionStrategy.baseModelDir, description = "Base model dir."),
 			CommandLineOption(RegressionStrategy.reuseSameVersionModel, description = "Reuse model of the same version."),
 			CommandLineOption(RegressionStrategy.randomAfterTesting,description = "Enable random exploration after ATUA/CALM"),
-		CommandLineOption(RegressionStrategy.randomTimeout,description = "Random exploration timeout")
+			CommandLineOption(RegressionStrategy.randomStrategy,description = "Random exploration strategy"),
+			CommandLineOption(RegressionStrategy.randomTimeout,description = "Random exploration timeout")
 			).first, fs)
 
 	@Throws(ConfigurationException::class)

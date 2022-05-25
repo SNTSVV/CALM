@@ -1083,17 +1083,17 @@ open class GoToAnotherWindowTask constructor(
                 lastTransition.activated = false
             }
         }*/
+        lastTransition.activated = false
         val abstractStateStacks = atuaMF.getAbstractStateStack()
         val lastTransitionDependentState = lastTransition.dependentAbstractStates
         if (lastTransition.modelVersion == ModelVersion.BASE && lastTransition.interactions.isEmpty()) {
-            lastTransition.activated = false
+
             val backwardTransitions = ModelBackwardAdapter.instance.backwardEquivalentAbstractTransitionMapping.get(lastTransition)
             backwardTransitions?.forEach { abstractTransition ->
                 abstractTransition.activated = false
             }
         }
         if (lastTransition.isImplicit ) {
-            lastTransition.activated = false
             if (lastTransition.fromWTG) {
 
                 val sameWindowAppStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {

@@ -519,7 +519,15 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                         sb.appendln("${it.key};$methodName;${Duration.between(initialDate.toInstant(), it.value.toInstant()).toMillis() / 1000}")
                     }
         }
-
+        val unexecutedMethods = methodInstrumentationMap.keys.subtract(executedMethodsMap.keys)
+        if (unexecutedMethods.isNotEmpty()) {
+            val sortedMethods = unexecutedMethods.sorted()
+            sortedMethods
+                .forEach {
+                    val methodName = methodInstrumentationMap[it]
+                    sb.appendln("${it};$methodName")
+                }
+        }
         val outputFile = context.model.config.baseDir.resolve(methodFileName)
         log.info("Prepare writing coverage file: " +
                 "\n- File name: ${outputFile.fileName}" +
