@@ -17,7 +17,7 @@ import org.atua.modelFeatures.ewtg.window.Window
 data class WindowTransition (val source: Window,
                         val destination: Window,
                         val input: Input,
-                        val prevWindow: Window?) {
+                        val dependingWindows: ArrayList<Window>) {
 
     var disabled: Boolean = false
 }

@@ -24,6 +24,7 @@ import org.droidmate.deviceInterface.exploration.Swipe
 import org.droidmate.deviceInterface.exploration.Tick
 import org.droidmate.deviceInterface.exploration.isClick
 import org.droidmate.deviceInterface.exploration.isEnabled
+import org.droidmate.deviceInterface.exploration.isFetch
 import org.droidmate.deviceInterface.exploration.isLongClick
 import org.droidmate.exploration.ExplorationContext
 import org.droidmate.exploration.actions.availableActions
@@ -868,15 +869,16 @@ abstract class AbstractStrategyTask(
         return ExplorationAction.pressMenu()
     }
 
+    var waitForCameraApp = false
     var isClickedShutterButton = false
-    internal fun dealWithCamera(currentState: State<*>): ExplorationAction {
+    internal fun dealWithCamera(currentState: State<*>,explorationContext: ExplorationContext<*,*,*>): ExplorationAction {
         val gotItButton = currentState.widgets.find { it.text.toLowerCase().equals("got it") }
         if (gotItButton != null) {
             log.info("Widget: $gotItButton")
             return gotItButton.click()
         }
         if (!isClickedShutterButton) {
-            val shutterbutton = currentState.actionableWidgets.find { it.resourceId.contains("shutter_button") }
+            val shutterbutton = currentState.widgets.find { it.resourceId.contains("shutter_button") }
             if (shutterbutton != null) {
                 log.info("Widget: $shutterbutton")
                 val clickActions =
@@ -886,10 +888,14 @@ abstract class AbstractStrategyTask(
                     return clickActions.random()
                 }
                 ExplorationTrace.widgetTargets.clear()
+            } else {
+                if (!explorationContext.getLastAction().actionType.isFetch()) {
+                    return GlobalAction(actionType = ActionType.FetchGUI)
+                }
             }
         }
         isClickedShutterButton = false
-        val doneButton = currentState.actionableWidgets.find { it.resourceId.contains("done") }
+        val doneButton = currentState.widgets.find { it.resourceId.contains("done") }
         if (doneButton != null) {
             log.info("Widget: $doneButton")
             val clickActions = doneButton.availableActions(delay, useCoordinateClicks).filter { it.name.isClick() }
@@ -898,8 +904,11 @@ abstract class AbstractStrategyTask(
             }
             ExplorationTrace.widgetTargets.clear()
         }
-        log.info("Cannot find the expected widgets in the camera app. Press back.")
-        return ExplorationAction.pressBack()
+        if (explorationContext.getLastAction().actionType.isFetch()) {
+            log.info("Cannot find the expected widgets in the camera app. Press back.")
+            return ExplorationAction.pressBack()
+        }
+        return GlobalAction(actionType = ActionType.FetchGUI)
     }
 
     fun clickOnOpenNavigation(currentState: State<*>): ExplorationAction {

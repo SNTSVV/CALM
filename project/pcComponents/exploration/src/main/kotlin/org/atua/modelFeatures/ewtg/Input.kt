@@ -13,7 +13,6 @@
 package org.atua.modelFeatures.ewtg
 
 import org.atua.calm.modelReuse.ModelVersion
-import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractState
@@ -236,10 +235,8 @@ open class Input{
                 newInput.data = abstractTransition.abstractAction.extra
                 newInput.eventHandlers.addAll(abstractTransition.handlers.map { it.key })
 
-                val prevWindows = abstractTransition.dependentAbstractStates.map { it.window }
-
-//                createWindowTransition(prevWindows, wtg, prevAbstractState, newAbstractState, newInput)
                 associateAbstractActionsWithInput(prevAbstractState, abstractTransition, newInput)
+
             } else {
                 val attributeValuationSet = abstractTransition.abstractAction.attributeValuationMap!!
                 if (!prevAbstractState.EWTGWidgetMapping.containsKey(attributeValuationSet)) {
@@ -287,41 +284,36 @@ open class Input{
                     )*/
                     newInput.data = abstractTransition.abstractAction.extra
                     newInput.eventHandlers.addAll(abstractTransition.handlers.map { it.key })
-
-                    val prevWindows = abstractTransition.dependentAbstractStates.map { it.window }
-//                    createWindowTransition(prevWindows, wtg, prevAbstractState, newAbstractState, newInput)
                     associateAbstractActionsWithInput(prevAbstractState, abstractTransition, newInput)
                 }
             }
         }
 
-        private fun createWindowTransition(
-            prevWindows: List<Window>,
+        fun createWindowTransition(
+            dependingWindows: List<Window>,
             wtg: EWTG,
             prevAbstractState: AbstractState,
             newAbstractState: AbstractState,
             newInput: Input?
-        ) {
-            if (prevWindows.isNotEmpty()) {
-                prevWindows.forEach { prevWindow ->
-                    wtg.add(
-                        prevAbstractState.window, newAbstractState.window, WindowTransition(
-                            prevAbstractState.window,
-                            newAbstractState.window,
-                            newInput!!,
-                            prevWindow
-                        )
-                    )
+        ): WindowTransition
+        {
+            val existingEdges = wtg.edges(prevAbstractState.window).filter { it.destination!!.data == newAbstractState.window
+                    && it.label.input == newInput!!}
+            if (existingEdges.isNotEmpty()) {
+                existingEdges.forEach {
+                    it.label.dependingWindows.addAll(dependingWindows)
                 }
+                return existingEdges.first().label
             } else {
-                wtg.add(
+                val edge = wtg.add(
                     prevAbstractState.window, newAbstractState.window, WindowTransition(
                         prevAbstractState.window,
                         newAbstractState.window,
                         newInput!!,
-                        null
+                        ArrayList(dependingWindows)
                     )
                 )
+                return edge.label
             }
         }
 

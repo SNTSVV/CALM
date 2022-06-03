@@ -656,7 +656,7 @@ open class GoToAnotherWindowTask constructor(
         isExploration: Boolean = true,
         maxCost: Double = DEFAULT_MAX_COST
     ): Boolean {
-        log.info("Checking if there is any path to $destWindow")
+//        log.info("Checking if there is any path to $destWindow")
         reset()
         this.isWindowAsTarget = isWindowAsTarget
         this.includePressbackAction = includePressback
@@ -1095,7 +1095,6 @@ open class GoToAnotherWindowTask constructor(
         }
         if (lastTransition.isImplicit ) {
             if (lastTransition.fromWTG) {
-
                 val sameWindowAppStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
                     it.window == lastTransition.source.window
                 }

@@ -863,7 +863,7 @@ class PhaseOneStrategy(
              && meaningfulAbstractActions.isEmpty()
              && !hasBudgetLeft(currentAppState.window) ) {
              if (exploreApp(currentState, goToExploreWindows))
-                 return
+                 returwindowRandomExplorationBudget
          }*/
 
         if (strategyTask != null) {

@@ -739,7 +739,7 @@ class AbstractStateManager() {
 
     private fun createAbstractTransitionsFromWTG(abstractState: AbstractState) {
         //create implicit widget interactions from static Node
-        val nonTrivialWidgetWindowsTransitions = atuaMF.wtg.edges(abstractState.window)
+        val nonTrivialWidgetWTGEdges = atuaMF.wtg.edges(abstractState.window)
             .filter { it.label.input.widget != null && !it.label.disabled }
             .filterNot { it.source.data == it.destination?.data }
 
@@ -755,17 +755,17 @@ class AbstractStateManager() {
                         }
                     }*/
 
-        nonTrivialWidgetWindowsTransitions
-            .forEach { windowTransition ->
-                val destWindow = windowTransition.destination!!.data
+        nonTrivialWidgetWTGEdges
+            .forEach { wtgEdge ->
+                val destWindow = wtgEdge.destination!!.data
                 val destAbstractState = ABSTRACT_STATES.find { it.window == destWindow && it is VirtualAbstractState }
                 if (destAbstractState != null) {
                     val abstractActions =
-                        abstractState.getAbstractActionsWithSpecificInputs(windowTransition.label.input)
+                        abstractState.getAbstractActionsWithSpecificInputs(wtgEdge.label.input)
                     abstractActions.forEach { abstractAction ->
                         val witnessAbstractTransition = abstractState.abstractTransitions.find {
                             it.abstractAction == abstractAction
-                                    && it.data == windowTransition.label.input.data
+                                    && it.data == wtgEdge.label.input.data
                                     /*&& it.label.prevWindow == null*/
                                     && it.interactions.isNotEmpty()
                         }
@@ -773,7 +773,7 @@ class AbstractStateManager() {
                             createAbstractTransitionFromWindowTransition(
                                 abstractState,
                                 abstractAction,
-                                windowTransition,
+                                wtgEdge.label,
                                 destAbstractState
                             )
                         }
@@ -785,12 +785,12 @@ class AbstractStateManager() {
     private fun createAbstractTransitionFromWindowTransition(
         abstractState: AbstractState,
         abstractAction: AbstractAction,
-        windowTransition: Edge<Window, WindowTransition>,
+        windowTransition:  WindowTransition,
         destAbstractState: AbstractState
     ) {
         val abstractEdge = atuaMF.dstg.edges(abstractState).find {
             it.label.abstractAction == abstractAction
-                    && it.label.data == windowTransition.label.input.data
+                    && it.label.data == windowTransition.input.data
                     /*&& it.label.prevWindow == null*/
                     && it.label.dest.window == destAbstractState.window
         }
@@ -801,25 +801,30 @@ class AbstractStateManager() {
                 abstractAction = abstractAction,
                 isImplicit = true,
                 /*prevWindow = null,*/
-                data = windowTransition.label.input.data,
+                data = windowTransition.input.data,
                 fromWTG = true,
                 source = abstractState,
                 dest = destAbstractState
             )
-            windowTransition.label.input.modifiedMethods.forEach {
+            windowTransition.input.modifiedMethods.forEach {
                 abstractTransition.modifiedMethods.put(it.key, false)
             }
-            abstractState.associateAbstractActionWithInputs(
-                abstractTransition.abstractAction,
-                windowTransition.label.input
-            )
+
             /*if (atuaMF.notFullyExercisedTargetInputs.contains(windowTransition.label.input)) {
                 abstractState.targetActions.add(abstractTransition.abstractAction)
             }*/
             atuaMF.dstg.add(abstractState, destAbstractState, abstractTransition)
             abstractState.abstractTransitions.add(abstractTransition)
+        } else {
+            abstractTransition = abstractEdge.label
         }
-
+        val dependentVirtualAbstractStates = windowTransition.dependingWindows
+            .map {w-> INSTANCE.ABSTRACT_STATES.find { it.window == w && it is VirtualAbstractState}!! }
+        abstractTransition.dependentAbstractStates.addAll(dependentVirtualAbstractStates)
+        abstractState.associateAbstractActionWithInputs(
+            abstractTransition.abstractAction,
+            windowTransition.input
+        )
     }
 
     private fun initWidgetInputForAbstractState(abstractState: AbstractState, input: Input) {
@@ -1326,6 +1331,7 @@ class AbstractStateManager() {
                             }
                             if (!solved) {
                                 log.debug("Non-deterministic transitions not solved by abstract state refinement.")
+                                AbstractionFunction2.INSTANCE.abandonedAbstractTransitions.add(abstractTransition)
                             }
                         } else {
                             log.debug("Interaction lost")
@@ -3213,7 +3219,14 @@ class AbstractStateManager() {
         val exisitingImplicitTransitions = prevAbstractState.abstractTransitions.filter {
             it.abstractAction == abstractTransition.abstractAction
                     /*&& it.prevWindow == abstractTransition.prevWindow*/
-                    && (it.fromWTG || !it.guardEnabled || it.dependentAbstractStates.intersect(abstractTransition.dependentAbstractStates).isNotEmpty())
+                    && ((it.fromWTG
+                        && it.dependentAbstractStates.isEmpty())
+                    || (it.fromWTG
+                        && it.dependentAbstractStates.map { it.window }.intersect(abstractTransition.dependentAbstractStates.map { it.window }).isNotEmpty())
+                    || (!it.fromWTG
+                        && it.dependentAbstractStates.isNotEmpty())
+                    || (!it.fromWTG
+                        && it.dependentAbstractStates.intersect(abstractTransition.dependentAbstractStates).isNotEmpty()))
                     /*&& (it.userInputs.intersect(abstractTransition.userInputs).isNotEmpty()
                             || it.userInputs.isEmpty() || abstractTransition.userInputs.isEmpty())*/
                     && it.isImplicit
@@ -3455,43 +3468,44 @@ class AbstractStateManager() {
         val currentTraceId = traceId
         val windowStack = Stack<Window>()
         val appStateStack = Stack<AbstractState>()
-        val guiStateStack = Stack<State<*>>()
+        val guiStateStack = ArrayList<State<*>>()
         // construct gui states stack
-        for (i in 1..transitionId) {
+        for (i in 1..transitionId+1) {
             val traveredInteraction = atuaMF.tracingInteractionsMap.get(Pair(traceId, i))
             if (traveredInteraction == null)
                 throw Exception()
             if (i == 1) {
                 val prevState = atuaMF.stateList.find { it.stateId == traveredInteraction.last().prevState }!!
-                guiStateStack.push(prevState)
+                guiStateStack.add(prevState)
             }
             val state = atuaMF.stateList.find { it.stateId == traveredInteraction.last().resState }!!
-            guiStateStack.push(state)
+            guiStateStack.add(state)
         }
         for (i in 0..guiStateStack.size-2) {
             val prevState = guiStateStack[i]
             val destState = guiStateStack[i+1]
             val prevAbstractState = getAbstractState(prevState)
             val destAbstractState = getAbstractState(destState)
+            if (prevAbstractState == null)
+                continue
             if (destAbstractState == null)
                 continue
-            updateAppStack(windowStack,appStateStack,prevAbstractState,prevState,destAbstractState,destState,false)
+            if (i==0) {
+                updateAppStack(appStateStack,null,prevAbstractState,true)
+            }
+            updateAppStack(appStateStack,prevAbstractState,destAbstractState,false)
         }
         return appStateStack
     }
 
     fun updateAppStack(
-        windowStack: Stack<Window>,
         appStateStack: Stack<AbstractState>,
         prevAbstractState: AbstractState?,
-        prevState: State<*>,
         currentAbstractState: AbstractState,
-        currentState: State<*>,
         isLaunch: Boolean
     ) {
-
-        if (isLaunch) {
-            windowStack.push(Launcher.getOrCreateNode())
+        if (isLaunch || appStateStack.isEmpty()) {
+//            windowStack.push(Launcher.getOrCreateNode())
             val homeScreenState = atuaMF.stateList.findLast { it.isHomeScreen }
             if (homeScreenState != null) {
 //                stateList.add(homeScreenState)
@@ -3500,41 +3514,32 @@ class AbstractStateManager() {
                 appStateStack.push(AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.window is Launcher }!!)
             }
         } else if (prevAbstractState != null) {
-            if (windowStack.contains(currentAbstractState.window)) {
-                // Return to the prev window
-                // Pop the window
-                while (true) {
-                    val topWindow = windowStack.pop()
-                    if (appStateStack.isNotEmpty()) {
-                        while (appStateStack.peek().window != topWindow) {
-                            appStateStack.pop()
-                            if (appStateStack.isEmpty())
-                                break
-                        }
-                    }
-                    if (appStateStack.isNotEmpty()) {
-                        while (appStateStack.peek() == currentAbstractState) {
-                            appStateStack.pop()
-                            if (appStateStack.isEmpty())
-                                break
-                        }
-                    }
-                    if (topWindow == currentAbstractState.window)
-                        break
+            val topWindow = appStateStack.peek().window
+            if (topWindow == currentAbstractState) {
+                // Stay in the same window
+                // Just remove any state similar to the current state
+                appStateStack.removeIf {
+                    it.isSimlarAbstractState(currentAbstractState,0.8)
                 }
             } else {
-                if (currentAbstractState.window != prevAbstractState.window) {
-                    if (prevAbstractState.window is Activity || prevAbstractState.window is OutOfApp) {
-
-                        windowStack.push(prevAbstractState.window)
+                if (appStateStack.map { it.window }.contains(currentAbstractState.window)
+                    && appStateStack.size > 1 ) {
+                    // Return to one of the previous windows
+                    while(appStateStack.peek().window!=currentAbstractState.window) {
+                        appStateStack.pop()
+                        if (appStateStack.isEmpty())
+                            break
+                    }
+                    if (appStateStack.isNotEmpty()) {
+                        appStateStack.removeIf {
+                            it.isSimlarAbstractState(currentAbstractState,0.8)
+                                    || it.window is Dialog
+                        }
                     }
                 }
-                appStateStack.removeIf {
-                    it.isSimlarAbstractState(prevAbstractState,0.8)
-                }
-                appStateStack.push(prevAbstractState)
             }
         }
+        appStateStack.push(currentAbstractState)
     }
 
     fun getPrevSameWindowAbstractState(
@@ -3543,7 +3548,7 @@ class AbstractStateManager() {
         transitionId: Int,
         isReturnToPrevWindow: Boolean
     ): List<AbstractState> {
-        val appStateStack = createAppStack(traceId, transitionId)
+        val appStateStack = createAppStack(traceId, transitionId-2)
 
         val prevSameWindowAbstractStates = ArrayList<AbstractState>()
         val currentAppState = getAbstractState(currentState)!!
@@ -3568,6 +3573,39 @@ class AbstractStateManager() {
         }
         return prevSameWindowAbstractStates
     }
+
+    fun updateEWTGBasedAbstractTranstions(windowTransition: WindowTransition) {
+        val sourceAbstractStates = ABSTRACT_STATES.filter { it !is VirtualAbstractState && it !is PredictedAbstractState
+                && it.window == windowTransition.source}
+        val destWindow = windowTransition.destination!!
+        val destAbstractState = ABSTRACT_STATES.find { it.window == destWindow && it is VirtualAbstractState }
+        if (destAbstractState != null) {
+            sourceAbstractStates.forEach { soureAppState->
+                val abstractActions =
+                    soureAppState.getAbstractActionsWithSpecificInputs(windowTransition.input)
+                abstractActions.forEach { abstractAction ->
+                    val witnessAbstractTransition = soureAppState.abstractTransitions.find {
+                        it.abstractAction == abstractAction
+                                && it.data == windowTransition.input.data
+                                /*&& it.label.prevWindow == null*/
+                                && it.interactions.isNotEmpty()
+                                && (it.dependentAbstractStates.map { it.window }.intersect(windowTransition.dependingWindows).isNotEmpty()
+                                || windowTransition.dependingWindows.isEmpty())
+                    }
+                    if (witnessAbstractTransition == null) {
+                        createAbstractTransitionFromWindowTransition(
+                            soureAppState,
+                            abstractAction,
+                            windowTransition,
+                            destAbstractState
+                        )
+                    }
+                }
+            }
+
+        }
+    }
+
     companion object {
         val INSTANCE: AbstractStateManager by lazy {
             AbstractStateManager()

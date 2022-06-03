@@ -252,7 +252,7 @@ class RandomExplorationTask constructor(
         }
         if (isCameraOpening(currentState)) {
             atuaMF.isRandomExploration = false
-            return dealWithCamera(currentState)
+            return dealWithCamera(currentState,explorationContext = atuaStrategy.eContext)
         }
         if (lockedWindow != null
             && lockedWindow != currentAbstractState.window) {
@@ -538,7 +538,7 @@ class RandomExplorationTask constructor(
                 .filter {
                     !it.isCheckableOrTextInput(currentAbstractState)
                             && it.isWidgetAction() }
-            randomAction = unexercisedActions2.maxByOrNull { it.getScore() }
+            randomAction = unexercisedActions2.minByOrNull { currentAbstractState.getActionCount(it) }
         }
   /*      if (randomAction == null) {
             if (!isPureRandom && !recentGoToExploreState

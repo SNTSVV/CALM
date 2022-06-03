@@ -164,55 +164,56 @@ class AbstractTransition(
                                 atuaMF: ATUAMF
     ) {
         val currentAbstractState = this.dest
-        val p_prevWindowAbstractState = if (transitionId != 0) {
-            atuaMF.getPrevWindowAbstractState(traceId, transitionId - 1)
+        /*val p_prevWindowAbstractState = if (transitionId != 0) {
+            atuaMF.getPrevWindowAbstractState(traceId, transitionId )
         } else
-            null
-        if (p_prevWindowAbstractState != null
-            && !currentAbstractState.isOpeningMenus
+            null*/
+        if (/*p_prevWindowAbstractState != null
+            &&*/ !currentAbstractState.isOpeningMenus
             && this.dest != this.source
         ) {
-            if (currentAbstractState.window == p_prevWindowAbstractState.window) {
-                val previousSameWindowAbstractStates: List<AbstractState> =
-                    AbstractStateManager.INSTANCE.getPrevSameWindowAbstractState(currentState, traceId, transitionId, true)
-                var foundPreviousAbstractStates = false
-                for (prevAppState in previousSameWindowAbstractStates) {
-                    if (!AbstractStateManager.INSTANCE.goBackAbstractActions.contains(this.abstractAction)) {
-                        val inputs =
-                            this.source.getInputsByAbstractAction(this.abstractAction)
-                        inputs.forEach {
-                            if (!Input.goBackInputs.contains(it))
-                                Input.goBackInputs.add(it)
-                        }
-                    } else
-                        AbstractStateManager.INSTANCE.goBackAbstractActions.add(this.abstractAction)
-                    if (prevAppState.isSimlarAbstractState(currentAbstractState, 0.8)
-                    ) {
-
-                        this.guardEnabled = true
-                        this.dependentAbstractStates.add(prevAppState)
-                        foundPreviousAbstractStates = true
-                        break
+            val previousSameWindowAbstractStates: List<AbstractState> =
+                AbstractStateManager.INSTANCE.getPrevSameWindowAbstractState(currentState, traceId, transitionId, true)
+                    .subtract(listOf(this.source)).toList()
+            var foundPreviousAbstractStates = false
+            for (prevAppState in previousSameWindowAbstractStates) {
+                if (!AbstractStateManager.INSTANCE.goBackAbstractActions.contains(this.abstractAction)) {
+                    val inputs =
+                        this.source.getInputsByAbstractAction(this.abstractAction)
+                    inputs.forEach {
+                        if (!Input.goBackInputs.contains(it))
+                            Input.goBackInputs.add(it)
                     }
-                }
-                if (!foundPreviousAbstractStates && previousSameWindowAbstractStates.isNotEmpty()) {
-                    val notSourceStatePrevWindowAppStates = previousSameWindowAbstractStates.filterNot { it == source }
-                    if (notSourceStatePrevWindowAppStates.isNotEmpty()) {
-                        val similarScores =
-                            notSourceStatePrevWindowAppStates   .associateWith { it.similarScore(currentAbstractState) }
-                        val maxScores = similarScores.maxByOrNull { it.value }!!
+                } else
+                    AbstractStateManager.INSTANCE.goBackAbstractActions.add(this.abstractAction)
+                if (prevAppState.isSimlarAbstractState(currentAbstractState, 0.8)
+                ) {
 
-                        this.guardEnabled = true
-                        this.dependentAbstractStates.add(maxScores.key)
-                    }
+                    this.guardEnabled = true
+                    this.dependentAbstractStates.add(prevAppState)
+                    foundPreviousAbstractStates = true
+                    break
                 }
+            }
+            if (!foundPreviousAbstractStates && previousSameWindowAbstractStates.isNotEmpty()) {
+                val notSourceStatePrevWindowAppStates = previousSameWindowAbstractStates.filterNot { it == source }
+                if (notSourceStatePrevWindowAppStates.isNotEmpty()) {
+                    val similarScores =
+                        notSourceStatePrevWindowAppStates   .associateWith { it.similarScore(currentAbstractState) }
+                    val maxScores = similarScores.maxByOrNull { it.value }!!
+
+                    this.guardEnabled = true
+                    this.dependentAbstractStates.add(maxScores.key)
+                }
+            }
+           /* if (currentAbstractState.window == p_prevWindowAbstractState.window) {
             }
             else if (!this.dest.isSimlarAbstractState(this.source,0.8)) {
                 val previousSameWindowAbstractStates: List<AbstractState> =
                     AbstractStateManager.INSTANCE.getPrevSameWindowAbstractState(currentState, traceId, transitionId, false)
                 for (prevAppState in previousSameWindowAbstractStates) {
                     if (prevAppState.isSimlarAbstractState(currentAbstractState, 0.8)) {
-                       /* if (!AbstractStateManager.INSTANCE.goBackAbstractActions.contains(this.abstractAction)) {
+                       *//* if (!AbstractStateManager.INSTANCE.goBackAbstractActions.contains(this.abstractAction)) {
                             val inputs =
                                 this.source.getInputsByAbstractAction(this.abstractAction)
                             inputs.forEach {
@@ -220,13 +221,13 @@ class AbstractTransition(
                                     Input.goBackInputs.add(it)
                             }
                         } else
-                            AbstractStateManager.INSTANCE.goBackAbstractActions.add(this.abstractAction)*/
+                            AbstractStateManager.INSTANCE.goBackAbstractActions.add(this.abstractAction)*//*
                         this.guardEnabled = true
                         this.dependentAbstractStates.add(prevAppState)
                         break
                     }
                 }
-            }
+            }*/
         }
     }
 

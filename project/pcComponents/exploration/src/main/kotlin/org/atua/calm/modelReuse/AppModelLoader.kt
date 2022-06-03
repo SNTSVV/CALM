@@ -589,6 +589,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                 handlerIds.forEach {
                     newAbstractTransition.handlers.put(it, false)
                 }
+
                 newAbstractTransition.methodCoverage.addAll(coveredMethodIds)
                 atuaMF.dstg.add(sourceState, destState, newAbstractTransition)
 //                atuaMF.dstg.updateAbstractActionEnability(newAbstractTransition,atuaMF)
@@ -662,6 +663,11 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                     input.usefullOnce = true
                 }*/
                 input.coveredMethods.putAll(abstractTransition.methodCoverage.associateWith { false })
+                input.coveredMethods.keys.forEach {
+                    if (atuaMF.statementMF!!.isModifiedMethod(it)) {
+                        input.modifiedMethods.put(it,false)
+                    }
+                }
                 /*if (prevWindows.isEmpty())
                     atuaMF.wtg.add(
                         abstractTransition.source.window, abstractTransition.dest.window, WindowTransition(

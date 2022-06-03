@@ -217,6 +217,7 @@ class ModelBackwardAdapter {
             it.abstractAction == abstractTransition.abstractAction
                     && it.modelVersion == ModelVersion.BASE
                     && it.interactions.isEmpty()
+                    && it.isImplicit
         }
         val reliableTransitions = sameActionBaseAbstractTransitions.filter {
             it.activated &&
@@ -248,7 +249,7 @@ class ModelBackwardAdapter {
         backwardEquivalentAbstractStateMapping.putIfAbsent(observedAbstractState, HashSet())
         backwardEquivalentAbstractStateMapping[observedAbstractState]!!.add(expectedAbstractState)
         matchingInputs(updatedAVMsByBaseAVMsMatching, expectedAbstractState, observedAbstractState, atuamf)
-        copyAbstractTransitions(observedAbstractState, expectedAbstractState, atuamf, updatedAVMsByBaseAVMsMatching,false)
+        copyAbstractTransitions(observedAbstractState, expectedAbstractState, atuamf, updatedAVMsByBaseAVMsMatching,true)
         ALL_BASE_APPSTATES.subtract(observedBaseAbstractState).forEach { appState ->
             val abstractTransitions = appState.abstractTransitions.filter { it.dest == expectedAbstractState }
             abstractTransitions.forEach { at ->
@@ -266,7 +267,7 @@ class ModelBackwardAdapter {
                     atuamf.dstg.updateAbstractActionEnability(newAbstractTransition,atuamf)
                 newAbstractTransition.copyPotentialInfoFrom(at)
                 appState.abstractTransitions.remove(at)
-                atuamf.dstg.removeAbstractActionEnabiblity(at,atuamf)
+//                atuamf.dstg.removeAbstractActionEnabiblity(at,atuamf)
             }
 
         }
@@ -396,7 +397,7 @@ class ModelBackwardAdapter {
                     destAbstractAction!!,
                     atuamf.dstg,
                     atuamf,
-                    false
+                    true
                 )
             } else {
                 val destAVMs = sourceDestAVMMatching.get(sourceTransition.abstractAction.attributeValuationMap!!)
@@ -465,8 +466,13 @@ class ModelBackwardAdapter {
                 dependendAbstractStates.add(dependentAbstractState)
             else {
                 val equivalences = backwardEquivalentAbstractStateMapping.filter { it.value.contains(dependentAbstractState) }
-                equivalences.forEach { t, _ ->
-                    dependendAbstractStates.add(t)
+                if (equivalences.isNotEmpty()) {
+                    equivalences.forEach { t, _ ->
+                        dependendAbstractStates.add(t)
+                    }
+                }
+                else {
+                    dependendAbstractStates.add(dependentAbstractState)
                 }
             }
         }

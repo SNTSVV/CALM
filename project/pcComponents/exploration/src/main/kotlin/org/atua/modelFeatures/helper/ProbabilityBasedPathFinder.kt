@@ -368,7 +368,9 @@ class ProbabilityBasedPathFinder {
                     && absTransition.abstractAction == abstractAction
                             && absTransition.activated == true
                             && (!considerGuardedTransitions || !absTransition.guardEnabled ||
-                                    absTransition.dependentAbstractStates.intersect(abstractStateStack.toList()).isNotEmpty())
+                                    absTransition.dependentAbstractStates.intersect(abstractStateStack.toList()).isNotEmpty() ||
+                            (absTransition.fromWTG
+                                    && absTransition.dependentAbstractStates.any { abstractStateStack.map { it.window }.contains(it.window) } ))
                             && (pathContraints[PathConstraint.INCLUDE_WTG]?:false
                             || !absTransition.fromWTG )
                             && (!absTransition.fromWTG || !source.abstractTransitions.any {

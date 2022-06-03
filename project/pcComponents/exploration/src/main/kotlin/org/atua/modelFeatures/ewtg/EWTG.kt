@@ -28,6 +28,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.BufferedWriter
 import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 import kotlin.collections.HashSet
 
@@ -104,7 +105,7 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
                                 source = sourceNode,
                                 destination = targetNode,
                                 input = event,
-                                prevWindow = null
+                                dependingWindows = ArrayList()
                             )
                             this.add(sourceNode,targetNode,windowTransition)
                         }
@@ -130,7 +131,7 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
                         createdAtRuntime = false,
                         modelVersion = ModelVersion.RUNNING)
                     if (input != null)
-                        this.add(owner, o, WindowTransition(owner,o,input,null))
+                        this.add(owner, o, WindowTransition(owner,o,input, ArrayList()))
                 }
             }
 
@@ -159,7 +160,7 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
                         createdAtRuntime = false,
                         modelVersion = ModelVersion.RUNNING)
                     if (input != null)
-                        this.add(activityNode, wtgNode, WindowTransition(activityNode,wtgNode,input,null))
+                        this.add(activityNode, wtgNode, WindowTransition(activityNode,wtgNode,input,ArrayList()))
                 }
             }
 
@@ -276,7 +277,7 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
                     source = dest,
                     destination = it.destination!!.data,
                     input = it.label.input,
-                    prevWindow = it.label.prevWindow
+                    dependingWindows = it.label.dependingWindows
             )
             newTransition.input.sourceWindow.inputs.remove(newTransition.input)
             newTransition.input.sourceWindow = dest
@@ -290,7 +291,7 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
                         source = v.data,
                         destination = dest,
                         input = e.label.input,
-                        prevWindow = e.label.prevWindow
+                        dependingWindows = e.label.dependingWindows
                 )
                 newTransition.input.sourceWindow = v.data
                 this.add(newTransition.source, newTransition.destination, newTransition)
