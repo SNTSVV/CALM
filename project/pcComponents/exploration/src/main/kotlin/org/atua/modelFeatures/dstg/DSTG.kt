@@ -139,7 +139,6 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
                     val enabled = enabledAbstractActionsByDependendWindow[action]!!
                     enabledAbstractActionsByDependendWindow.put(action, enabled+bonus)
                 }
-
             }
             if (ProbabilityBasedPathFinder.disableActionsTriggeredByActions.containsKey(abstractAction)) {
                 if (ProbabilityBasedPathFinder.disableActionsTriggeredByActions[abstractAction]!!.containsKey(window)) {

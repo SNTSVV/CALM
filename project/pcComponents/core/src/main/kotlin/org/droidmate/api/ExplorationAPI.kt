@@ -36,6 +36,7 @@ import org.droidmate.configuration.ConfigProperties
 import org.droidmate.configuration.ConfigurationBuilder
 import org.droidmate.configuration.ConfigurationWrapper
 import org.droidmate.device.android_sdk.Apk
+
 import org.droidmate.exploration.modelFeatures.reporter.ActivitySeenSummaryMF
 import org.droidmate.exploration.modelFeatures.reporter.VisualizationGraphMF
 import org.droidmate.exploration.strategy.AExplorationStrategy

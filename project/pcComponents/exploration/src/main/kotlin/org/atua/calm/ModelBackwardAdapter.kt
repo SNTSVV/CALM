@@ -267,7 +267,7 @@ class ModelBackwardAdapter {
                     atuamf.dstg.updateAbstractActionEnability(newAbstractTransition,atuamf)
                 newAbstractTransition.copyPotentialInfoFrom(at)
                 appState.abstractTransitions.remove(at)
-//                atuamf.dstg.removeAbstractActionEnabiblity(at,atuamf)
+                atuamf.dstg.removeAbstractActionEnabiblity(at,atuamf)
             }
 
         }
@@ -294,7 +294,7 @@ class ModelBackwardAdapter {
                 if (updatedInput != null) {
                     updateInputBasedOnBaseInput(baseInput, updatedInput, atuamf)
                 } else {
-                    log.warn("Cannot finnd corresponding updated input")
+                    log.warn("Cannot finnd corresponding updated input "+ baseInput)
                 }
             }
         }
@@ -369,8 +369,8 @@ class ModelBackwardAdapter {
             it.modelVersion == ModelVersion.BASE
                     && it.activated
                     /*&& !incorrectTransitions.contains(it)*/
-                    && it.abstractAction.isWidgetAction()
-                    && it.abstractAction.actionType != AbstractActionType.SWIPE
+//                    && it.abstractAction.isWidgetAction()
+//                    && it.abstractAction.actionType != AbstractActionType.SWIPE
                     && it.source != it.dest
         }. forEach { sourceTransition->
             if (!sourceTransition.abstractAction.isWidgetAction()) {

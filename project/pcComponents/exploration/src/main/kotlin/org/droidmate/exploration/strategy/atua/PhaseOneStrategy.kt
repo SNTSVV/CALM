@@ -881,12 +881,11 @@ class PhaseOneStrategy(
             setRandomExploration(randomExplorationTask, currentState, false, false)
             return
         }
-        if (strategyTask is GoToAnotherWindowTask
-            && hasBudgetLeft(currentAppState.window)
+        /*if (strategyTask is GoToAnotherWindowTask
         ) {
             setRandomExploration(randomExplorationTask, currentState, false, true)
             return
-        }
+        }*/
         //Current window has no more random exploration budget
         /*if (strategyTask is GoToAnotherWindowTask) {
             if ((strategyTask as GoToAnotherWindowTask).isReachExpectedState(currentState)){
@@ -943,6 +942,18 @@ class PhaseOneStrategy(
             setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
+
+        if (goToTargetNodeTask.isAvailable(
+                currentState = currentState,
+                isWindowAsTarget = true,
+                destWindow = targetWindow!!,
+                isExploration = false,
+                includeResetApp = false
+            )
+        ) {
+            setGoToTarget(goToTargetNodeTask, currentState)
+            return
+        }
         if ( goToAnotherWindowTask.isAvailable(
                 currentState = currentState,
                 destWindow = null,
@@ -953,17 +964,6 @@ class PhaseOneStrategy(
             )
         ) {
             setGoToExploreState(goToAnotherWindowTask, currentState)
-            return
-        }
-        if (goToTargetNodeTask.isAvailable(
-                currentState = currentState,
-                isWindowAsTarget = true,
-                destWindow = targetWindow!!,
-                isExploration = false,
-                includeResetApp = false
-            )
-        ) {
-            setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
         if (goToTargetNodeTask.isAvailable(
@@ -1074,6 +1074,18 @@ class PhaseOneStrategy(
             setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
+
+        if (goToTargetNodeTask.isAvailable(
+                currentState = currentState,
+                isWindowAsTarget = true,
+                destWindow = targetWindow!!,
+                isExploration = false,
+                includeResetApp = false
+            )
+        ) {
+            setGoToTarget(goToTargetNodeTask, currentState)
+            return
+        }
         if ( goToAnotherWindowTask.isAvailable(
                 currentState = currentState,
                 destWindow = null,
@@ -1084,17 +1096,6 @@ class PhaseOneStrategy(
             )
         ) {
             setGoToExploreState(goToAnotherWindowTask, currentState)
-            return
-        }
-        if (goToTargetNodeTask.isAvailable(
-                currentState = currentState,
-                isWindowAsTarget = true,
-                destWindow = targetWindow!!,
-                isExploration = false,
-                includeResetApp = false
-            )
-        ) {
-            setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
         if (goToTargetNodeTask.isAvailable(
@@ -1148,7 +1149,7 @@ class PhaseOneStrategy(
         doResetApp: Boolean
     ): Boolean {
         val currentAppState = atuaMF.getAbstractState(currentState)!!
-        if (strategyTask != goToAnotherWindow && goToAnotherWindow.isAvailable(
+        if ( goToAnotherWindow.isAvailable(
                 currentState = currentState,
                 destWindow = null,
                 includeResetApp = false,
@@ -1160,20 +1161,20 @@ class PhaseOneStrategy(
             setGoToExploreState(goToAnotherWindow, currentState)
             return true
         }
-        if (strategyTask is GoToAnotherWindowTask) {
+        if (goToAnotherWindow.isAvailable(
+                currentState = currentState,
+                destWindow = null,
+                includeResetApp = false,
+                isExploration = true,
+                includePressback = true,
+                isWindowAsTarget = true
+            )
+        ) {
+            setGoToExploreState(goToAnotherWindow, currentState)
+            return true
+        }
+       /* if (strategyTask is GoToAnotherWindowTask) {
             if ((strategyTask as GoToAnotherWindowTask).includeResetAction) {
-                if (goToAnotherWindow.isAvailable(
-                        currentState = currentState,
-                        destWindow = null,
-                        includeResetApp = false,
-                        isExploration = true,
-                        includePressback = true,
-                        isWindowAsTarget = true
-                    )
-                ) {
-                    setGoToExploreState(goToAnotherWindow, currentState)
-                    return true
-                }
                 if (hasBudgetLeft(currentAppState.window)) {
                     setRandomExploration(randomExplorationTask, currentState, false, true)
                     return true
@@ -1181,7 +1182,7 @@ class PhaseOneStrategy(
                     return false
                 }
             }
-        }
+        }*/
         if (doResetApp && goToAnotherWindow.isAvailable(
                 currentState = currentState,
                 destWindow = null,
@@ -1331,11 +1332,11 @@ class PhaseOneStrategy(
         randomExplorationTask: RandomExplorationTask,
         currentState: State<*>
     ): Boolean {
-        if (currentAppState.isRequireRandomExploration()) {
+        if (currentAppState.isRequireRandomExploration() && strategyTask !is RandomExplorationTask) {
             setRandomExploration(randomExplorationTask, currentState, false, false)
             return true
         }
-        if (Helper.isOptionsMenuLayout(currentState)) {
+        if (Helper.isOptionsMenuLayout(currentState) && strategyTask !is RandomExplorationTask) {
             setRandomExploration(randomExplorationTask, currentState, false, false)
             return true
         }
@@ -1357,7 +1358,7 @@ class PhaseOneStrategy(
             return
         }
 
-        val meaningfulAbstractActions = currentAppState.getUnExercisedActions(currentState, atuaMF)
+/*        val meaningfulAbstractActions = currentAppState.getUnExercisedActions(currentState, atuaMF)
             .filter {
                 !it.isCheckableOrTextInput(currentAppState)
                         && currentAppState.getInputsByAbstractAction(it).any { it.meaningfulScore > 0 }
@@ -1368,7 +1369,7 @@ class PhaseOneStrategy(
         ) {
             setRandomExploration(randomExplorationTask, currentState, false, true)
             return
-        }
+        }*/
         if (continueOrEndCurrentTask(currentState)) return
         if (goToTargetNodeTask.isAvailable(
                 currentState = currentState,
@@ -1381,18 +1382,7 @@ class PhaseOneStrategy(
             setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
-        if ( goToAnotherWindowTask.isAvailable(
-                currentState = currentState,
-                destWindow = null,
-                includeResetApp = false,
-                isExploration = true,
-                includePressback = true,
-                isWindowAsTarget = false
-            )
-        ) {
-            setGoToExploreState(goToAnotherWindowTask, currentState)
-            return
-        }
+
         if (goToTargetNodeTask.isAvailable(
                 currentState = currentState,
                 isWindowAsTarget = true,
@@ -1402,6 +1392,13 @@ class PhaseOneStrategy(
             )
         ) {
             setGoToTarget(goToTargetNodeTask, currentState)
+            return
+        }
+        if (
+//            meaningfulAbstractActions.isNotEmpty()
+            hasBudgetLeft(currentAppState.window) || goToAnotherWindowTask.reachedDestination
+        ) {
+            setRandomExploration(randomExplorationTask, currentState, false, true)
             return
         }
         if (goToTargetNodeTask.isAvailable(
@@ -1429,7 +1426,7 @@ class PhaseOneStrategy(
         unreachableWindows.add(targetWindow!!)
         if (
 //            meaningfulAbstractActions.isNotEmpty()
-            hasBudgetLeft(currentAppState.window)
+            hasBudgetLeft(currentAppState.window) || goToAnotherWindowTask.reachedDestination
         ) {
             setRandomExploration(randomExplorationTask, currentState, false, true)
             return
@@ -1634,7 +1631,7 @@ class PhaseOneStrategy(
                 currentState = currentState,
                 destWindow = targetWindow!!,
                 includePressback = true,
-                includeResetApp = true,
+                includeResetApp = false,
                 isExploration = false,
                 isWindowAsTarget = false
             )
@@ -1642,6 +1639,19 @@ class PhaseOneStrategy(
             setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
+        if (goToTargetNodeTask.isAvailable(
+                currentState = currentState,
+                destWindow = targetWindow!!,
+                includePressback = true,
+                includeResetApp = false,
+                isExploration = false,
+                isWindowAsTarget = true
+            )
+        ) {
+            setGoToTarget(goToTargetNodeTask, currentState)
+            return
+        }
+
         if ( goToAnotherWindowTask.isAvailable(
                 currentState = currentState,
                 destWindow = null,
@@ -1652,6 +1662,18 @@ class PhaseOneStrategy(
             )
         ) {
             setGoToExploreState(goToAnotherWindowTask, currentState)
+            return
+        }
+        if (goToTargetNodeTask.isAvailable(
+                currentState = currentState,
+                destWindow = targetWindow!!,
+                includePressback = true,
+                includeResetApp = true,
+                isExploration = false,
+                isWindowAsTarget = false
+            )
+        ) {
+            setGoToTarget(goToTargetNodeTask, currentState)
             return
         }
         if (goToTargetNodeTask.isAvailable(
@@ -1897,28 +1919,29 @@ class PhaseOneStrategy(
         val explicitTargetWindows = WindowManager.instance.allMeaningWindows.filter { window ->
             phaseTargetInputs.any {
                 it.sourceWindow == window
-                        && (it.widget==null ||
-                        (it.widget!!.witnessed)) && ProbabilityBasedPathFinder.disableInputs.contains(it) }
+                       /* && (it.widget==null ||
+                        (it.widget!!.witnessed))*/
+                        && !ProbabilityBasedPathFinder.disableInputs.contains(it) }
         }
         return explicitTargetWindows.contains(window)
 //                && !outofbudgetWindows.contains(window)
                 && !fullyCoveredWindows.contains(window)
-                && !unreachableWindows.contains(window)
+//                && !unreachableWindows.contains(window)
                 && !fullyExploredWindows.contains(window)
     }
 
     private fun isCandidateWindow(it: Window) =
         !outofbudgetWindows.contains(it) &&
                 !fullyCoveredWindows.contains(it) &&
-                !unreachableWindows.contains(it) &&
+//                !unreachableWindows.contains(it) &&
                 !fullyExploredWindows.contains(it)
 
     override fun getUnexhaustedExploredAbstractState(): List<AbstractState> {
-        return super.getUnexhaustedExploredAbstractState().filter {
+        return super.getUnexhaustedExploredAbstractState()/*.filter {
 //            !fullyExploredWindows.contains(it.window)
-            !unreachableWindows.contains(it.window)
-                    && !outofbudgetWindows.contains(it.window)
-        }
+//            !unreachableWindows.contains(it.window)
+//                    && !outofbudgetWindows.contains(it.window)
+        }*/
     }
 
     override fun getPathsToExploreStates(
@@ -1933,61 +1956,62 @@ class PhaseOneStrategy(
             return transitionPaths
         val goalByAbstractState = HashMap<AbstractState, List<Goal>>()
         val runtimeAbstractStates = ArrayList(getUnexhaustedExploredAbstractState())
-        runtimeAbstractStates.groupBy { it.window }.forEach { window, appStates ->
-            var virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window)
-            if (virtualAbstractState == null) {
-                virtualAbstractState = AbstractStateManager.INSTANCE.createVirtualAbstractState(
-                    window,
-                    appStates.first().activity,
-                    appStates.first().isHomeScreen
+        if (runtimeAbstractStates.isNotEmpty()) {
+            runtimeAbstractStates.groupBy { it.window }.forEach { window, appStates ->
+                var virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window)
+                if (virtualAbstractState == null) {
+                    virtualAbstractState = AbstractStateManager.INSTANCE.createVirtualAbstractState(
+                        window,
+                        appStates.first().activity,
+                        appStates.first().isHomeScreen
+                    )
+                }
+                val toExploreInputs = ArrayList<Goal>()
+                appStates.forEach { appState ->
+                    appState.getUnExercisedActions(null, atuaMF).filter { action ->
+                        !action.isCheckableOrTextInput(appState)
+                                && appState.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
+                                && !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
+                                && ProbabilityBasedPathFinder.disableInputs.intersect(
+                            appState.getInputsByAbstractAction(
+                                action
+                            )
+                        ).isEmpty()
+                    }.forEach { action ->
+                        toExploreInputs.add(Goal(input = null, abstractAction = action))
+                    }
+                }
+                goalByAbstractState.put(virtualAbstractState, toExploreInputs.distinct())
+            }
+            if (goalByAbstractState.values.flatten().isNotEmpty()) {
+                goalByAbstractState.entries.removeIf { it.value.isEmpty() }
+                val abstratStateCandidates = goalByAbstractState.keys
+                val stateByActionCount = HashMap<AbstractState, Double>()
+                abstratStateCandidates.forEach {
+                    val weight = goalByAbstractState[it]!!.size
+                    if (weight > 0.0) {
+                        stateByActionCount.put(it, 1.0)
+                    }
+                }
+                getPathToStatesBasedOnPathType(
+                    pathType,
+                    transitionPaths,
+                    stateByActionCount,
+                    currentAbstractState,
+                    currentState,
+                    true,
+                    windowAsTarget = false,
+                    goalByAbstractState = goalByAbstractState,
+                    maxCost = maxCost,
+                    abandonedAppStates = emptyList(),
+                    pathConstraints = pathConstraints
                 )
             }
-            val toExploreInputs = ArrayList<Goal>()
-            appStates.forEach { appState ->
-                appState.getUnExercisedActions(null, atuaMF).filter { action ->
-                    !action.isCheckableOrTextInput(appState)
-                            && appState.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
-                            && !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
-                            && ProbabilityBasedPathFinder.disableInputs.intersect(
-                        appState.getInputsByAbstractAction(
-                            action
-                        )
-                    ).isEmpty()
-                }.forEach { action ->
-                    toExploreInputs.add(Goal(input = null, abstractAction = action))
-                }
-            }
-            goalByAbstractState.put(virtualAbstractState, toExploreInputs.distinct())
         }
-        if (goalByAbstractState.values.flatten().isEmpty()) {
-            return emptyList()
-        }
-        goalByAbstractState.entries.removeIf { it.value.isEmpty() }
-        val abstratStateCandidates = goalByAbstractState.keys
-        val stateByActionCount = HashMap<AbstractState, Double>()
-        abstratStateCandidates.forEach {
-            val weight = goalByAbstractState[it]!!.size
-            if (weight > 0.0) {
-                stateByActionCount.put(it, 1.0)
-            }
-        }
-        getPathToStatesBasedOnPathType(
-            pathType,
-            transitionPaths,
-            stateByActionCount,
-            currentAbstractState,
-            currentState,
-            true,
-            windowAsTarget = false,
-            goalByAbstractState = goalByAbstractState,
-            maxCost = maxCost,
-            abandonedAppStates = emptyList(),
-            pathConstraints = pathConstraints
-        )
         if (transitionPaths.isEmpty()) {
             goalByAbstractState.clear()
             val unexhaustedTestedWindows =
-                runtimeAbstractStates.map { it.window }.distinct().filter { !outofbudgetWindows.contains(it) }
+                WindowManager.instance.allMeaningWindows.filter { !outofbudgetWindows.contains(it) }
             unexhaustedTestedWindows.forEach { window ->
                 val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window)
                 if (virtualAbstractState != null) {
@@ -2029,7 +2053,9 @@ class PhaseOneStrategy(
         targetStates.removeIf { (it.modelVersion != ModelVersion.BASE && it.guiStates.isEmpty()) || it == currentAbstractState }
         val stateScores: HashMap<AbstractState, Double> = HashMap<AbstractState, Double>()
         val goalByAbstractState: HashMap<AbstractState, List<Goal>> = HashMap()
-        val targetInputs = ArrayList<Input>()
+        val targetInputs = HashSet<Input>()
+        val targetAbstractActions = HashSet<AbstractAction>()
+        val reachedMethods = atuaMF.statementMF!!.executedMethodsMap.keys
         targetStates.filterNot {
             (pathType != PathFindingHelper.PathType.FULLTRACE
                     && pathType != PathFindingHelper.PathType.PARTIAL_TRACE
@@ -2054,17 +2080,45 @@ class PhaseOneStrategy(
                     targetInputs.add(it)
                 }
             }
+            val local_targetAbstractActions = it.abstractTransitions.filter { it.modelVersion==ModelVersion.BASE
+                    && it.modifiedMethods.keys.intersect(reachedMethods).isNotEmpty()
+                    && it.abstractAction.isWidgetAction() }.map { it.abstractAction }.distinct()
+            targetAbstractActions.addAll(local_targetAbstractActions)
         }
 
         val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(targetWindow!!)!!
         stateScores.put(virtualAbstractState, 1.0)
+
+
+        var windowAsTarget = false
+        if (targetInputs.isEmpty()) {
+            if (targetAbstractActions.isNotEmpty()) {
+                goalByAbstractState.put(
+                    virtualAbstractState,
+                    targetAbstractActions.distinct().map { Goal(input = null, abstractAction = it) }
+                )
+                getPathToStatesBasedOnPathType(
+                    pathType,
+                    transitionPaths,
+                    stateScores,
+                    currentAbstractState,
+                    currentState,
+                    true,
+                    false,
+                    goalByAbstractState,
+                    maxCost,
+                    abandonedAppStates = emptyList(),
+                    pathConstraints = pathConstraints
+                )
+                if (transitionPaths.isNotEmpty())
+                    return transitionPaths
+            }
+            return getPathsToWindowToExplore(currentState, targetWindow!!, pathType, true, maxCost, pathConstraints)
+        }
+        goalByAbstractState.clear()
         goalByAbstractState.put(
             virtualAbstractState,
             targetInputs.distinct().map { Goal(input = it, abstractAction = null) })
-        var windowAsTarget = false
-        if (targetInputs.isEmpty()) {
-            return getPathsToWindowToExplore(currentState, targetWindow!!, pathType, true, maxCost, pathConstraints)
-        }
         getPathToStatesBasedOnPathType(
             pathType,
             transitionPaths,
@@ -2079,6 +2133,27 @@ class PhaseOneStrategy(
             pathConstraints = pathConstraints
         )
         if (transitionPaths.isEmpty()) {
+            if (targetAbstractActions.isNotEmpty()) {
+                goalByAbstractState.put(
+                    virtualAbstractState,
+                    targetAbstractActions.distinct().map { Goal(input = null, abstractAction = it) }
+                )
+                getPathToStatesBasedOnPathType(
+                    pathType,
+                    transitionPaths,
+                    stateScores,
+                    currentAbstractState,
+                    currentState,
+                    true,
+                    false,
+                    goalByAbstractState,
+                    maxCost,
+                    abandonedAppStates = emptyList(),
+                    pathConstraints = pathConstraints
+                )
+                if (transitionPaths.isNotEmpty())
+                    return transitionPaths
+            }
             return getPathsToWindowToExplore(currentState, targetWindow!!, pathType, true, maxCost, pathConstraints)
         }
         /*if (transitionPaths.isEmpty() && currentAbstractState.window != targetWindow) {

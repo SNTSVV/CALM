@@ -392,20 +392,38 @@ class PhaseTwoStrategy(
         val windowTargetInputs = currentTargetInputs.distinct()
 //        val windowTargetInputs = phase2TargetEvents.filter { it.key.sourceWindow == targetWindow }.keys
         val inputScore = HashMap<Input,Double>()
+
         windowTargetInputs.forEach { input ->
             val score = computeInputScore(input)
             if (score > 0.0)
                 inputScore.put(input,score)
         }
+        val targetStates = getTargetAbstractStates(currentNode = currentAbState, window = targetWindow!!)
+        targetStates.removeIf { (it.modelVersion != ModelVersion.BASE && it.guiStates.isEmpty()) || it == currentAbState }
         val targetAbstractStatesPbMap = HashMap<AbstractState, Double>()
         val targetAbstractStateWithGoals = HashMap<AbstractState,List<Goal>> ()
         val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(targetWindow!!)
         if (virtualAbstractState == null)
             return emptyList()
+
+        val transitionPaths = ArrayList<TransitionPath>()
+        if (targetStates.isNotEmpty()) {
+            targetStates.forEach {
+                targetAbstractStatesPbMap.put(it,1.0)
+                targetAbstractStateWithGoals.put(it, emptyList())
+            }
+            getPathToStatesBasedOnPathType(pathType, transitionPaths, targetAbstractStatesPbMap, currentAbState, currentState,false,inputScore.isEmpty(),
+                targetAbstractStateWithGoals,maxCost,
+                emptyList(),pathConstraints)
+            if (transitionPaths.isNotEmpty())
+                return transitionPaths
+
+        }
+        targetAbstractStateWithGoals.clear()
+        targetAbstractStatesPbMap.clear()
         targetAbstractStatesPbMap.put(virtualAbstractState,1.0)
         targetAbstractStateWithGoals.put(virtualAbstractState,inputScore.keys.map { Goal(input = it,abstractAction = null) })
 
-        val transitionPaths = ArrayList<TransitionPath>()
 
         getPathToStatesBasedOnPathType(pathType, transitionPaths, targetAbstractStatesPbMap, currentAbState, currentState,false,inputScore.isEmpty(),
            targetAbstractStateWithGoals,maxCost,
@@ -417,6 +435,54 @@ class PhaseTwoStrategy(
         }
         return transitionPaths
     }
+
+    fun getTargetAbstractStates(currentNode: AbstractState, window: Window): ArrayList<AbstractState> {
+        val candidates = ArrayList<AbstractState>()
+        val excludedNodes = arrayListOf<AbstractState>(currentNode)
+        var targetAbstractStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES
+            .filter {
+                it.ignored == false &&
+                        it !is VirtualAbstractState
+                        && (it.modelVersion == ModelVersion.BASE || it.guiStates.isNotEmpty())
+                        && it.window == window
+                        && !excludedNodes.contains(it)
+                        && it.attributeValuationMaps.isNotEmpty()
+
+            }
+
+        if (targetAbstractStates.isNotEmpty()) {
+            //Get all AbstractState contain target events
+            targetAbstractStates
+                .forEach {
+                    val hasUntriggeredTargetEvent: Boolean
+                    hasUntriggeredTargetEvent = isTargetAbstractState(it, true)
+                    if (hasUntriggeredTargetEvent)
+                        candidates.add(it)
+                    else
+                        excludedNodes.add(it)
+                }
+            if (candidates.isEmpty()) {
+                targetAbstractStates.forEach {
+                    candidates.add(it)
+                }
+            }
+        }
+        return candidates
+    }
+
+    private fun isTargetAbstractState(abstractState: AbstractState, checkCurrentState: Boolean): Boolean {
+        if (abstractState is VirtualAbstractState)
+            return false
+        if (checkCurrentState && abstractState.abstractTransitions.any {
+                it.interactions.isEmpty()
+                        && it.modelVersion == ModelVersion.BASE
+                        && it.modifiedMethods.isNotEmpty()
+                        && it.modifiedMethods.keys.any { !atuaMF.statementMF!!.executedMethodsMap.containsKey(it) }
+            })
+            return true
+        return false
+    }
+
 
     override fun getPathsToExploreStates(currentState: State<*>,
                                          pathType: PathFindingHelper.PathType,

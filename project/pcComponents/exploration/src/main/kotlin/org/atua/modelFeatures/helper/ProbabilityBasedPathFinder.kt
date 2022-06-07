@@ -358,7 +358,7 @@ class ProbabilityBasedPathFinder {
                         && it.actionType != AbstractActionType.ACTION_QUEUE
                         && it.actionType != AbstractActionType.UNKNOWN
                         && (!(pathContraints[PathConstraint.FORCING_LAUNCH]?:false) || depth!=0 || it.actionType == AbstractActionType.LAUNCH_APP)
-                        && (it.actionType != AbstractActionType.SWIPE || !it.isWebViewAction())
+                        /*&& (it.actionType != AbstractActionType.SWIPE || !it.isWebViewAction())*/
 
             }
 
@@ -514,7 +514,7 @@ class ProbabilityBasedPathFinder {
                                             val totalCnt = totalcntByWindow[dependentWindow]!!
                                             val prob =
                                                 reachableAbstractActions[action]!! * 1.0 / totalCnt
-                                            if (prob>=0.1 && !disableActions.contains(action)){
+                                            if (/*prob>=0.1 && */!disableActions.contains(action)){
                                                 if (!action.isWidgetAction()) {
                                                     if (!predictAbstractState.containsActionCount(action))
                                                         predictAbstractState.setActionCount(action, 0)
@@ -652,9 +652,9 @@ class ProbabilityBasedPathFinder {
                 } else {
                     cost = fullGraph.cost(final = false)
                 }
-                if (cost <= maxCost || (maximumDSTG
+                if (/*cost <= maxCost || (maximumDSTG
                             && fullGraph.path.values.all {
-                        it.dest.guiStates.isNotEmpty() })) {
+                        it.dest.guiStates.isNotEmpty() })*/true) {
                     if (!isDisablePath(fullGraph, pathType)) {
                         result = true
                         val nextAbstateStack = if (abstractTransition.abstractAction.isLaunchOrReset()) {

@@ -213,6 +213,7 @@ public class ConfigurationBuilder : IConfigurationBuilder {
 			CommandLineOption(delayedImgFetch, description = "Option to allow for faster exploration by delaying screen-shot fetch to an asynchronous call."),
 			CommandLineOption(imgQuality, description = "Quality of the image to be stored for fetching."),
 			// StatementCoverage
+
 			CommandLineOption(enableCoverage, description = "If true, the statement coverage of the exploration will be measured. This requires the apk to be instrumented with 'coverage' mode."),
 			CommandLineOption(onlyCoverAppPackageName, description = "Only instrument statement coverage for statements belong inside the app package name scope. Libraries with other package names will be ignored. Be aware that this filtering might not be always correct."),
 			CommandLineOption(coverageDir, description = "Path to the directory that will contain the coverage data."),

@@ -591,6 +591,11 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                 }
 
                 newAbstractTransition.methodCoverage.addAll(coveredMethodIds)
+                newAbstractTransition.methodCoverage.forEach {
+                    if (atuaMF.statementMF!!.isModifiedMethod(it)) {
+                        newAbstractTransition.modifiedMethods.put(it,false)
+                    }
+                }
                 atuaMF.dstg.add(sourceState, destState, newAbstractTransition)
 //                atuaMF.dstg.updateAbstractActionEnability(newAbstractTransition,atuaMF)
                 createWindowTransitionFromAbstractInteraction(newAbstractTransition, atuaMF)

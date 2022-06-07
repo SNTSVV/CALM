@@ -3,11 +3,13 @@ package org.droidmate.exploration.strategy.atua.task
 import kotlinx.coroutines.runBlocking
 import org.atua.calm.ModelBackwardAdapter
 import org.atua.calm.modelReuse.ModelVersion
+import org.atua.modelFeatures.Rotation
 import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
 import org.atua.modelFeatures.dstg.AbstractTransition
+import org.atua.modelFeatures.dstg.AttributeType
 import org.atua.modelFeatures.dstg.AttributeValuationMap
 import org.atua.modelFeatures.dstg.PredictedAbstractState
 import org.atua.modelFeatures.dstg.VirtualAbstractState
@@ -44,6 +46,8 @@ open class GoToAnotherWindowTask constructor(
     delay: Long, useCoordinateClicks: Boolean
 ) : AbstractStrategyTask(atuaTestingStrategy, autautMF, delay, useCoordinateClicks) {
 
+
+
     var reachedDestination: Boolean = false
     private val DEFAULT_MAX_COST: Double = 25.0
     protected var maxCost: Double = DEFAULT_MAX_COST
@@ -71,6 +75,8 @@ open class GoToAnotherWindowTask constructor(
     var saveBudget: Boolean = false
 
     val fillingDataActionList = Stack<Pair<ExplorationAction, Widget>>()
+    private var tryRotate: Boolean = false
+    private var randomBudget: Int = 5
 
     init {
         randomExplorationTask.isPureRandom = true
@@ -170,6 +176,27 @@ open class GoToAnotherWindowTask constructor(
                     }
                 }
                 val nextAbstractTransition = pathTraverser!!.getNextTransition()
+                if (nextAbstractTransition!=null) {
+                    if (nextAbstractTransition.source.window == currentAppState.window
+                        && nextAbstractTransition.source is PredictedAbstractState
+                        && randomBudget>=0) {
+                        // check any similar avms (having the same xpath) available
+                        val avm = nextAbstractTransition.abstractAction.attributeValuationMap!!
+                        if (!currentAppState.attributeValuationMaps.contains(avm)) {
+                            val similarAvms = currentAppState.attributeValuationMaps.filter {
+                                it.localAttributes[AttributeType.xpath] == avm.localAttributes[AttributeType.xpath] }
+                            if (similarAvms.isNotEmpty()) {
+                                // We may try swipe or rotate
+                                if (currentAppState.rotation == Rotation.LANDSCAPE) {
+                                    tryRotate = true
+                                } else {
+                                    tryScroll = true
+                                }
+                                return false
+                            }
+                        }
+                    }
+                }
                 val pathType = pathTraverser!!.transitionPath.pathType
                 /*if (nextAbstractTransition!=null) {
                     if (nextAbstractTransition.source.window == currentAppState.window) {
@@ -465,7 +492,7 @@ open class GoToAnotherWindowTask constructor(
                 if (expectedAbstractState is PredictedAbstractState) {
                     val lastExecutedAction = pathTraverser!!.getCurrentTransition()!!.abstractAction
                     val missingAbstractActions = expectedAbstractState.getAvailableActions().subtract(currentAppState.getAvailableActions(currentState))
-                    val dependentWindows = ArrayList(pathTraverser!!.getCurrentTransition()!!.dependentAbstractStates.map { it.window })
+                    val dependentWindows = ArrayList(pathTraverser!!.getCurrentTransition()!!.dependentAbstractStates.map { it.window }.intersect(atuaMF.getAbstractStateStack().map { it.window }))
                     if (dependentWindows.isEmpty())
                         dependentWindows.add(FakeWindow.getOrCreateNode(false))
                     dependentWindows.forEach {
@@ -516,7 +543,7 @@ open class GoToAnotherWindowTask constructor(
             }
             val lastExecutedAction = lastAbstractTransition.abstractAction
             val missingAbstractActions = expectedAbstractState.getAvailableActions().subtract(currentAppState.getAvailableActions(currentState))
-            val dependentWindows = ArrayList(pathTraverser!!.getCurrentTransition()!!.dependentAbstractStates.map { it.window })
+            val dependentWindows = ArrayList(pathTraverser!!.getCurrentTransition()!!.dependentAbstractStates.map { it.window }.intersect(atuaMF.getAbstractStateStack().map { it.window }))
             if (dependentWindows.isEmpty())
                 dependentWindows.add(FakeWindow.getOrCreateNode(false))
             dependentWindows.forEach {
@@ -615,6 +642,9 @@ open class GoToAnotherWindowTask constructor(
         randomExplorationTask!!.backAction = true
         chooseRandomOption(currentState)
         atuaStrategy.phaseStrategy.fullControl = true
+        randomBudget = 5
+        tryRotate = false
+        tryScroll = false
     }
 
     override fun reset() {
@@ -629,6 +659,7 @@ open class GoToAnotherWindowTask constructor(
         saveBudget = false
         maxCost = DEFAULT_MAX_COST
         reachedDestination = false
+
     }
 
     var useTrace: Boolean = true
@@ -802,24 +833,24 @@ open class GoToAnotherWindowTask constructor(
         }
     }
 
-    fun chooseWidgets1(currentState: State<*>, nextTransition: AbstractTransition): List<Widget> {
-        val widgetGroup = nextTransition.abstractAction.attributeValuationMap
+    fun chooseWidgets1(currentState: State<*>, abstractAction: AbstractAction, expectedAppState: AbstractState): List<Widget> {
+        val widgetGroup = abstractAction.attributeValuationMap
         if (widgetGroup == null) {
             return emptyList()
         } else {
             val guiWidgets: List<Widget> = getGUIWidgetsByAVM(widgetGroup, currentState)
             if (guiWidgets.isEmpty()) {
-                val inputs = nextTransition.source.getInputsByAbstractAction(nextTransition.abstractAction)
+                val inputs = expectedAppState.getInputsByAbstractAction(abstractAction)
                 val guiWidgets = ArrayList<Widget>()
                 inputs.forEach { input ->
                     val ewtgWidget = input.widget
                     if (ewtgWidget != null) {
-                        val ewtgWidgetByGUiWidget = WindowManager.instance.guiWidgetEWTGWidgetMappingByWindow[nextTransition.source.window]!!
+                        val ewtgWidgetByGUiWidget = WindowManager.instance.guiWidgetEWTGWidgetMappingByWindow[expectedAppState.window]!!
                         val possibleGuiWidgets = ewtgWidgetByGUiWidget.filter { it.value == ewtgWidget }.keys
                         guiWidgets.addAll(possibleGuiWidgets)
                     }
                 }
-                when (nextTransition.abstractAction.actionType) {
+                when (abstractAction.actionType) {
                     AbstractActionType.CLICK -> guiWidgets.removeIf { !it.clickable }
                     AbstractActionType.LONGCLICK -> guiWidgets.removeIf { !it.longClickable }
                     AbstractActionType.SWIPE -> guiWidgets.removeIf {
@@ -868,6 +899,46 @@ open class GoToAnotherWindowTask constructor(
             return randomExplorationTask.chooseAction(currentState)
         }*/
         log.info("Path type: ${pathTraverser!!.transitionPath.pathType}")
+        if (tryRotate) {
+            if (currentAbstractState.rotation == Rotation.LANDSCAPE) {
+                randomBudget--
+                return ExplorationAction.rotate(-90)
+            } else {
+                randomBudget--
+                return ExplorationAction.rotate(90)
+            }
+        } else if (tryScroll) {
+            val nextTransition = pathTraverser!!.getNextTransition()
+            val expectedAvm = nextTransition!!.abstractAction.attributeValuationMap!!
+            val swipeActions = currentAbstractState.getAvailableActions(currentState).filter {
+                it.isWidgetAction()
+                        && it.actionType == AbstractActionType.SWIPE }
+            val candidateActions = swipeActions.filter {
+            expectedAvm.localAttributes[AttributeType.xpath]!!.contains(it.attributeValuationMap!!.localAttributes[AttributeType.xpath]!!)
+                 }
+            val randomAction = if (candidateActions.isNotEmpty()) {
+                candidateActions.random()
+            } else {
+                swipeActions.random()
+            }
+            val availableWidgets = chooseWidgets1(currentState,randomAction,currentAbstractState)
+            val candidates = runBlocking { getCandidates(availableWidgets) }
+            val chosenWidget = candidates[random.nextInt(candidates.size)]
+            val actionName = randomAction.actionType
+            val actionData = randomAction.extra
+            // atuaStrategy.phaseStrategy.registerTriggeredInputs(currentEdge!!.abstractAction,currentState)
+            log.info("Widget: $chosenWidget")
+            randomBudget--
+            return chooseActionWithName(
+                actionName,
+                actionData,
+                chosenWidget,
+                currentState,
+                randomAction
+            )
+                ?: ExplorationAction.pressBack()
+        }
+        randomBudget = 5
         var nextAbstractState = expectedNextAbState
 
         if (currentAbstractState.isOpeningKeyboard && !expectedNextAbState!!.isOpeningKeyboard) {
@@ -909,16 +980,21 @@ open class GoToAnotherWindowTask constructor(
             return randomExplorationTask.chooseAction(currentState)
         log.info("Destination: ${currentPath!!.getFinalDestination()}")
         if (expectedNextAbState!!.window == currentAbstractState.window) {
-            if (expectedNextAbState!!.rotation != currentAbstractState.rotation) {
-                if (currentAbstractState.rotation == org.atua.modelFeatures.Rotation.LANDSCAPE) {
-                    return ExplorationAction.rotate(-90)
-                } else {
-                    return ExplorationAction.rotate(90)
+            if (expectedNextAbState !is PredictedAbstractState
+                && expectedNextAbState !is VirtualAbstractState) {
+                if (expectedNextAbState!!.rotation != currentAbstractState.rotation  ) {
+                    if (currentAbstractState.rotation == org.atua.modelFeatures.Rotation.LANDSCAPE) {
+                        return ExplorationAction.rotate(-90)
+                    } else {
+                        return ExplorationAction.rotate(90)
+                    }
+                }
+                if (!expectedNextAbState!!.isOpeningKeyboard
+                    && currentAbstractState.isOpeningKeyboard) {
+                    return GlobalAction(ActionType.CloseKeyboard)
                 }
             }
-            if (!expectedNextAbState!!.isOpeningKeyboard && currentAbstractState.isOpeningKeyboard) {
-                return GlobalAction(ActionType.CloseKeyboard)
-            }
+
             val nextTransition = pathTraverser!!.next()
             if (nextTransition != null) {
                 nextAbstractState = nextTransition!!.dest
@@ -989,7 +1065,7 @@ open class GoToAnotherWindowTask constructor(
             return pressMenuOrClickMoreOption(currentState)
         }
         if (currentEdge!!.abstractAction.attributeValuationMap != null) {
-            val widgets = chooseWidgets1(currentState, nextTransition)
+            val widgets = chooseWidgets1(currentState, nextTransition.abstractAction,nextTransition.source)
             if (widgets.isNotEmpty()) {
                 tryOpenNavigationBar = false
                 tryScroll = false
@@ -1019,7 +1095,7 @@ open class GoToAnotherWindowTask constructor(
                     ?: ExplorationAction.pressBack()
             } else {
                 log.debug("Can not get target widget. Random exploration.")
-                val widgets = chooseWidgets1(currentState, nextTransition)
+
                 if (currentEdge.fromWTG && currentEdge.dest is VirtualAbstractState) {
                     pathTraverser!!.latestEdgeId = pathTraverser!!.latestEdgeId!! - 1
                 } else {

@@ -502,11 +502,11 @@ class RandomExplorationTask constructor(
                 randomAction = unexercisedActions.maxByOrNull { it.getScore() }
             }
         }
-        if (randomAction == null) {
+        /*if (randomAction == null) {
             if (currentAbstractState.rotation == Rotation.LANDSCAPE) {
                 randomAction = currentAbstractState.getAvailableActions(currentState).find { it.actionType == AbstractActionType.ROTATE_UI }
             }
-        }
+        }*/
         if (randomAction == null) {
             if (!isPureRandom && !recentGoToExploreState
                 && canGoToUnexploredStates(
@@ -569,7 +569,7 @@ class RandomExplorationTask constructor(
         if (randomAction == null) {
             if (random.nextDouble() < 0.05) {
                 val abstractActions = currentAbstractState.getAvailableActions(currentState).filter {
-                    !it.isWidgetAction() && !recentActions.contains(it) && !it.isLaunchOrReset()
+                    !it.isWidgetAction()  && !it.isLaunchOrReset()
                 }
                 if (abstractActions.isNotEmpty()) {
                     randomAction = abstractActions.random()

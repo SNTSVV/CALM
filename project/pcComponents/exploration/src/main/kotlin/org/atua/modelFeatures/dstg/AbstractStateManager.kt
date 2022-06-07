@@ -1315,10 +1315,10 @@ class AbstractStateManager() {
                             if (similarExplicitTransitions.isNotEmpty()) {
                                 // try remove userInput
 
-                                if (abstractTransition.abstractAction.actionType == AbstractActionType.TEXT_INSERT) {
+                                /*if (abstractTransition.abstractAction.actionType == AbstractActionType.TEXT_INSERT) {
                                     abstractTransition.data = guiInteraction.data
                                     solved = true
-                                }
+                                }*/
                                 similarExplicitTransitions.forEach {
                                     /*if (it.userInputs.intersect(abstractTransition.userInputs).isNotEmpty()) {
                                     it.userInputs.removeAll(abstractTransition.userInputs)
@@ -1381,7 +1381,7 @@ class AbstractStateManager() {
         return true
     }
 
-    private fun     validateModel(guiInteraction: Interaction<*>, actionGUIState: State<*>): Boolean {
+    private fun validateModel(guiInteraction: Interaction<*>, actionGUIState: State<*>): Boolean {
         if (guiInteraction.actionType == "TextInsert")
             return true
         if (guiInteraction.actionType == "FetchGUI")
@@ -1782,7 +1782,7 @@ class AbstractStateManager() {
             it.abstractTransitions.removeIf { at ->
                 !ABSTRACT_STATES.contains(at.dest).also {
                     if (at.isExplicit()) {
-                        atuaMF.dstg.removeAbstractActionEnabiblity(at,atuaMF)
+//                        atuaMF.dstg.removeAbstractActionEnabiblity(at,atuaMF)
                     }
                 }
             }

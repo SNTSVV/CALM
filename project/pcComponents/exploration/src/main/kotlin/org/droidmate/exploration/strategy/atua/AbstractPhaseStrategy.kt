@@ -80,8 +80,8 @@ abstract class AbstractPhaseStrategy(
                             !action.isCheckableOrTextInput(it)
                             && it.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
                             && !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
-                }.isEmpty()
-
+                                    && ProbabilityBasedPathFinder.disableInputs.intersect(it.getInputsByAbstractAction(action)).isEmpty()
+                        }.isNotEmpty()
             }
         return runtimeAbstractStates
     }

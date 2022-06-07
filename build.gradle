@@ -39,6 +39,7 @@ allprojects {
 		maven { url = "https://soot-build.cs.upb.de/nexus/repository/soot-release/" }
 		maven { url = "https://soot-build.cs.upb.de/nexus/repository/soot-snapshot/" }
 		maven { url = 'https://jitpack.io'	}
+		maven { url = "https://mvnrepository.com/artifact/org.jetbrains.kotlin/kotlin-stdlib-jdk8"}
 		mavenCentral()
 		mavenLocal()
 	}
@@ -121,6 +122,7 @@ configure(pcJvmTargets) {
 	}
 
 	dependencies {
+		implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
 		implementation "org.jetbrains.kotlin:kotlin-stdlib"
 		implementation "org.jetbrains.kotlin:kotlin-reflect"
 		implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:${project.ext.coroutines_version}"
