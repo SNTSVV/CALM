@@ -334,13 +334,16 @@ open class Input{
 
         fun getOrCreateInputFromAbstractAction(abstractState: AbstractState, abstractAction: AbstractAction,modelVersion: ModelVersion) {
             val eventType = Input.getEventTypeFromActionName(abstractAction.actionType)
-            if (eventType == EventType.fake_action || eventType == EventType.resetApp)
+            if (eventType == EventType.fake_action)
                 return
             var newInput: Input?
             if (abstractAction.attributeValuationMap == null) {
-                val exisitingInput = abstractState.window.inputs.find {
-                    it.eventType == eventType
-                }
+                val exisitingInput = if (eventType == EventType.resetApp) {
+                     Input.allInputs.find { it.eventType == EventType.resetApp }
+                } else
+                    abstractState.window.inputs.find {
+                        it.eventType == eventType
+                    }
                 if (exisitingInput!=null)
                     newInput = exisitingInput
                 else {

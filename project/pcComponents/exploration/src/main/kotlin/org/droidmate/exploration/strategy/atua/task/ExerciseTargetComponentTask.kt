@@ -373,8 +373,14 @@ class ExerciseTargetComponentTask private constructor(
                 }
             }
             if (!dataFilled && !fillingData) {
+                val affectedByUserlikeinput = atuaMF.dstg.edges().any {
+                    it.label.interactions.isNotEmpty()
+                            && it.label.source.window == currentAbstractState.window
+                            && it.label.abstractAction.isCheckableOrTextInput(it.label.source)
+                            && it.label.source.getAvailableActions().contains(chosenAbstractAction) && !it.label.dest.getAvailableActions().contains(chosenAbstractAction)
+                }
                 val lastAction = atuaStrategy.eContext.getLastAction()
-                if (!lastAction.actionType.isTextInsert()) {
+                if (!lastAction.actionType.isTextInsert() && !affectedByUserlikeinput) {
                     if (fillDataTask.isAvailable(currentState, alwaysUseRandomInput)) {
                         fillDataTask.initialize(currentState)
                         fillingData = true

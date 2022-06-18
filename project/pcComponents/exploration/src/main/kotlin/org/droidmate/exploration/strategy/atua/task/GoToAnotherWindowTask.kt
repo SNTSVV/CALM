@@ -134,7 +134,7 @@ open class GoToAnotherWindowTask constructor(
         //if currentNode is expectedNextNode
 
         if (expectedNextAbState != null) {
-            if (!isReachExpectedState(currentState)) {
+            if (!isExpectedStateReached(currentState, tryRotate ||  tryScroll || tryOpenNavigationBar)) {
                 val lastTransition = pathTraverser!!.getCurrentTransition()!!
                 val prevState = atuaMF.appPrevState!!
                 val prevAppState = atuaMF.getAbstractState(prevState)
@@ -189,10 +189,16 @@ open class GoToAnotherWindowTask constructor(
                                 // We may try swipe or rotate
                                 if (currentAppState.rotation == Rotation.LANDSCAPE) {
                                     tryRotate = true
+                                    return false
                                 } else {
-                                    tryScroll = true
+                                    val swipeActions = currentAppState.getAvailableActions(currentState).filter {
+                                        it.isWidgetAction()
+                                                && it.actionType == AbstractActionType.SWIPE }
+                                    if (swipeActions.isNotEmpty()) {
+                                        tryScroll = true
+                                        return false
+                                    }
                                 }
-                                return false
                             }
                         }
                     }
@@ -217,7 +223,7 @@ open class GoToAnotherWindowTask constructor(
                     AbstractStateManager.INSTANCE.getVirtualAbstractState(currentPath!!.getFinalDestination().window)
 //                val minCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!!)
                 val maxCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!!,false)
-                if (finalTarget != null) {
+              /*  if (finalTarget != null) {
                     val pathConstraint = HashMap<PathConstraint,Boolean>()
                     pathConstraint.put(PathConstraint.INCLUDE_RESET,false)
                     pathConstraint.put(PathConstraint.INCLUDE_LAUNCH,false)
@@ -241,7 +247,7 @@ open class GoToAnotherWindowTask constructor(
                             it.path.values.map { it.abstractAction }.equals(currentPath!!.path.values.map { it.abstractAction })
                         }
                     }
-                }
+                }*/
                 // Try another path if current state is not target node
                 if (lastAbstractAction.isWebViewAction()
                     && lastAbstractAction.actionType!=AbstractActionType.SWIPE && transitionPaths.isEmpty() &&
@@ -265,13 +271,13 @@ open class GoToAnotherWindowTask constructor(
                 }
                 actionTryCount = 0
                 expectedNextAbState = pathTraverser!!.getCurrentTransition()?.dest
-                if (transitionPaths.isNotEmpty()) {
+                /*if (transitionPaths.isNotEmpty()) {
                     log.info("Change path to the target")
                     possiblePaths.clear()
                     possiblePaths.addAll(transitionPaths)
                     initialize(currentState)
                     return false
-                }
+                }*/
                 return reroutePath(currentState, currentAppState)
             } else {
                 val lastTransition = pathTraverser!!.getCurrentTransition()!!
@@ -408,30 +414,37 @@ open class GoToAnotherWindowTask constructor(
                 identifyPossiblePaths(currentState, false)
                 if (possiblePaths.isNotEmpty() ) {
                     val maxCost = currentPath!!.cost(pathTraverser!!.latestEdgeId!! + 1,true)
-                    if (saveBudget && !possiblePaths.any { it.cost(final = true) <= maxCost }) {
+                   /* if (saveBudget && !possiblePaths.any { it.cost(final = true) <= maxCost }) {
                         log.debug("Fail to reach destination.")
-                      /*  if (includeResetAction) {
+                      *//*  if (includeResetAction) {
                             currentPath!!.goal.forEach {
                                 if (it.input != null)
                                     ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
                                 else
                                     ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction!!)
                             }
-                        }*/
+                        }*//*
                         failedCount++
                         return true
-                    }
+                    }*/
                     initialize(currentState)
                     return false
                 } else {
-                   /* if (includeResetAction) {
-                        currentPath!!.goal.forEach {
-                            if (it.input != null)
-                                ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
-                            else
-                                ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction!!)
+                    if (includeResetAction) {
+                        if (currentPath!!.goal.isNotEmpty()) {
+                            currentPath!!.goal.forEach {
+                                if (it.input != null)
+                                    ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
+                                else
+                                    ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction!!)
+                            }
+                        } else {
+                            val destWindow = currentPath!!.destination.window
+                            ProbabilityBasedPathFinder.disableWindows.add(destWindow)
                         }
-                    }*/
+                    } else {
+
+                    }
                 }
             }
         }
@@ -453,20 +466,25 @@ open class GoToAnotherWindowTask constructor(
                 return false
             }
         }*/
-       /* if (includeResetAction) {
-            currentPath!!.goal.forEach {
-                if (it.input != null)
-                    ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
-                else
-                    ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction!!)
+        if (includeResetAction) {
+            if (currentPath!!.goal.isNotEmpty()) {
+                currentPath!!.goal.forEach {
+                    if (it.input != null)
+                        ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
+                    else
+                        ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction!!)
+                }
+            } else {
+                val destWindow = currentPath!!.destination.window
+                ProbabilityBasedPathFinder.disableWindows.add(destWindow)
             }
-        }*/
+        }
         log.debug("Fail to reach destination.")
         failedCount++
         return true
     }
 
-    private fun isReachExpectedState(currentState: State<*>): Boolean {
+    private fun isExpectedStateReached(currentState: State<*>, isDoingRandomExploration: Boolean): Boolean {
         var reached = false
         val currentAppState = atuaMF.getAbstractState(currentState)!!
         var expectedAbstractState = pathTraverser!!.getCurrentTransition()!!.dest
@@ -491,15 +509,18 @@ open class GoToAnotherWindowTask constructor(
                 }
                 if (expectedAbstractState is PredictedAbstractState) {
                     val lastExecutedAction = pathTraverser!!.getCurrentTransition()!!.abstractAction
-                    val missingAbstractActions = expectedAbstractState.getAvailableActions().subtract(currentAppState.getAvailableActions(currentState))
-                    val dependentWindows = ArrayList(pathTraverser!!.getCurrentTransition()!!.dependentAbstractStates.map { it.window }.intersect(atuaMF.getAbstractStateStack().map { it.window }))
-                    if (dependentWindows.isEmpty())
-                        dependentWindows.add(FakeWindow.getOrCreateNode(false))
-                    dependentWindows.forEach {
-                        ProbabilityBasedPathFinder.disableActionsTriggeredByActions.putIfAbsent(lastExecutedAction, HashMap())
-                        ProbabilityBasedPathFinder.disableActionsTriggeredByActions[lastExecutedAction]!!.putIfAbsent(it, ArrayList())
-                        ProbabilityBasedPathFinder.disableActionsTriggeredByActions[lastExecutedAction]!![it]!!.addAll(missingAbstractActions)
+                    if (!isDoingRandomExploration) {
+                        val missingAbstractActions = expectedAbstractState.getAvailableActions().subtract(currentAppState.getAvailableActions(currentState))
+                        val dependentWindows = ArrayList(pathTraverser!!.getCurrentTransition()!!.dependentAbstractStates.map { it.window }.intersect(atuaMF.getAbstractStateStack().map { it.window }))
+                        if (dependentWindows.isEmpty())
+                            dependentWindows.add(FakeWindow.getOrCreateNode(false))
+                        dependentWindows.forEach {
+                            ProbabilityBasedPathFinder.disableActionsTriggeredByActions.putIfAbsent(lastExecutedAction, HashMap())
+                            ProbabilityBasedPathFinder.disableActionsTriggeredByActions[lastExecutedAction]!!.putIfAbsent(it, ArrayList())
+                            ProbabilityBasedPathFinder.disableActionsTriggeredByActions[lastExecutedAction]!![it]!!.addAll(missingAbstractActions)
+                        }
                     }
+
                     if (pathTraverser!!.transitionPath.goal.isNotEmpty()) {
                         val goal = pathTraverser!!.transitionPath.goal
                         val isContainingGoal = goal.any {
@@ -542,15 +563,18 @@ open class GoToAnotherWindowTask constructor(
                 }
             }
             val lastExecutedAction = lastAbstractTransition.abstractAction
-            val missingAbstractActions = expectedAbstractState.getAvailableActions().subtract(currentAppState.getAvailableActions(currentState))
-            val dependentWindows = ArrayList(pathTraverser!!.getCurrentTransition()!!.dependentAbstractStates.map { it.window }.intersect(atuaMF.getAbstractStateStack().map { it.window }))
-            if (dependentWindows.isEmpty())
-                dependentWindows.add(FakeWindow.getOrCreateNode(false))
-            dependentWindows.forEach {
-                ProbabilityBasedPathFinder.disableActionsTriggeredByActions.putIfAbsent(lastExecutedAction, HashMap())
-                ProbabilityBasedPathFinder.disableActionsTriggeredByActions[lastExecutedAction]!!.putIfAbsent(it, ArrayList())
-                ProbabilityBasedPathFinder.disableActionsTriggeredByActions[lastExecutedAction]!![it]!!.addAll(missingAbstractActions)
+            if (!isDoingRandomExploration) {
+                val missingAbstractActions = expectedAbstractState.getAvailableActions().subtract(currentAppState.getAvailableActions(currentState))
+                val dependentWindows = ArrayList(pathTraverser!!.getCurrentTransition()!!.dependentAbstractStates.map { it.window }.intersect(atuaMF.getAbstractStateStack().map { it.window }))
+                if (dependentWindows.isEmpty())
+                    dependentWindows.add(FakeWindow.getOrCreateNode(false))
+                dependentWindows.forEach {
+                    ProbabilityBasedPathFinder.disableActionsTriggeredByActions.putIfAbsent(lastExecutedAction, HashMap())
+                    ProbabilityBasedPathFinder.disableActionsTriggeredByActions[lastExecutedAction]!!.putIfAbsent(it, ArrayList())
+                    ProbabilityBasedPathFinder.disableActionsTriggeredByActions[lastExecutedAction]!![it]!!.addAll(missingAbstractActions)
+                }
             }
+
         }
         val tmpPathTraverser = PathTraverser(currentPath!!)
         tmpPathTraverser.latestEdgeId = pathTraverser!!.latestEdgeId
@@ -838,7 +862,18 @@ open class GoToAnotherWindowTask constructor(
         if (widgetGroup == null) {
             return emptyList()
         } else {
-            val guiWidgets: List<Widget> = getGUIWidgetsByAVM(widgetGroup, currentState)
+            val currentAppState = atuaMF.getAbstractState(currentState)!!
+            val avms = ArrayList<AttributeValuationMap>()
+            if (currentAppState.attributeValuationMaps.contains(widgetGroup))
+                avms.add(widgetGroup)
+            else {
+                val derivedAVMs = currentAppState.attributeValuationMaps.filter { it.isDerivedFrom(widgetGroup,currentAppState.window) }
+                avms.addAll(derivedAVMs)
+            }
+            val guiWidgets: ArrayList<Widget> = ArrayList()
+            avms.forEach {
+                guiWidgets.addAll(getGUIWidgetsByAVM(widgetGroup, currentState))
+            }
             if (guiWidgets.isEmpty()) {
                 val inputs = expectedAppState.getInputsByAbstractAction(abstractAction)
                 val guiWidgets = ArrayList<Widget>()
@@ -902,6 +937,7 @@ open class GoToAnotherWindowTask constructor(
         if (tryRotate) {
             if (currentAbstractState.rotation == Rotation.LANDSCAPE) {
                 randomBudget--
+                tryRotate = false
                 return ExplorationAction.rotate(-90)
             } else {
                 randomBudget--
@@ -913,31 +949,35 @@ open class GoToAnotherWindowTask constructor(
             val swipeActions = currentAbstractState.getAvailableActions(currentState).filter {
                 it.isWidgetAction()
                         && it.actionType == AbstractActionType.SWIPE }
-            val candidateActions = swipeActions.filter {
-            expectedAvm.localAttributes[AttributeType.xpath]!!.contains(it.attributeValuationMap!!.localAttributes[AttributeType.xpath]!!)
-                 }
-            val randomAction = if (candidateActions.isNotEmpty()) {
-                candidateActions.random()
-            } else {
-                swipeActions.random()
+            if (swipeActions.isNotEmpty()) {
+                val candidateActions = swipeActions.filter {
+                    expectedAvm.localAttributes[AttributeType.xpath]!!.contains(it.attributeValuationMap!!.localAttributes[AttributeType.xpath]!!)
+                }
+                val randomAction = if (candidateActions.isNotEmpty()) {
+                    candidateActions.random()
+                } else {
+                    swipeActions.random()
+                }
+                val availableWidgets = chooseWidgets1(currentState, randomAction, currentAbstractState)
+                val candidates = runBlocking { getCandidates(availableWidgets) }
+                val chosenWidget = candidates[random.nextInt(candidates.size)]
+                val actionName = randomAction.actionType
+                val actionData = randomAction.extra
+                // atuaStrategy.phaseStrategy.registerTriggeredInputs(currentEdge!!.abstractAction,currentState)
+                log.info("Widget: $chosenWidget")
+                randomBudget--
+                return chooseActionWithName(
+                    actionName,
+                    actionData,
+                    chosenWidget,
+                    currentState,
+                    randomAction
+                )
+                    ?: ExplorationAction.pressBack()
             }
-            val availableWidgets = chooseWidgets1(currentState,randomAction,currentAbstractState)
-            val candidates = runBlocking { getCandidates(availableWidgets) }
-            val chosenWidget = candidates[random.nextInt(candidates.size)]
-            val actionName = randomAction.actionType
-            val actionData = randomAction.extra
-            // atuaStrategy.phaseStrategy.registerTriggeredInputs(currentEdge!!.abstractAction,currentState)
-            log.info("Widget: $chosenWidget")
-            randomBudget--
-            return chooseActionWithName(
-                actionName,
-                actionData,
-                chosenWidget,
-                currentState,
-                randomAction
-            )
-                ?: ExplorationAction.pressBack()
         }
+        tryScroll = false
+        tryRotate = false
         randomBudget = 5
         var nextAbstractState = expectedNextAbState
 
@@ -1163,7 +1203,6 @@ open class GoToAnotherWindowTask constructor(
         val abstractStateStacks = atuaMF.getAbstractStateStack()
         val lastTransitionDependentState = lastTransition.dependentAbstractStates
         if (lastTransition.modelVersion == ModelVersion.BASE && lastTransition.interactions.isEmpty()) {
-
             val backwardTransitions = ModelBackwardAdapter.instance.backwardEquivalentAbstractTransitionMapping.get(lastTransition)
             backwardTransitions?.forEach { abstractTransition ->
                 abstractTransition.activated = false

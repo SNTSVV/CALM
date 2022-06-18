@@ -171,7 +171,37 @@ class AttributeValuationMap {
         }
 
         if (isScrollable()) {
-            if (localAttributes[AttributeType.scrollDirection]== ScrollDirection.HORIZONTAL.toString()) {
+            if (isWebView()) {
+                val abstractActionSwipeUp = AbstractAction.getOrCreateAbstractAction(
+                    actionType = AbstractActionType.SWIPE,
+                    attributeValuationMap = this,
+                    extra = "SwipeUp",
+                    window = window
+                )
+                val abstractActionSwipeDown = AbstractAction.getOrCreateAbstractAction(
+                    actionType = AbstractActionType.SWIPE,
+                    attributeValuationMap = this,
+                    extra = "SwipeDown",
+                    window = window
+                )
+                val abstractActionSwipeLeft = AbstractAction.getOrCreateAbstractAction(
+                    actionType = AbstractActionType.SWIPE,
+                    attributeValuationMap = this,
+                    extra = "SwipeLeft",
+                    window = window
+                )
+                val abstractActionSwipeRight = AbstractAction.getOrCreateAbstractAction(
+                    actionType = AbstractActionType.SWIPE,
+                    attributeValuationMap = this,
+                    extra = "SwipeRight",
+                    window = window
+                )
+                actionCount.putIfAbsent(abstractActionSwipeUp, 0)
+                actionCount.putIfAbsent(abstractActionSwipeDown, 0)
+                actionCount.putIfAbsent(abstractActionSwipeLeft, 0)
+                actionCount.putIfAbsent(abstractActionSwipeRight, 0)
+            }
+            else if (localAttributes[AttributeType.scrollDirection]== ScrollDirection.HORIZONTAL.toString()) {
                 val abstractActionSwipeLeft = AbstractAction.getOrCreateAbstractAction(
                         actionType = AbstractActionType.SWIPE,
                         attributeValuationMap = this,

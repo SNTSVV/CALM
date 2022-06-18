@@ -224,8 +224,8 @@ class RandomExplorationTask constructor(
             .filter {
                 !it.isCheckableOrTextInput(currentAbstractState)
                     && currentAbstractState.getInputsByAbstractAction(it).any {
-                    it.meaningfulScore>0
-                }
+                         it.meaningfulScore>0
+                    }
             }
 
         val widgetActions1 = unexercisedActions.filter {
@@ -495,8 +495,6 @@ class RandomExplorationTask constructor(
                 randomAction =  exerciseUnexercisedWidgetAbstractActions(widgetActions, currentAbstractState)
             }
         }
-
-
         if (randomAction == null) {
             if (unexercisedActions.isNotEmpty()) {
                 randomAction = unexercisedActions.maxByOrNull { it.getScore() }

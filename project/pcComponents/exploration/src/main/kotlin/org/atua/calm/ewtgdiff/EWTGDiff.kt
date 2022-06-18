@@ -464,7 +464,8 @@ class EWTGDiff private constructor(){
                         it.abstractAction = replacedAbstractAction
                     }
                     abstractState.removeInputAssociatedAbstractAction(abstractAction)
-                    Input.getOrCreateInputFromAbstractAction(abstractState,replacedAbstractAction, ModelVersion.RUNNING)
+                    Input.getOrCreateInputFromAbstractAction(abstractState,replacedAbstractAction, ModelVersion.RUNNING)!!
+
                 }
             //TODO update abstractAction's window
         }

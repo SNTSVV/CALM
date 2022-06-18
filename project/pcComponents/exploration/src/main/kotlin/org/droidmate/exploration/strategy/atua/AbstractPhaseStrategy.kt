@@ -69,19 +69,20 @@ abstract class AbstractPhaseStrategy(
                 it.window is FakeWindow
                         || it.window is Launcher
                         || it.window is OutOfApp
-                || it is VirtualAbstractState
+                        || ProbabilityBasedPathFinder.disableWindows.contains(it.window)
+                        || it is VirtualAbstractState
                         || it.ignored
                         || (it.window is Dialog && (it.window as Dialog).ownerActivitys.all { it is OutOfApp })
                         || it.isRequestRuntimePermissionDialogBox
                         || it.isAppHasStoppedDialogBox
                         || it.attributeValuationMaps.isEmpty()
                         || it.guiStates.isEmpty()
-                        || it.getUnExercisedActions(null, atuaMF).filter { action->
+                        || it.getUnExercisedActions2(null).filter { action->
                             !action.isCheckableOrTextInput(it)
-                            && it.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
-                            && !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
+                                    && it.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
+                                    && !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
                                     && ProbabilityBasedPathFinder.disableInputs.intersect(it.getInputsByAbstractAction(action)).isEmpty()
-                        }.isNotEmpty()
+                        }.isEmpty()
             }
         return runtimeAbstractStates
     }
@@ -141,17 +142,7 @@ abstract class AbstractPhaseStrategy(
                     emptyList(),
                     pathConstraints
                 )
-                if (transitionPaths.isEmpty()) {
-                    goalByAbstractState.forEach {
-                        it.value.forEach {
-                            if (it.abstractAction != null) {
-                                ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction)
-                            } else {
-                                ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
-                            }
-                        }
-                    }
-                }
+
             }
 
             return transitionPaths

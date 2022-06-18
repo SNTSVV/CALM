@@ -1371,6 +1371,33 @@ class PhaseTwoStrategy(
             pathConstraints.put(PathConstraint.INCLUDE_RESET,true)
             pathConstraints.put(PathConstraint.INCLUDE_LAUNCH,true)
             pathConstraints.put(PathConstraint.MAXIMUM_DSTG,true)
+            /*val targetWindowCountTmp =  HashMap(targetWindowsCount)
+            while (targetWindowCountTmp.isNotEmpty()) {
+                val leastTriedCnt = targetWindowCountTmp.minByOrNull { it.value }!!.value
+                val leastTriedWindows = targetWindowCountTmp.filter { it.value == leastTriedCnt }
+                val statesWithScore = HashMap<AbstractState,Double>()
+                leastTriedWindows.forEach { window ->
+                    val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window)!!
+                    statesWithScore.put(virtualAbstractState,1.0)
+                }
+                val transitionPath = ArrayList<TransitionPath>()
+                getPathToStatesBasedOnPathType(
+                    currentState = currentState,
+                    pathType = PathFindingHelper.PathType.WIDGET_AS_TARGET,
+                    statesWithScore = statesWithScore,
+                    goalByAbstractState = emptyMap(),
+                    maxCost = 25.0*scaleFactor,
+                    windowAsTarget = true,
+                    shortest = false,
+                    transitionPaths = transitionPath,
+                    currentAbstractState = currentAbstractState,
+                    abandonedAppStates = emptyList(),
+                    pathConstraints = pathConstraints
+                )
+                if (transitionPath.isNotEmpty())  {
+
+                }
+            }*/
             val leastTriedWindowScore = HashMap(windowScores.filter {
                 val window = it.key
                 val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window)!!

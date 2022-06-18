@@ -53,6 +53,7 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
     var isFullyRandomExploration: Boolean = false
     var latestAbstractAction: AbstractAction? = null
     lateinit var phaseStrategy: AbstractPhaseStrategy
+    lateinit var phaseStrategy0: AbstractPhaseStrategy
     lateinit var phaseStrategy1: AbstractPhaseStrategy
     lateinit var phaseStrategy2: AbstractPhaseStrategy
     lateinit var phaseStrategy3: AbstractPhaseStrategy
@@ -109,6 +110,7 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
             log.info("Cannot retrieve current abstract state.")
             return eContext.resetApp()
         }
+        /*if (eContext.explorationTrace.getActions().any { it.actionType == "ResetApp" })*/
         log.info("Current abstract state: ${currentAbstractState}")
         log.info("Abstract State counts: ${AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter{it.guiStates.isNotEmpty()}.size}")
 
@@ -127,6 +129,16 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
                 phaseStrategy4 = RandomExplorationStrategy(this,scaleFactor, delay, useCoordinateClicks,strategy = randomStrategy)
                 phaseStrategy = phaseStrategy4
                 currentPhase = 4
+            }
+        }
+        if  (currentPhase == 0) {
+            if (phaseStrategy0.hasNextAction(eContext.getCurrentState())) {
+                phaseStrategy = phaseStrategy0
+                chosenAction = phaseStrategy0.nextAction(eContext)
+            }
+            else {
+                phaseStrategy1 = PhaseOneStrategy(this, scaleFactor, delay, useCoordinateClicks)
+                currentPhase = 1
             }
         }
         if  (currentPhase == 1) {
@@ -221,6 +233,8 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
     override fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> initialize(initialContext: ExplorationContext<M, S, W>) {
         super.initialize(initialContext)
         eContext = initialContext
+        phaseStrategy0 = ReachabilityTestStrategy(this,scaleFactor,delay, useCoordinateClicks)
+        phaseStrategy = phaseStrategy0
         phaseStrategy1 = PhaseOneStrategy(this,scaleFactor,delay, useCoordinateClicks)
         phaseStrategy = phaseStrategy1
         currentPhase = 1

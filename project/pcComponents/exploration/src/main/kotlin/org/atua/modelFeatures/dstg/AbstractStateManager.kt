@@ -1461,8 +1461,7 @@ class AbstractStateManager() {
                 }
                 return true
             }
-
-                return false
+            return false
         }
         similarATFromActionAS.clear()
         similarATFromActionAS.addAll(
@@ -1567,8 +1566,10 @@ class AbstractStateManager() {
                     && it.requiringPermissionRequestTransition == abstractTransition.requiringPermissionRequestTransition
                     && ((it.modelVersion == ModelVersion.RUNNING && it.interactions.isNotEmpty() )
                         || (it.modelVersion == ModelVersion.BASE))
-            /*&& (it.label.inputGUIStates.intersect(abstractTransition.label.inputGUIStates).isNotEmpty()
-                        || abstractTransition.label.inputGUIStates.isEmpty())*/
+                    && (it.dependentAbstractStates.any {d1-> abstractTransition.dependentAbstractStates.any {d2-> d1.isSimlarAbstractState(d2,0.8)  } }
+                                    || (abstractTransition.dependentAbstractStates.isEmpty() && it.dependentAbstractStates.isEmpty()) )
+
+
         }
         similarExplicitEdges.forEach {
             output.add(it)
@@ -1594,7 +1595,7 @@ class AbstractStateManager() {
                     && ((it.modelVersion == ModelVersion.RUNNING && it.interactions.isNotEmpty() )
                     || (it.modelVersion == ModelVersion.BASE))
                     && (!it.guardEnabled
-                    || it.dependentAbstractStates.intersect(abstractTransition.dependentAbstractStates).isNotEmpty())
+                    || it.dependentAbstractStates.any {d1-> abstractTransition.dependentAbstractStates.any {d2-> d1.isSimlarAbstractState(d2,0.8)  } })
                     && (it.userInputs.isEmpty() || userInputs.isEmpty()
                     || it.userInputs.intersect(userInputs).isNotEmpty())
             /*&& (it.label.inputGUIStates.intersect(abstractTransition.label.inputGUIStates).isNotEmpty()
@@ -2073,7 +2074,7 @@ class AbstractStateManager() {
         }
         val resetAction = AbstractAction.getOrCreateAbstractAction(
             actionType = AbstractActionType.RESET_APP,
-            window = Launcher.getOrCreateNode()
+            window = abstractState.window
         )
         val abstractInteraction = AbstractTransition(
             abstractAction = resetAction,
@@ -3548,14 +3549,15 @@ class AbstractStateManager() {
         transitionId: Int,
         isReturnToPrevWindow: Boolean
     ): List<AbstractState> {
-        val appStateStack = createAppStack(traceId, transitionId-2)
+        val currentStateStack = createAppStack(traceId, transitionId-2)
+        val tmpAppStateStack = currentStateStack.clone() as Stack<AbstractState>
 
         val prevSameWindowAbstractStates = ArrayList<AbstractState>()
         val currentAppState = getAbstractState(currentState)!!
         val currentWindow = currentAppState.window
         var ignoreWindow = true
-        while (appStateStack.isNotEmpty()) {
-            val prevAppState = appStateStack.pop()
+        while (tmpAppStateStack.isNotEmpty()) {
+            val prevAppState = tmpAppStateStack.pop()
             if (prevAppState.window != currentWindow) {
                 if (isReturnToPrevWindow)
                     if (ignoreWindow)
