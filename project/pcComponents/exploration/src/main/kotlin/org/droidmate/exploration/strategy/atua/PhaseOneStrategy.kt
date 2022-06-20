@@ -125,7 +125,7 @@ class PhaseOneStrategy(
             }
         }
         AbstractStateManager.INSTANCE.ABSTRACT_STATES.forEach {
-            if (it.modelVersion == ModelVersion.BASE) {
+            if (it.modelVersion == ModelVersion.BASE && it.window !is Dialog)  {
                 it.abstractTransitions.forEach {
                     if (it.modifiedMethods.isNotEmpty() && !phaseTargetAbstractActions.contains(it.abstractAction)) {
                         phaseTargetAbstractActions.add(it.abstractAction)
@@ -176,6 +176,8 @@ class PhaseOneStrategy(
         }
 
         phaseTargetInputs.removeIf { (it.exerciseCount > 0 && !it.eventType.isItemEvent) || it.exerciseCount > 3 }
+        val exercisedAbstractActions =  phaseTargetAbstractActions.filter{atuaMF.actionCount.abstractActionCount.get(it)?:0 > 0 }
+        phaseTargetAbstractActions.removeIf { exercisedAbstractActions.contains(it) }
         if (atuaMF.appPrevState!!.isRequestRuntimePermissionDialogBox
             && atuaTestingStrategy.eContext.getLastActionType() != "ResetApp"
         ) {
@@ -315,10 +317,11 @@ class PhaseOneStrategy(
                         (
                                 ((g.first().resourceId.isBlank() && it.resourceId.isBlank())
                                         || (g.first().resourceId.isNotBlank() && g.first().resourceId == it.resourceId))
-                                && it.parentId?.uid == g.first().parentId?.uid
-                                && it.className == g.first().className
-                                && it.hierDepth == g.first().hierDepth)
+                                && it.xpath.replace(Regex("\\[\\d+\\]"),"") == g.first().xpath.replace(Regex("\\[\\d+\\]"),"")
+                                && it.className == g.first().className)
                        }) {
+
+                val reducedXpath = g.first().xpath.replace(Regex("\\[\\d+\\]"),"")
                 widgets.put(g.first(),min(g.size,MAX_ITEM))
             } else {
                 var similarWidget = widgets.entries.find { it.key.uid == uid }
@@ -327,15 +330,13 @@ class PhaseOneStrategy(
                     if (g.first().resourceId.isBlank())
                         similarWidget = widgets.entries.find {
                             it.key.resourceId.isBlank()
-                                    && it.key.parentId?.uid == g.first().parentId?.uid
-                                    && it.key.hierDepth == g.first().hierDepth
+                                    && it.key.xpath.replace(Regex("\\[\\d+\\]"),"") == g.first().xpath.replace(Regex("\\[\\d+\\]"),"")
                                     && it.key.className == g.first().className
                         }
                     else {
                         similarWidget = widgets.entries.find {
                             it.key.resourceId == g.first().resourceId
-                                    && it.key.parentId?.uid == g.first().parentId?.uid
-                                    && it.key.hierDepth == g.first().hierDepth
+                                    && it.key.xpath.replace(Regex("\\[\\d+\\]"),"") == g.first().xpath.replace(Regex("\\[\\d+\\]"),"")
                                     && it.key.className == g.first().className
                         }
                     }
@@ -2014,13 +2015,17 @@ class PhaseOneStrategy(
 
     private fun isExplicitCandidateWindow(window: Window): Boolean {
         val explicitTargetWindows = WindowManager.instance.allMeaningWindows.filter { window ->
-             !ProbabilityBasedPathFinder.disableWindows.contains(window) && phaseTargetInputs.any {
+             !ProbabilityBasedPathFinder.disableWindows.contains(window)
+                     && phaseTargetInputs.any {
                 it.sourceWindow == window
                        /* && (it.widget==null ||
                         (it.widget!!.witnessed))*/
                         && !ProbabilityBasedPathFinder.disableInputs.contains(it)
                         }
-        }
+        }.union(phaseTargetAbstractActions
+            .filter { !ProbabilityBasedPathFinder.disableAbstractActions.contains(it) }
+            .map { it.window })
+
         return explicitTargetWindows.contains(window)
 //                && !outofbudgetWindows.contains(window)
                 && !fullyExploredWindows.contains(window)
@@ -2176,9 +2181,9 @@ class PhaseOneStrategy(
                     targetInputs.add(it)
                 }
             }
-            val local_targetAbstractActions = it.abstractTransitions.filter { it.modelVersion==ModelVersion.BASE
-                    && it.modifiedMethods.keys.intersect(reachedMethods).isNotEmpty()
-                    && it.abstractAction.isWidgetAction() }.map { it.abstractAction }.distinct()
+            val local_targetAbstractActions = it.getAvailableActions().filter {
+                !ProbabilityBasedPathFinder.disableAbstractActions.contains(it)
+                    && phaseTargetAbstractActions.contains(it)}
             targetAbstractActions.addAll(local_targetAbstractActions)
         }
 
@@ -2388,7 +2393,7 @@ class PhaseOneStrategy(
     }
 
     private fun getAbstractStateExecutedActionsCount(abstractState: AbstractState) =
-        abstractState.getActionCountMap().filter { it.key.isWidgetAction() }.map { it.value }.sum()
+        abstractState.getActionCountMap(atuaMF).filter { it.key.isWidgetAction() }.map { it.value }.sum()
 
     private fun isLoginWindow(currentAppState: AbstractState): Boolean {
         val activity = currentAppState.window.classType.toLowerCase()

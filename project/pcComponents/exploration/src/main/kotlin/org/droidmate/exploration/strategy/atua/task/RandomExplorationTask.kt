@@ -536,7 +536,7 @@ class RandomExplorationTask constructor(
                 .filter {
                     !it.isCheckableOrTextInput(currentAbstractState)
                             && it.isWidgetAction() }
-            randomAction = unexercisedActions2.minByOrNull { currentAbstractState.getActionCount(it) }
+            randomAction = unexercisedActions2.minByOrNull { currentAbstractState.getActionCount(it,atuaMF) }
         }
   /*      if (randomAction == null) {
             if (!isPureRandom && !recentGoToExploreState
@@ -602,7 +602,7 @@ class RandomExplorationTask constructor(
                 if (chosenWidget == null) {
                     log.debug("No widget found")
                     // remove action
-                    randomAction.attributeValuationMap!!.removeAction(randomAction)
+                    randomAction.attributeValuationMap!!.removeAction(randomAction,atuaMF)
                     isValidAction = false
                 } else {
                     log.info(" widget: $chosenWidget")
@@ -700,7 +700,7 @@ class RandomExplorationTask constructor(
         randomAction: AbstractAction?
     ): AbstractAction? {
         var randomAction1 = randomAction
-        val swipeActions = currentAbstractState.getActionCountMap().map { it.key }.filter {
+        val swipeActions = currentAbstractState.getActionCountMap(atuaMF).map { it.key }.filter {
             !it.isWebViewAction()
                     && it.isWidgetAction()
                     && it.actionType == AbstractActionType.SWIPE

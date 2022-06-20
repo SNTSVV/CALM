@@ -468,7 +468,7 @@ class AbstractStateManager() {
     }
 
     fun initAbstractInteractions(abstractState: AbstractState, guiState: State<*>? = null) {
-        abstractState.initAction()
+        abstractState.initAction(atuaMF)
 
         val inputs = abstractState.window.inputs
         inputs.forEach { input ->
@@ -700,10 +700,10 @@ class AbstractStateManager() {
                     /*if (isTarget) {
                         abstractState.targetActions.add(existingAction)
                     }*/
-                    val oldActionCount = abstractState.getActionCount(existingAction)
-                    if (!abstractState.containsActionCount(existingAction)) {
-                        val actionCount = similarAbstractState.getActionCount(abstractAction)
-                        abstractState.setActionCount(existingAction, actionCount)
+                    val oldActionCount = abstractState.getActionCount(existingAction,atuaMF)
+                    if (!abstractState.containsActionCount(existingAction,atuaMF)) {
+                        val actionCount = similarAbstractState.getActionCount(abstractAction,atuaMF)
+                        abstractState.setActionCount(existingAction, actionCount,atuaMF)
                     }
                 }
             }
@@ -840,7 +840,7 @@ class AbstractStateManager() {
             localAttributes.put(AttributeType.className, staticWidget!!.className)
 
             val attributePath = AttributePath(localAttributes = localAttributes, window = abstractState.window)
-            val virtAVM = AttributeValuationMap(attributePath = attributePath, window = abstractState.window)
+            val virtAVM = AttributeValuationMap(attributePath = attributePath, window = abstractState.window,atuaMF)
             //abstractState.addAttributeValuationSet(virtAVM)
             abstractState.EWTGWidgetMapping.put(virtAVM, input.widget!!)
             avms.add(virtAVM)
@@ -873,7 +873,7 @@ class AbstractStateManager() {
             }
             if (widgetAbstractAction != null) {
                 if (!abstractState.getAvailableActions().contains(widgetAbstractAction)) {
-                    abstractState.addAction(widgetAbstractAction)
+                    abstractState.addAction(widgetAbstractAction,atuaMF)
                 }
                 abstractState.associateAbstractActionWithInputs(widgetAbstractAction, input)
             }
@@ -896,7 +896,7 @@ class AbstractStateManager() {
         }
         if (abstractAction == null)
             return
-        abstractState.setActionCount(abstractAction,0)
+        abstractState.setActionCount(abstractAction,0,atuaMF)
         abstractState.associateAbstractActionWithInputs(abstractAction, input)
     }
 
@@ -1715,7 +1715,7 @@ class AbstractStateManager() {
         old_newAbstractStates.values.flatten().distinct().map { it.getAvailableActions() }.flatten().distinct().forEach { action->
             action.reset()
             if (action.attributeValuationMap!=null)
-                action.attributeValuationMap.setActionCount(action,0)
+                action.attributeValuationMap.setActionCount(action,0,atuaMF)
         }
         val missingGuistates = recomputeGuistates.filter { state ->
             ABSTRACT_STATES.all { !it.guiStates.contains(state) }
@@ -2258,7 +2258,7 @@ class AbstractStateManager() {
                     it.equals(abstractAction)
                 }
                 if (availableAction == null) {
-                    sourceAbstractState.addAction(abstractAction)
+                    sourceAbstractState.addAction(abstractAction,atuaMF)
                 }
                 //sourceAbstractState.addAction(abstractAction)
            /*     if (isTarget) {
@@ -2330,7 +2330,7 @@ class AbstractStateManager() {
                     atuaMF.randomInteractions.contains(interaction.actionId),
                     atuaMF)
             }
-            newAbstractionTransition.source.increaseActionCount2(newAbstractionTransition.abstractAction,false)
+            newAbstractionTransition.source.increaseActionCount2(newAbstractionTransition.abstractAction,atuaMF)
             addImplicitAbstractInteraction(destState, newAbstractionTransition, tracing,sourceState, destState, interaction, false)
             if (newAbstractionTransition.source != newAbstractionTransition.dest
                 && !newAbstractionTransition.dest.ignored)
@@ -2722,7 +2722,7 @@ class AbstractStateManager() {
                             )
                             atuaMF.dstg.add(prevAbstractState, currentAbstractState, implicitInteraction)
                         }
-                        prevAbstractState.increaseActionCount2(implicitInteraction!!.abstractAction,false)
+                        prevAbstractState.increaseActionCount2(implicitInteraction!!.abstractAction,atuaMF)
                         var coverageIncrease = atuaMF!!.statementMF!!.actionIncreasingCoverageTracking[interaction.actionId.toString()]?.size
                         if (coverageIncrease == null)
                             coverageIncrease = 0

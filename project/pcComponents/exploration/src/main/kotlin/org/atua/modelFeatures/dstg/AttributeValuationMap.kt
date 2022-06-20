@@ -13,6 +13,7 @@
 package org.atua.modelFeatures.dstg
 
 import org.atua.calm.AppModelLoader
+import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.ewtg.EWTGWidget
 import org.atua.modelFeatures.ewtg.ScrollDirection
 import org.atua.modelFeatures.ewtg.Helper
@@ -33,12 +34,14 @@ class AttributeValuationMap {
     val localAttributes: HashMap<AttributeType, String> = HashMap()
     var parentAttributeValuationMapId: String = ""
     var exerciseCount: Int = 0
-    private val actionCount = HashMap<AbstractAction, Int>()
+    val availableAbstractActions = HashSet<AbstractAction>()
+//    private val actionCount = HashMap<AbstractAction, Int>()
     var captured = false
     var hashCode: Int = 0
     var timestamp: String = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
     var fullAttributeValuationMap: String = ""
-    constructor(avmId: String, localAttributes: Map<AttributeType,String>, parentAVMId: String, window: Window) {
+
+    constructor(avmId: String, localAttributes: Map<AttributeType,String>, parentAVMId: String, window: Window,atuaMF: ATUAMF) {
         this.avmId = avmId
         this.localAttributes.putAll(localAttributes)
         this.parentAttributeValuationMapId = parentAVMId
@@ -48,10 +51,10 @@ class AttributeValuationMap {
         ALL_ATTRIBUTE_VALUATION_MAP[window]!!.put(avmId,this)
         hashCode = this.fullAttributeValuationMap(window).hashCode()
         maxId++
-        initActions(window)
+        initActions(window,atuaMF)
     }
 
-    constructor(attributePath: AttributePath, window: Window) {
+    constructor(attributePath: AttributePath, window: Window,atuaMF: ATUAMF) {
         if (!ALL_ATTRIBUTE_VALUATION_MAP.containsKey(window)) {
             ALL_ATTRIBUTE_VALUATION_MAP.put(window, HashMap())
         }
@@ -79,7 +82,7 @@ class AttributeValuationMap {
             if (parentAVM != null) {
                 parentAttributeValuationMapId = parentAVM.avmId
             } else {
-                val newParentAttributeValuationSet = AttributeValuationMap(parentAttributePath, window)
+                val newParentAttributeValuationSet = AttributeValuationMap(parentAttributePath, window,atuaMF)
                 parentAttributeValuationMapId = newParentAttributeValuationSet.avmId
             }
             /*if (ALL_ATTRIBUTE_VALUATION_MAP[window]!!.any { it.value.haveTheSameAttributePath(parentAttributePath) }) {
@@ -103,7 +106,7 @@ class AttributeValuationMap {
         ALL_ATTRIBUTE_VALUATION_MAP[window]!!.put(avmId,this)
         attributePath_AttributeValuationMap[window]!!.put(attributePath,this)
         hashCode = this.fullAttributeValuationMap(window).hashCode()
-        initActions(window)
+        initActions(window,atuaMF)
     }
 
     fun computeHashCode(window: Window) {
@@ -117,7 +120,7 @@ class AttributeValuationMap {
         return false
     }
 
-    fun initActions(window: Window) {
+    fun initActions(window: Window,atuaMF: ATUAMF) {
         /*if (!AbstractStateManager.instance.activity_attrValSetsMap.containsKey(activity))
             AbstractStateManager.instance.activity_attrValSetsMap.put(activity, ArrayList())*/
         if (isClickable() ) {
@@ -127,13 +130,15 @@ class AttributeValuationMap {
                         attributeValuationMap = this,
                         window = window
                 )
-                actionCount.putIfAbsent(itemAbstractAction,0)
+
+                addAndInitCount(itemAbstractAction, atuaMF)
+
                 val itemLongClickAbstractAction = AbstractAction.getOrCreateAbstractAction(
                         actionType = AbstractActionType.ITEM_LONGCLICK,
                         attributeValuationMap = this,
                     window = window
                 )
-                actionCount.putIfAbsent(itemLongClickAbstractAction,0)
+                addAndInitCount(itemLongClickAbstractAction, atuaMF)
 
             } else {
                 val abstractAction = AbstractAction.getOrCreateAbstractAction(
@@ -141,7 +146,8 @@ class AttributeValuationMap {
                         attributeValuationMap = this,
                     window = window
                 )
-                actionCount.putIfAbsent(abstractAction, 0)
+                addAndInitCount(abstractAction, atuaMF)
+
             }
         }
 
@@ -152,13 +158,14 @@ class AttributeValuationMap {
                     attributeValuationMap = this,
                     window = window
                 )
-                actionCount.putIfAbsent(itemAbstractAction,0)
+                addAndInitCount(itemAbstractAction, atuaMF)
+
                 val itemLongClickAbstractAction = AbstractAction.getOrCreateAbstractAction(
                     actionType = AbstractActionType.ITEM_LONGCLICK,
                     attributeValuationMap = this,
                     window = window
                 )
-                actionCount.putIfAbsent(itemLongClickAbstractAction,0)
+                addAndInitCount(itemLongClickAbstractAction, atuaMF)
 
             } else {
                 val abstractAction = AbstractAction.getOrCreateAbstractAction(
@@ -166,7 +173,8 @@ class AttributeValuationMap {
                     attributeValuationMap = this,
                     window = window
                 )
-                actionCount.putIfAbsent(abstractAction, 0)
+                addAndInitCount(abstractAction,atuaMF)
+
             }
         }
 
@@ -196,10 +204,11 @@ class AttributeValuationMap {
                     extra = "SwipeRight",
                     window = window
                 )
-                actionCount.putIfAbsent(abstractActionSwipeUp, 0)
-                actionCount.putIfAbsent(abstractActionSwipeDown, 0)
-                actionCount.putIfAbsent(abstractActionSwipeLeft, 0)
-                actionCount.putIfAbsent(abstractActionSwipeRight, 0)
+                addAndInitCount(abstractActionSwipeUp,atuaMF)
+                addAndInitCount(abstractActionSwipeDown,atuaMF)
+                addAndInitCount(abstractActionSwipeLeft,atuaMF)
+                addAndInitCount(abstractActionSwipeRight,atuaMF)
+
             }
             else if (localAttributes[AttributeType.scrollDirection]== ScrollDirection.HORIZONTAL.toString()) {
                 val abstractActionSwipeLeft = AbstractAction.getOrCreateAbstractAction(
@@ -214,8 +223,8 @@ class AttributeValuationMap {
                         extra = "SwipeRight",
                     window = window
                 )
-                actionCount.putIfAbsent(abstractActionSwipeLeft, 0)
-                actionCount.putIfAbsent(abstractActionSwipeRight, 0)
+                addAndInitCount(abstractActionSwipeLeft,atuaMF)
+                addAndInitCount(abstractActionSwipeRight,atuaMF)
             } else if (localAttributes[AttributeType.scrollDirection]== ScrollDirection.VERTICAL.toString()) {
                 val abstractActionSwipeUp = AbstractAction.getOrCreateAbstractAction(
                         actionType = AbstractActionType.SWIPE,
@@ -229,8 +238,8 @@ class AttributeValuationMap {
                         extra = "SwipeDown",
                     window = window
                 )
-                actionCount.putIfAbsent(abstractActionSwipeUp, 0)
-                actionCount.putIfAbsent(abstractActionSwipeDown, 0)
+                addAndInitCount(abstractActionSwipeUp,atuaMF)
+                addAndInitCount(abstractActionSwipeDown,atuaMF)
 
             } else if (localAttributes[AttributeType.scrollDirection] == ScrollDirection.UP.toString()){
                 val abstractActionSwipe = AbstractAction.getOrCreateAbstractAction(
@@ -239,7 +248,7 @@ class AttributeValuationMap {
                     extra = "SwipeUp",
                     window = window
                 )
-                actionCount.putIfAbsent(abstractActionSwipe, 0)
+                addAndInitCount(abstractActionSwipe,atuaMF)
             } else if (localAttributes[AttributeType.scrollDirection] == ScrollDirection.DOWN.toString()){
                 val abstractActionSwipe = AbstractAction.getOrCreateAbstractAction(
                     actionType = AbstractActionType.SWIPE,
@@ -247,7 +256,7 @@ class AttributeValuationMap {
                     extra = "SwipeDown",
                     window = window
                 )
-                actionCount.putIfAbsent(abstractActionSwipe, 0)
+                addAndInitCount(abstractActionSwipe,atuaMF)
             } else if (localAttributes[AttributeType.scrollDirection] == ScrollDirection.LEFT.toString()){
                 val abstractActionSwipe = AbstractAction.getOrCreateAbstractAction(
                     actionType = AbstractActionType.SWIPE,
@@ -255,7 +264,8 @@ class AttributeValuationMap {
                     extra = "SwipeLeft",
                     window = window
                 )
-                actionCount.putIfAbsent(abstractActionSwipe, 0)
+                addAndInitCount(abstractActionSwipe,atuaMF)
+
             } else if (localAttributes[AttributeType.scrollDirection] == ScrollDirection.RIGHT.toString()){
                 val abstractActionSwipe = AbstractAction.getOrCreateAbstractAction(
                     actionType = AbstractActionType.SWIPE,
@@ -263,7 +273,7 @@ class AttributeValuationMap {
                     extra = "SwipeRight",
                     window = window
                 )
-                actionCount.putIfAbsent(abstractActionSwipe, 0)
+                addAndInitCount(abstractActionSwipe,atuaMF)
             }
             else {
                 val abstractActionSwipeUp = AbstractAction.getOrCreateAbstractAction(
@@ -290,10 +300,10 @@ class AttributeValuationMap {
                         extra = "SwipeRight",
                     window = window
                 )
-                actionCount.putIfAbsent(abstractActionSwipeUp, 0)
-                actionCount.putIfAbsent(abstractActionSwipeDown, 0)
-                actionCount.putIfAbsent(abstractActionSwipeLeft, 0)
-                actionCount.putIfAbsent(abstractActionSwipeRight, 0)
+                addAndInitCount(abstractActionSwipeUp,atuaMF)
+                addAndInitCount(abstractActionSwipeDown,atuaMF)
+                addAndInitCount(abstractActionSwipeLeft,atuaMF)
+                addAndInitCount(abstractActionSwipeRight,atuaMF)
             }
 
             /*if (attributePath.getClassName().contains("RecyclerView")
@@ -313,7 +323,7 @@ class AttributeValuationMap {
                     attributeValuationMap = this,
                 window = window
             )
-            actionCount.putIfAbsent(abstractAction, 0)
+            addAndInitCount(abstractAction,atuaMF)
         }
         //Item-containing Widget
         /* if (attributePath.getClassName().equals("android.webkit.WebView")) {
@@ -332,23 +342,30 @@ class AttributeValuationMap {
         }*/
     }
 
+    private fun addAndInitCount(
+        itemAbstractAction: AbstractAction,
+        atuaMF: ATUAMF
+    ) {
+        availableAbstractActions.add(itemAbstractAction)
+        atuaMF.actionCount.abstractActionCount.putIfAbsent(itemAbstractAction, 0)
+    }
+
     fun getAvailableActions(): List<AbstractAction> {
-        return actionCount.keys.toList()
+        return availableAbstractActions.toList()
     }
 
-    fun getActionCount(abstractAction: AbstractAction): Int {
-        if (actionCount.containsKey(abstractAction)) {
-            return actionCount[abstractAction]!!
-        }
-        return -1
+    fun getActionCount(abstractAction: AbstractAction,atuaMF: ATUAMF): Int {
+        return atuaMF.actionCount.abstractActionCount[abstractAction]?:-1
     }
 
-    fun removeAction(abstractAction: AbstractAction) {
-        actionCount.remove(abstractAction)
+    fun removeAction(abstractAction: AbstractAction,atuaMF: ATUAMF) {
+        availableAbstractActions.remove(abstractAction)
+//        atuaMF.actionCount.abstractActionCount.remove(abstractAction)
     }
 
-    fun setActionCount(abstractAction: AbstractAction, count: Int) {
-        actionCount[abstractAction] = count
+    fun setActionCount(abstractAction: AbstractAction, count: Int,atuaMF: ATUAMF) {
+        addAndInitCount(abstractAction,atuaMF)
+        atuaMF.actionCount.abstractActionCount[abstractAction] = count
     }
 
     fun getClassName(): String {
@@ -643,7 +660,7 @@ class AttributeValuationMap {
                 "\"${abstractState.EWTGWidgetMapping[this]?.widgetId}\";$hashCode"*/
     }
 
-    fun loadDumpedString(line: String,window: Window) {
+    fun loadDumpedString(line: String,window: Window,atuaMF: ATUAMF) {
         val splites = AppModelLoader.splitCSVLineToField(line)
         val avmId = splites[0]
         val parentAVMId = splites[1]
@@ -660,7 +677,8 @@ class AttributeValuationMap {
                 avmId = avmId,
                 localAttributes = localAttributes,
                 parentAVMId = parentAVMId,
-                window = window
+                window = window,
+            atuaMF = atuaMF
         )
         assert(hashcode==newAttributeValuationMap.hashCode)
     }
@@ -775,24 +793,24 @@ class AttributeValuationMap {
         }*/
     }
 
-    fun getAvailableActionsWithExercisingCount(): Map<AbstractAction, Int> {
-        return actionCount.toMap()
+    fun getAvailableActionsWithExercisingCount(atuaMF: ATUAMF): Map<AbstractAction, Int> {
+        return availableAbstractActions.associateWith { atuaMF.actionCount.abstractActionCount.get(it)!! }
     }
 
     fun containsAction(action: AbstractAction): Boolean {
-        if (actionCount.containsKey(action))
+        if (availableAbstractActions.contains(action))
             return true
         return false
     }
 
-    fun increaseActionCount(action: AbstractAction):Int {
+/*    fun increaseActionCount(action: AbstractAction):Int {
         if (actionCount.containsKey(action)) {
             val newValue = actionCount[action]!! + 1
             actionCount[action] = newValue
             return newValue
         }
         return -1
-    }
+    }*/
 
 
     companion object {

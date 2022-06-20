@@ -35,6 +35,7 @@ import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 import kotlin.collections.HashSet
 import kotlin.math.max
+import kotlin.math.min
 
 class PhaseTwoStrategy(
         atuaTestingStrategy: ATUATestingStrategy,
@@ -668,7 +669,7 @@ class PhaseTwoStrategy(
             return
         if (budgetType == BudgetType.EXERCISE_TARGET) {
             budgetType = BudgetType.RANDOM_EXPLORATION
-            randomBudgetLeft = exerciseBudgetLeft
+            randomBudgetLeft = min(20, exerciseBudgetLeft)
             return
         }
         budgetType = BudgetType.RANDOM_EXPLORATION

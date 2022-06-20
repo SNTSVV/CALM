@@ -391,7 +391,7 @@ class ATUAMF(
                 it.modelVersion == ModelVersion.BASE
                         && it.window is OutOfApp
             }.forEach {
-                it.initAction()
+                it.initAction(this)
                 it.abstractTransitions.forEach {
                     if (it.modifiedMethods.isNotEmpty()) {
                         modifiedMethodsByWindow.putIfAbsent(it.dest.window, HashSet())
@@ -2099,7 +2099,7 @@ class ATUAMF(
         }
         val newAbstractState = getAbstractState(newState)!!
         if (lastExecutedTransition != null) {
-            prevAbstractState.increaseActionCount2(lastExecutedTransition!!.abstractAction, true)
+            prevAbstractState.increaseActionCount2(lastExecutedTransition!!.abstractAction, this)
             AbstractStateManager.INSTANCE.addImplicitAbstractInteraction(
                 newState, lastExecutedTransition!!, Pair(traceId, transitionId),prevState,newState,lastInteractions.first()
             )

@@ -457,9 +457,9 @@ class EWTGDiff private constructor(){
                         extra = abstractAction.extra,
                         window = replacement.new
                     )
-                    val actionCount = abstractState.getActionCount(abstractAction)
+                    val actionCount = abstractState.getActionCount(abstractAction,atuamf)
                     abstractState.removeAction(abstractAction)
-                    abstractState.setActionCount(replacedAbstractAction, actionCount)
+                    abstractState.setActionCount(replacedAbstractAction, actionCount,atuamf)
                     abstractTransitions.forEach {
                         it.abstractAction = replacedAbstractAction
                     }

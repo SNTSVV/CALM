@@ -14,6 +14,7 @@ package org.atua.calm
 
 import org.atua.calm.modelReuse.ModelHistoryInformation
 import org.atua.calm.modelReuse.ModelVersion
+import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractState
@@ -311,7 +312,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             val abstractStateFilePath: Path = getAbstractStateListFilePath(dstgFolderPath)
             if (!abstractStateFilePath.toFile().exists())
                 return
-            loadAbstractStates(abstractStateFilePath, dstgFolderPath)
+            loadAbstractStates(abstractStateFilePath, dstgFolderPath,autAutMF)
             val dstgFilePath: Path = getDSTGFilePath(dstgFolderPath)
             if (!dstgFilePath.toFile().exists())
                 return
@@ -799,18 +800,18 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             return lines
         }
 
-        private fun loadAbstractStates(abstractStateFilePath: Path, dstgFolderPath: Path) {
+        private fun loadAbstractStates(abstractStateFilePath: Path, dstgFolderPath: Path,atuaMF: ATUAMF) {
             val lines: List<String> = readAllLines(abstractStateFilePath)
 
             lines.forEach { line ->
-                loadAbstractState(line, dstgFolderPath)
+                loadAbstractState(line, dstgFolderPath,atuaMF)
             }
         }
 
         val updatedAbstractStateId = HashMap<String, String>()
         val updatedAVMId = HashMap<String, String>()
 
-        private fun loadAbstractState(line: String, dstgFolderPath: Path) {
+        private fun loadAbstractState(line: String, dstgFolderPath: Path,atuaMF: ATUAMF) {
             val data = splitCSVLineToField(line)
             val uuid = data[0]
             val activity = data[1]
@@ -839,7 +840,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             val widgetIdMapping: HashMap<AttributeValuationMap, String> = HashMap()
             val avmCardinalities = HashMap<AttributeValuationMap, Cardinality>()
             val attributeValuationSets =
-                loadAttributeValuationSets(uuid, dstgFolderPath, widgetIdMapping, avmCardinalities, window)
+                loadAttributeValuationSets(uuid, dstgFolderPath, widgetIdMapping, avmCardinalities, window,atuaMF)
             val widgetMapping = HashMap<AttributeValuationMap, EWTGWidget>()
             widgetIdMapping.forEach { avs, widgetId ->
                 val widget = window.widgets.find { it.widgetId == widgetId }
@@ -889,7 +890,8 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             uuid: String, dstgFolderPath: Path,
             widgetMapping: HashMap<AttributeValuationMap, String>,
             avmCardinaties: HashMap<AttributeValuationMap, Cardinality>,
-            window: Window
+            window: Window,
+            atuaMF: ATUAMF
         ): List<AttributeValuationMap> {
             val capturedAttributeValuationSets = ArrayList<AttributeValuationMap>()
             val abstractStateFilePath = dstgFolderPath.resolve("AbstractStates").resolve("AbstractState_$uuid.csv")
@@ -921,7 +923,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                 } else {
                     attributeValuationMap = createAttributeValuationMap(
                         attributeValuationSetRecord.value, capturedAttributeValuationSets,
-                        window, widgetMapping, avmCardinaties
+                        window, widgetMapping, avmCardinaties,atuaMF
                     )
                     if (attributeValuationMap.avmId != avmuuid)
                         updatedAVMId.put(avmuuid, attributeValuationMap.avmId)
@@ -952,7 +954,8 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             attributeValuationMaps: ArrayList<AttributeValuationMap>,
             window: Window,
             widgetMapping: HashMap<AttributeValuationMap, String>,
-            avmCardinaties: HashMap<AttributeValuationMap, Cardinality>
+            avmCardinaties: HashMap<AttributeValuationMap, Cardinality>,
+            atuaMF: ATUAMF
         ): AttributeValuationMap {
             //TODO("Not implemented")
             val parentAVSId =
@@ -973,7 +976,8 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                 avmId = attributeValuationSetRawRecord[AttributeValuationMapPropertyIndex.AttributeValuationSetID],
                 localAttributes = attributes,
                 parentAVMId = parentAVSId,
-                window = window
+                window = window,
+                atuaMF = atuaMF
             )
             val existingAVM = AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP[window]!!
                 .values.find { it != attributeValuationMap && it.hashCode == attributeValuationMap.hashCode }

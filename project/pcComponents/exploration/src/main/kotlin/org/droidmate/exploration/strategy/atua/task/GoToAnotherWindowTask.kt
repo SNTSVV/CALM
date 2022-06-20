@@ -1019,6 +1019,18 @@ open class GoToAnotherWindowTask constructor(
         if (currentPath == null || expectedNextAbState == null)
             return randomExplorationTask.chooseAction(currentState)
         log.info("Destination: ${currentPath!!.getFinalDestination()}")
+        if (pathTraverser!!.transitionPath.goal.isNotEmpty()) {
+            val stringBuilder = StringBuilder()
+            stringBuilder.appendLine("Target: ")
+            pathTraverser!!.transitionPath.goal.forEach {
+                if (it.input!=null) {
+                    stringBuilder.appendLine("${it.input}")
+                } else {
+                    stringBuilder.appendLine("${it.abstractAction!!}")
+                }
+            }
+            log.info(stringBuilder.toString())
+        }
         if (expectedNextAbState!!.window == currentAbstractState.window) {
             if (expectedNextAbState !is PredictedAbstractState
                 && expectedNextAbState !is VirtualAbstractState) {

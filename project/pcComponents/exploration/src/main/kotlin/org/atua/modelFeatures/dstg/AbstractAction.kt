@@ -38,6 +38,7 @@ class AbstractAction private constructor (
             return this.hashCode() == other.hashCode()
         }*/
     var meaningfulScore = 50
+
     fun isItemAction(): Boolean {
         return when(actionType) {
             AbstractActionType.ITEM_CLICK,AbstractActionType.ITEM_LONGCLICK,AbstractActionType.ITEM_SELECTED -> true
@@ -287,10 +288,10 @@ class AbstractAction private constructor (
                         window = abstractState.window
                 )
                 abstractActionsByWindow[abstractState.window]!!.add(abstractAction)
-                abstractState.addAction(abstractAction)
+                abstractState.addAction(abstractAction,atuaMF)
             } else {
                 abstractAction = availableAction
-                abstractState.addAction(abstractAction)
+                abstractState.addAction(abstractAction,atuaMF)
             }
             return abstractAction
         }

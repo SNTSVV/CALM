@@ -2056,7 +2056,7 @@ class ReachabilityTestStrategy(
                             && it.modelVersion == ModelVersion.BASE
                             && it.modifiedMethods.isNotEmpty()
                             && it.modifiedMethods.keys.any { !atuaMF.statementMF!!.executedMethodsMap.containsKey(it) }
-                            && it.abstractAction.attributeValuationMap!!.getActionCount(it.abstractAction) == 0
+                            && it.abstractAction.attributeValuationMap!!.getActionCount(it.abstractAction,atuaMF) == 0
                 }
                 .map { it.abstractAction }
             return potentialAbstractInteractions.map { currentAppState.getInputsByAbstractAction(it) }.flatten()
@@ -2135,7 +2135,7 @@ class ReachabilityTestStrategy(
     }
 
     private fun getAbstractStateExecutedActionsCount(abstractState: AbstractState) =
-        abstractState.getActionCountMap().filter { it.key.isWidgetAction() }.map { it.value }.sum()
+        abstractState.getActionCountMap(atuaMF).filter { it.key.isWidgetAction() }.map { it.value }.sum()
 
     private fun isLoginWindow(currentAppState: AbstractState): Boolean {
         val activity = currentAppState.window.classType.toLowerCase()

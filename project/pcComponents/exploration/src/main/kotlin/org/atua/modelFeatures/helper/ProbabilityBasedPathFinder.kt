@@ -554,8 +554,8 @@ class ProbabilityBasedPathFinder {
                                                     reachableAbstractActions[action]!! * 1.0 / totalCnt
                                                 if (prob>=0.1 && !disableActions.contains(action)){
                                                     if (!action.isWidgetAction()) {
-                                                        if (!predictAbstractState.containsActionCount(action))
-                                                            predictAbstractState.setActionCount(action, 0)
+                                                        if (!predictAbstractState.containsActionCount(action,atuaMF))
+                                                            predictAbstractState.setActionCount(action, 0,atuaMF)
                                                     }
                                                     if (action.attributeValuationMap != null && !predictAbstractState.attributeValuationMaps.contains(
                                                             action.attributeValuationMap
@@ -845,5 +845,6 @@ enum class PathConstraint {
     FORCING_RESET,
     INCLUDE_LAUNCH,
     INCLUDE_WTG,
-    MAXIMUM_DSTG
+    MAXIMUM_DSTG,
+    TARGET_ABSTRACT_ACTION
 }

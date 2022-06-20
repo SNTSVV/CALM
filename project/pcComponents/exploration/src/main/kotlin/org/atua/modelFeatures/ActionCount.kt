@@ -11,6 +11,7 @@
  */
 package org.atua.modelFeatures
 
+import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
 import org.atua.modelFeatures.ewtg.Helper
@@ -25,6 +26,8 @@ import kotlin.collections.HashMap
 class ActionCount  {
     private val wUUIDCnt = HashMap<UUID, MutableMap<String, Int>>()
     val wConcreteIdCount = HashMap<ConcreteId,MutableMap<String,Int>>()
+    val abstractActionCount = HashMap<AbstractAction,Int>()
+
     fun widgetnNumExplored(s: State<*>, selection: Collection<Widget>): Map<Widget, Int> {
         val abstractState = AbstractStateManager.INSTANCE.getAbstractState(s)!!
         val activity = abstractState.window.classType

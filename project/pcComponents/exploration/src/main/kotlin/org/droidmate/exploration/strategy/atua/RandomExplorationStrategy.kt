@@ -732,7 +732,7 @@ class RandomExplorationStrategy(
     }
 
     private fun getAbstractStateExecutedActionsCount(abstractState: AbstractState) =
-        abstractState.getActionCountMap().filter { it.key.isWidgetAction() }.map { it.value }.sum()
+        abstractState.getActionCountMap(atuaMF).filter { it.key.isWidgetAction() }.map { it.value }.sum()
 
     private fun isLoginWindow(currentAppState: AbstractState): Boolean {
         val activity = currentAppState.window.classType.toLowerCase()
