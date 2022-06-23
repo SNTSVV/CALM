@@ -32,8 +32,6 @@ import org.droidmate.exploration.actions.resetApp
 import org.droidmate.exploration.strategy.atua.task.ExerciseTargetComponentTask
 import org.droidmate.exploration.strategy.atua.task.GoToAnotherWindowTask
 import org.droidmate.exploration.strategy.atua.task.GoToTargetWindowTask
-import org.droidmate.exploration.strategy.atua.task.OpenNavigationBarTask
-import org.droidmate.exploration.strategy.atua.task.PrepareContextTask
 import org.droidmate.exploration.strategy.atua.task.RandomExplorationTask
 import org.droidmate.explorationModel.ExplorationTrace
 import org.droidmate.explorationModel.interaction.State
@@ -302,14 +300,14 @@ class ReachabilityTestStrategy(
     private fun updateOutOfBudgetWindows() {
         val replacingWidgets = EWTGDiff.instance.getReplacingWidget()
         val replacingInputs = EWTGDiff.instance.replacingInputs
-        val unexhaustedExploredAbstractStates = super.getUnexhaustedExploredAbstractState()
+        val unexhaustedExploredAbstractStates = super.getUnexhaustedExploredAbstractState(true)
         fullyExploredWindows.associateWith { window -> unexhaustedExploredAbstractStates.filter { it.window == window } }
             .forEach {
                 if (it.value.isNotEmpty()) {
                     if (!atuaMF.reuseBaseModel || true) {
                         if (it.value.any {
                                 it.getUnExercisedActions(null, atuaMF).filter { action ->
-                                    !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
+                                    !ProbabilityBasedPathFinder.disableAbstractActions1.contains(action)
                                             && !action.isCheckableOrTextInput(it)
                                             && it.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
                                 }.isNotEmpty()
@@ -321,7 +319,7 @@ class ReachabilityTestStrategy(
                         val unexercisedActions = ArrayList<AbstractAction>()
                         it.value.forEach {
                             val unexercisedActons = it.getUnExercisedActions(null, atuaMF).filter { action ->
-                                !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
+                                !ProbabilityBasedPathFinder.disableAbstractActions1.contains(action)
                                         && !action.isCheckableOrTextInput(it)
                                         && it.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
                             }
@@ -367,7 +365,7 @@ class ReachabilityTestStrategy(
             } else {
                 if (it.value.all {
                         it.getUnExercisedActions(null, atuaMF).filter { action ->
-                            !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
+                            !ProbabilityBasedPathFinder.disableAbstractActions1.contains(action)
                                     && !action.isCheckableOrTextInput(it)
                                     && it.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
                         }.isEmpty()
@@ -378,7 +376,7 @@ class ReachabilityTestStrategy(
                     val unexercisedActions = ArrayList<AbstractAction>()
                     it.value.forEach {
                         val unexercisedActons = it.getUnExercisedActions(null, atuaMF).filter { action ->
-                            !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
+                            !ProbabilityBasedPathFinder.disableAbstractActions1.contains(action)
                                     && !action.isCheckableOrTextInput(it)
                                     && it.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
                         }
@@ -535,7 +533,7 @@ class ReachabilityTestStrategy(
         val explicitTargetWindows =
             phaseTargetInputs.filter {
                 it.widget != null
-                        && !ProbabilityBasedPathFinder.disableInputs.contains(it)
+                        && !ProbabilityBasedPathFinder.disableInputs1.contains(it)
             }.map { it.sourceWindow }
                 .filter { !unreachableWindows.contains(it) }.distinct()
         val isTargetAppState = getCurrentTargetInputs(currentState).isNotEmpty()
@@ -1773,7 +1771,7 @@ class ReachabilityTestStrategy(
                 it.sourceWindow == window
                        /* && (it.widget==null ||
                         (it.widget!!.witnessed))*/
-                        && !ProbabilityBasedPathFinder.disableInputs.contains(it) }
+                        && !ProbabilityBasedPathFinder.disableInputs1.contains(it) }
         }
         return explicitTargetWindows.contains(window)
 //                && !outofbudgetWindows.contains(window)
@@ -1788,8 +1786,8 @@ class ReachabilityTestStrategy(
 //                !unreachableWindows.contains(it) &&
                 !fullyExploredWindows.contains(it)
 
-    override fun getUnexhaustedExploredAbstractState(): List<AbstractState> {
-        return super.getUnexhaustedExploredAbstractState()/*.filter {
+    override fun getUnexhaustedExploredAbstractState(includeResetAction: Boolean): List<AbstractState> {
+        return super.getUnexhaustedExploredAbstractState(includeResetAction)/*.filter {
 //            !fullyExploredWindows.contains(it.window)
 //            !unreachableWindows.contains(it.window)
 //                    && !outofbudgetWindows.contains(it.window)
@@ -1806,8 +1804,9 @@ class ReachabilityTestStrategy(
         val currentAbstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)
         if (currentAbstractState == null)
             return transitionPaths
+        val includeResetAction = pathConstraints[PathConstraint.INCLUDE_RESET]!!
         val goalByAbstractState = HashMap<AbstractState, List<Goal>>()
-        val runtimeAbstractStates = ArrayList(getUnexhaustedExploredAbstractState())
+        val runtimeAbstractStates = ArrayList(getUnexhaustedExploredAbstractState(includeResetAction))
         if (runtimeAbstractStates.isNotEmpty()) {
             runtimeAbstractStates.groupBy { it.window }.forEach { window, appStates ->
                 var virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window)
@@ -1823,12 +1822,14 @@ class ReachabilityTestStrategy(
                     appState.getUnExercisedActions(null, atuaMF).filter { action ->
                         !action.isCheckableOrTextInput(appState)
                                 && appState.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
-                                && !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
-                                && ProbabilityBasedPathFinder.disableInputs.intersect(
-                            appState.getInputsByAbstractAction(
-                                action
-                            )
-                        ).isEmpty()
+                                && !ProbabilityBasedPathFinder.disableAbstractActions1.contains(action)
+                                && ProbabilityBasedPathFinder.disableInputs1.intersect(
+                            appState.getInputsByAbstractAction(action)).isEmpty()
+                                && (includeResetAction || (
+                                !ProbabilityBasedPathFinder.disableAbstractActions2.contains(action)
+                                        && ProbabilityBasedPathFinder.disableInputs2.intersect(
+                                    appState.getInputsByAbstractAction(action)).isEmpty()
+                                        ))
                     }.forEach { action ->
                         toExploreInputs.add(Goal(input = null, abstractAction = action))
                     }
@@ -1927,7 +1928,7 @@ class ReachabilityTestStrategy(
             }
             targetInputsInAppState.forEach {
                 if (!targetInputs.contains(it)
-                    && !ProbabilityBasedPathFinder.disableInputs.contains(it)
+                    && !ProbabilityBasedPathFinder.disableInputs1.contains(it)
                 ) {
                     targetInputs.add(it)
                 }
@@ -2018,8 +2019,8 @@ class ReachabilityTestStrategy(
         return transitionPaths
     }
 
-    override fun getCurrentTargetInputs(currentState: State<*>): Set<Input> {
-        val result = ArrayList<Input>()
+    override fun getCurrentTargetInputs(currentState: State<*>): Set<Goal> {
+        val result = ArrayList<Goal>()
         val availableTargetInputsWithActions = HashMap<Input, List<AbstractAction>>()
 
         val abstractState = atuaMF.getAbstractState(currentState)!!
@@ -2041,7 +2042,7 @@ class ReachabilityTestStrategy(
                 val selectedInput = inputScore.keys.first()
                 val abstractActions = availableTargetInputsWithActions.get(selectedInput)!!
                 if (abstractActions.isNotEmpty()) {
-                    result.add(selectedInput)
+                    result.add( Goal(input=selectedInput,abstractAction = null))
                 }
                 inputScore.remove(selectedInput)
             }
@@ -2058,10 +2059,10 @@ class ReachabilityTestStrategy(
                             && it.modifiedMethods.keys.any { !atuaMF.statementMF!!.executedMethodsMap.containsKey(it) }
                             && it.abstractAction.attributeValuationMap!!.getActionCount(it.abstractAction,atuaMF) == 0
                 }
-                .map { it.abstractAction }
-            return potentialAbstractInteractions.map { currentAppState.getInputsByAbstractAction(it) }.flatten()
-                .distinct().toSet()
+                .map { it.abstractAction }.distinct().map { Goal(abstractAction = it,input = null) }
+            result.addAll(potentialAbstractInteractions)
         }
+
         return result.distinct().toSet()
         /*val currentAppState = regressionTestingMF.getAbstractState(currentState)!!
         val targetActions = currentAppState.targetActions

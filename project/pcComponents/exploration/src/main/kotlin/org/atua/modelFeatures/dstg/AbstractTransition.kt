@@ -68,6 +68,7 @@ class AbstractTransition(
         }
     var isUsefullOnce: Boolean = true
     var nondeterministic: Boolean = false
+    var nondeterministicCount: Int = 0
     // --------------
     init {
         source.abstractTransitions.add(this)
@@ -244,8 +245,10 @@ class AbstractTransition(
             }
             if (nondeterministicTransitions.isNotEmpty()) {
                 this.nondeterministic = true
+                this.nondeterministicCount = nondeterministicTransitions.size+1
                 nondeterministicTransitions.forEach {
                     it.nondeterministic = true
+                    it.nondeterministicCount = nondeterministicTransitions.size+1
                 }
             }
         } else {
@@ -260,8 +263,10 @@ class AbstractTransition(
             }
             if (nondeterministicTransitions.isNotEmpty()) {
                 this.nondeterministic = true
+                this.nondeterministicCount = nondeterministicTransitions.size+1
                 nondeterministicTransitions.forEach {
                     it.nondeterministic = true
+                    it.nondeterministicCount = nondeterministicTransitions.size+1
                 }
             }
         }

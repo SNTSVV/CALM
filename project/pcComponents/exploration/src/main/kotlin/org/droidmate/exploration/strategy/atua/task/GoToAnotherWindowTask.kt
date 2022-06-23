@@ -434,16 +434,26 @@ open class GoToAnotherWindowTask constructor(
                         if (currentPath!!.goal.isNotEmpty()) {
                             currentPath!!.goal.forEach {
                                 if (it.input != null)
-                                    ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
+                                    ProbabilityBasedPathFinder.disableInputs1.add(it.input!!)
                                 else
-                                    ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction!!)
+                                    ProbabilityBasedPathFinder.disableAbstractActions1.add(it.abstractAction!!)
                             }
                         } else {
                             val destWindow = currentPath!!.destination.window
-                            ProbabilityBasedPathFinder.disableWindows.add(destWindow)
+                            ProbabilityBasedPathFinder.disableWindows1.add(destWindow)
                         }
                     } else {
-
+                        if (currentPath!!.goal.isNotEmpty()) {
+                            currentPath!!.goal.forEach {
+                                if (it.input != null)
+                                    ProbabilityBasedPathFinder.disableInputs2.add(it.input!!)
+                                else
+                                    ProbabilityBasedPathFinder.disableAbstractActions2.add(it.abstractAction!!)
+                            }
+                        } else {
+                            val destWindow = currentPath!!.destination.window
+                            ProbabilityBasedPathFinder.disableWindows2.add(destWindow)
+                        }
                     }
                 }
             }
@@ -470,13 +480,25 @@ open class GoToAnotherWindowTask constructor(
             if (currentPath!!.goal.isNotEmpty()) {
                 currentPath!!.goal.forEach {
                     if (it.input != null)
-                        ProbabilityBasedPathFinder.disableInputs.add(it.input!!)
+                        ProbabilityBasedPathFinder.disableInputs1.add(it.input!!)
                     else
-                        ProbabilityBasedPathFinder.disableAbstractActions.add(it.abstractAction!!)
+                        ProbabilityBasedPathFinder.disableAbstractActions1.add(it.abstractAction!!)
                 }
             } else {
                 val destWindow = currentPath!!.destination.window
-                ProbabilityBasedPathFinder.disableWindows.add(destWindow)
+                ProbabilityBasedPathFinder.disableWindows1.add(destWindow)
+            }
+        } else {
+            if (currentPath!!.goal.isNotEmpty()) {
+                currentPath!!.goal.forEach {
+                    if (it.input != null)
+                        ProbabilityBasedPathFinder.disableInputs2.add(it.input!!)
+                    else
+                        ProbabilityBasedPathFinder.disableAbstractActions2.add(it.abstractAction!!)
+                }
+            } else {
+                val destWindow = currentPath!!.destination.window
+                ProbabilityBasedPathFinder.disableWindows2.add(destWindow)
             }
         }
         log.debug("Fail to reach destination.")
@@ -756,6 +778,9 @@ open class GoToAnotherWindowTask constructor(
         if (!continueMode) {
             pathConstraints.put(PathConstraint.INCLUDE_RESET, includeResetAction)
             pathConstraints.put(PathConstraint.INCLUDE_LAUNCH, true)
+        } else {
+            pathConstraints.put(PathConstraint.INCLUDE_RESET, false)
+            pathConstraints.put(PathConstraint.INCLUDE_LAUNCH, false)
         }
         if (useInputTargetWindow && destWindow != null) {
             while (possiblePaths.isEmpty()) {

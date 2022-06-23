@@ -321,7 +321,7 @@ class PhaseOneStrategy(
                                 && it.className == g.first().className)
                        }) {
 
-                val reducedXpath = g.first().xpath.replace(Regex("\\[\\d+\\]"),"")
+//                val reducedXpath = g.first().xpath.replace(Regex("\\[\\d+\\]"),"")
                 widgets.put(g.first(),min(g.size,MAX_ITEM))
             } else {
                 var similarWidget = widgets.entries.find { it.key.uid == uid }
@@ -441,15 +441,15 @@ class PhaseOneStrategy(
     private fun updateOutOfBudgetWindows() {
         val replacingWidgets = EWTGDiff.instance.getReplacingWidget()
         val replacingInputs = EWTGDiff.instance.replacingInputs
-        val unexhaustedExploredAbstractStates = super.getUnexhaustedExploredAbstractState()
+        val unexhaustedExploredAbstractStates = super.getUnexhaustedExploredAbstractState(true)
         fullyExploredWindows.associateWith { window -> unexhaustedExploredAbstractStates.filter { it.window == window } }
             .forEach {
                 if (it.value.isNotEmpty()) {
                     if (!atuaMF.reuseBaseModel || true) {
                         if (it.value.any {
                                 it.getUnExercisedActions(null, atuaMF).filter { action ->
-                                    !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
-                                            && ProbabilityBasedPathFinder.disableInputs.intersect(it.getInputsByAbstractAction(action)).isEmpty()
+                                    !ProbabilityBasedPathFinder.disableAbstractActions1.contains(action)
+                                            && ProbabilityBasedPathFinder.disableInputs1.intersect(it.getInputsByAbstractAction(action)).isEmpty()
                                             && !action.isCheckableOrTextInput(it)
                                             && it.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
                                 }.isNotEmpty()
@@ -466,7 +466,7 @@ class PhaseOneStrategy(
                         val unexercisedActions = ArrayList<AbstractAction>()
                         it.value.forEach {
                             val unexercisedActons = it.getUnExercisedActions(null, atuaMF).filter { action ->
-                                !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
+                                !ProbabilityBasedPathFinder.disableAbstractActions1.contains(action)
                                         && !action.isCheckableOrTextInput(it)
                                         && it.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
                             }
@@ -512,8 +512,8 @@ class PhaseOneStrategy(
             } else {
                 if (it.value.all {
                         it.getUnExercisedActions2(null).filter { action ->
-                            !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
-                                    && ProbabilityBasedPathFinder.disableInputs.intersect(it.getInputsByAbstractAction(action)).isEmpty()
+                            !ProbabilityBasedPathFinder.disableAbstractActions1.contains(action)
+                                    && ProbabilityBasedPathFinder.disableInputs1.intersect(it.getInputsByAbstractAction(action)).isEmpty()
                                     && !action.isCheckableOrTextInput(it)
                                     && it.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
                         }.isEmpty()
@@ -527,7 +527,7 @@ class PhaseOneStrategy(
                     val unexercisedActions = ArrayList<AbstractAction>()
                     it.value.forEach {
                         val unexercisedActons = it.getUnExercisedActions2(null).filter { action ->
-                            !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
+                            !ProbabilityBasedPathFinder.disableAbstractActions1.contains(action)
                                     && !action.isCheckableOrTextInput(it)
                                     && it.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
                         }
@@ -665,10 +665,10 @@ class PhaseOneStrategy(
     ) {
         val explicitTargetWindows =
             phaseTargetInputs.filter {
-                !ProbabilityBasedPathFinder.disableInputs.contains(it)
+                !ProbabilityBasedPathFinder.disableInputs1.contains(it)
             }.map { it.sourceWindow }
                 .filter { !unreachableWindows.contains(it)
-                        && !ProbabilityBasedPathFinder.disableWindows.contains(it)}.distinct()
+                        && !ProbabilityBasedPathFinder.disableWindows1.contains(it)}.distinct()
         val isTargetAppState = getCurrentTargetInputs(currentState).isNotEmpty()
 
         if (targetWindow != currentAppState.window) {
@@ -2015,15 +2015,15 @@ class PhaseOneStrategy(
 
     private fun isExplicitCandidateWindow(window: Window): Boolean {
         val explicitTargetWindows = WindowManager.instance.allMeaningWindows.filter { window ->
-             !ProbabilityBasedPathFinder.disableWindows.contains(window)
+             !ProbabilityBasedPathFinder.disableWindows1.contains(window)
                      && phaseTargetInputs.any {
                 it.sourceWindow == window
                        /* && (it.widget==null ||
                         (it.widget!!.witnessed))*/
-                        && !ProbabilityBasedPathFinder.disableInputs.contains(it)
+                        && !ProbabilityBasedPathFinder.disableInputs1.contains(it)
                         }
         }.union(phaseTargetAbstractActions
-            .filter { !ProbabilityBasedPathFinder.disableAbstractActions.contains(it) }
+            .filter { !ProbabilityBasedPathFinder.disableAbstractActions1.contains(it) }
             .map { it.window })
 
         return explicitTargetWindows.contains(window)
@@ -2040,10 +2040,10 @@ class PhaseOneStrategy(
                 !fullyCoveredWindows.contains(it)
 //                !unreachableWindows.contains(it) &&
                 && !fullyExploredWindows.contains(it)
-                && !ProbabilityBasedPathFinder.disableWindows.contains(it)
+                && !ProbabilityBasedPathFinder.disableWindows1.contains(it)
 
-    override fun getUnexhaustedExploredAbstractState(): List<AbstractState> {
-        return super.getUnexhaustedExploredAbstractState().filter {
+    override fun getUnexhaustedExploredAbstractState(includeResetAction: Boolean): List<AbstractState> {
+        return super.getUnexhaustedExploredAbstractState(includeResetAction).filter {
             !fullyExploredWindows.contains(it.window)
                     && !unreachableWindows.contains(it.window)
                     && !outofbudgetWindows.contains(it.window)
@@ -2060,8 +2060,9 @@ class PhaseOneStrategy(
         val currentAbstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)
         if (currentAbstractState == null)
             return transitionPaths
+        val includeResetAction = pathConstraints[PathConstraint.INCLUDE_RESET]!!
         val goalByAbstractState = HashMap<AbstractState, List<Goal>>()
-        val runtimeAbstractStates = ArrayList(getUnexhaustedExploredAbstractState())
+        val runtimeAbstractStates = ArrayList(getUnexhaustedExploredAbstractState(includeResetAction))
         if (runtimeAbstractStates.isNotEmpty()) {
             runtimeAbstractStates.groupBy { it.window }.forEach { window, appStates ->
                 var virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window)
@@ -2073,13 +2074,18 @@ class PhaseOneStrategy(
                     )
                 }
                 val toExploreInputs = ArrayList<Goal>()
+
                 appStates.filter{ it.guiStates.isNotEmpty()}. forEach { appState ->
                     appState.getUnExercisedActions(null, atuaMF).filter { action ->
                         !action.isCheckableOrTextInput(appState)
                                 && appState.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
-                                && !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
-                                && ProbabilityBasedPathFinder.disableInputs.intersect(
+                                && !ProbabilityBasedPathFinder.disableAbstractActions1.contains(action)
+                                && ProbabilityBasedPathFinder.disableInputs1.intersect(
                                     appState.getInputsByAbstractAction(action)).isEmpty()
+                                && (includeResetAction || (
+                                !ProbabilityBasedPathFinder.disableAbstractActions2.contains(action)
+                                        && ProbabilityBasedPathFinder.disableInputs2.intersect(appState.getInputsByAbstractAction(action)).isEmpty()
+                                )  )
                     }.forEach { action ->
                         toExploreInputs.add(Goal(input = null, abstractAction = action))
                     }
@@ -2163,6 +2169,7 @@ class PhaseOneStrategy(
         val goalByAbstractState: HashMap<AbstractState, List<Goal>> = HashMap()
         val targetInputs = HashSet<Input>()
         val targetAbstractActions = HashSet<AbstractAction>()
+        val includeResetAction = pathConstraints[PathConstraint.INCLUDE_RESET]?:false
         val reachedMethods = atuaMF.statementMF!!.executedMethodsMap.keys
         targetStates.filterNot {
             (pathType != PathFindingHelper.PathType.FULLTRACE
@@ -2176,14 +2183,16 @@ class PhaseOneStrategy(
             }
             targetInputsInAppState.forEach {
                 if (!targetInputs.contains(it)
-                    && !ProbabilityBasedPathFinder.disableInputs.contains(it)
+                    && !ProbabilityBasedPathFinder.disableInputs1.contains(it)
+                    && (includeResetAction || !ProbabilityBasedPathFinder.disableInputs2.contains(it))
                 ) {
                     targetInputs.add(it)
                 }
             }
             val local_targetAbstractActions = it.getAvailableActions().filter {
-                !ProbabilityBasedPathFinder.disableAbstractActions.contains(it)
-                    && phaseTargetAbstractActions.contains(it)}
+                !ProbabilityBasedPathFinder.disableAbstractActions1.contains(it)
+                    && phaseTargetAbstractActions.contains(it)
+                        && (includeResetAction || !ProbabilityBasedPathFinder.disableAbstractActions2.contains(it))}
             targetAbstractActions.addAll(local_targetAbstractActions)
         }
 
@@ -2191,10 +2200,11 @@ class PhaseOneStrategy(
         stateScores.put(virtualAbstractState, 1.0)
 
         val windowTargetInputs = phaseTargetInputs.filter { it.sourceWindow == targetWindow
-                && !ProbabilityBasedPathFinder.disableInputs.contains(it)}
-        windowTargetInputs.subtract(targetInputs).forEach {
-            ProbabilityBasedPathFinder.disableInputs.add(it)
-        }
+                && !ProbabilityBasedPathFinder.disableInputs1.contains(it)
+                && (includeResetAction || !ProbabilityBasedPathFinder.disableInputs2.contains(it))}
+ /*       windowTargetInputs.subtract(targetInputs).forEach {
+            ProbabilityBasedPathFinder.disableInputs1.add(it)
+        }*/
 
         var windowAsTarget = false
         if (targetInputs.isEmpty()) {
@@ -2272,8 +2282,8 @@ class PhaseOneStrategy(
         return transitionPaths
     }
 
-    override fun getCurrentTargetInputs(currentState: State<*>): Set<Input> {
-        val result = ArrayList<Input>()
+    override fun getCurrentTargetInputs(currentState: State<*>): Set<Goal> {
+        val result = ArrayList<Goal>()
         val availableTargetInputsWithActions = HashMap<Input, List<AbstractAction>>()
 
         val abstractState = atuaMF.getAbstractState(currentState)!!
@@ -2295,12 +2305,12 @@ class PhaseOneStrategy(
                 val selectedInput = inputScore.keys.first()
                 val abstractActions = availableTargetInputsWithActions.get(selectedInput)!!
                 if (abstractActions.isNotEmpty()) {
-                    result.add(selectedInput)
+                    result.add(Goal(input = selectedInput,abstractAction = null))
                 }
                 inputScore.remove(selectedInput)
             }
         }
-        if (availableTargetInputsWithActions.isEmpty()) {
+        if (result.isEmpty()) {
             val currentAppState = atuaMF.getAbstractState(currentState)!!
             /*val potentialAbstractInteractions = currentAppState.abstractTransitions
                 .filter {
@@ -2316,9 +2326,9 @@ class PhaseOneStrategy(
             val potentialAbstractActions = currentAppState.abstractTransitions.filter {
                 phaseTargetAbstractActions.contains(it.abstractAction)
                         && it.interactions.isEmpty()
-            }.map { it.abstractAction }
-            return potentialAbstractActions.map { currentAppState.getInputsByAbstractAction(it) }.flatten()
-                .distinct().toSet()
+            }.forEach {
+                result.add(Goal(input = null,abstractAction = it.abstractAction))
+            }
         }
         return result.distinct().toSet()
         /*val currentAppState = regressionTestingMF.getAbstractState(currentState)!!

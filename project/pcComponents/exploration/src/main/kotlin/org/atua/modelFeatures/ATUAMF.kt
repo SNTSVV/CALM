@@ -47,7 +47,6 @@ import org.atua.modelFeatures.ewtg.EventType
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.Input
 import org.atua.modelFeatures.ewtg.WindowManager
-import org.atua.modelFeatures.ewtg.WindowTransition
 import org.atua.modelFeatures.ewtg.window.Activity
 import org.atua.modelFeatures.ewtg.window.Dialog
 import org.atua.modelFeatures.ewtg.window.FakeWindow
@@ -1805,17 +1804,27 @@ class ATUAMF(
         if (newAbstractState.abstractTransitions.isEmpty()) {
             AbstractStateManager.INSTANCE.initAbstractInteractions(newAbstractState, newState)
         }
-        if (ProbabilityBasedPathFinder.disableWindows.contains(newAbstractState.window)) {
-            ProbabilityBasedPathFinder.disableWindows.remove(newAbstractState.window)
+
+        if (ProbabilityBasedPathFinder.disableWindows1.contains(newAbstractState.window)) {
+            ProbabilityBasedPathFinder.disableWindows1.remove(newAbstractState.window)
+        }
+        if (ProbabilityBasedPathFinder.disableWindows2.contains(newAbstractState.window)) {
+            ProbabilityBasedPathFinder.disableWindows2.remove(newAbstractState.window)
         }
         newAbstractState.getAvailableActions(newState).forEach {
-            if (ProbabilityBasedPathFinder.disableAbstractActions.contains(it)) {
-                ProbabilityBasedPathFinder.disableAbstractActions.remove(it)
+            if (ProbabilityBasedPathFinder.disableAbstractActions1.contains(it)) {
+                ProbabilityBasedPathFinder.disableAbstractActions1.remove(it)
+            }
+            if (ProbabilityBasedPathFinder.disableAbstractActions2.contains(it)) {
+                ProbabilityBasedPathFinder.disableAbstractActions2.remove(it)
             }
         }
         newAbstractState.getAvailableInputs().forEach {
-            if (ProbabilityBasedPathFinder.disableInputs.contains(it)) {
-                ProbabilityBasedPathFinder.disableInputs.remove(it)
+            if (ProbabilityBasedPathFinder.disableInputs1.contains(it)) {
+                ProbabilityBasedPathFinder.disableInputs1.remove(it)
+            }
+            if (ProbabilityBasedPathFinder.disableInputs2.contains(it)) {
+                ProbabilityBasedPathFinder.disableInputs2.remove(it)
             }
         }
       /*  val windowId =

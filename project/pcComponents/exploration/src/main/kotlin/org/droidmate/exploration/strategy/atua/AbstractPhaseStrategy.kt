@@ -63,13 +63,14 @@ abstract class AbstractPhaseStrategy(
         return diff > interval
     }
 
-    open fun getUnexhaustedExploredAbstractState(): List<AbstractState> {
+    open fun getUnexhaustedExploredAbstractState(includeReset: Boolean): List<AbstractState> {
         val runtimeAbstractStates = AbstractStateManager.INSTANCE.ABSTRACT_STATES
             .filterNot {
                 it.window is FakeWindow
                         || it.window is Launcher
                         || it.window is OutOfApp
-                        || ProbabilityBasedPathFinder.disableWindows.contains(it.window)
+                        || ProbabilityBasedPathFinder.disableWindows1.contains(it.window)
+                        || (!includeReset && ProbabilityBasedPathFinder.disableWindows2.contains(it.window))
                         || it is VirtualAbstractState
                         || it.ignored
                         || (it.window is Dialog && (it.window as Dialog).ownerActivitys.all { it is OutOfApp })
@@ -80,8 +81,12 @@ abstract class AbstractPhaseStrategy(
                         || it.getUnExercisedActions2(null).filter { action->
                             !action.isCheckableOrTextInput(it)
                                     && it.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
-                                    && !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
-                                    && ProbabilityBasedPathFinder.disableInputs.intersect(it.getInputsByAbstractAction(action)).isEmpty()
+                                    && !ProbabilityBasedPathFinder.disableAbstractActions1.contains(action)
+                                    && ProbabilityBasedPathFinder.disableInputs1.intersect(it.getInputsByAbstractAction(action)).isEmpty()
+                                    && (includeReset || (
+                                    !ProbabilityBasedPathFinder.disableAbstractActions2.contains(action)
+                                            && ProbabilityBasedPathFinder.disableInputs2.intersect(it.getInputsByAbstractAction(action)).isEmpty()
+                                            )  )
                         }.isEmpty()
             }
         return runtimeAbstractStates
@@ -99,9 +104,10 @@ abstract class AbstractPhaseStrategy(
         val currentAbstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)
         if (currentAbstractState == null)
             return transitionPaths
+        val includeReset = pathConstraints[PathConstraint.INCLUDE_RESET]!!
         val goalByAbstractState = HashMap<AbstractState, List<Goal>>()
         val stateWithScores = HashMap<AbstractState, Double>()
-        var targetStates = getUnexhaustedExploredAbstractState().filter{it.window == targetWindow}.toHashSet()
+        var targetStates = getUnexhaustedExploredAbstractState(includeReset).filter{it.window == targetWindow}.toHashSet()
         if (explore) {
             targetStates.removeIf {
                 it is VirtualAbstractState
@@ -111,8 +117,11 @@ abstract class AbstractPhaseStrategy(
                 .filter { action ->
                     !action.isCheckableOrTextInput(it)
                             && it.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
-                            && !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
-                            && ProbabilityBasedPathFinder.disableInputs.intersect(it.getInputsByAbstractAction(action)).isEmpty()
+                            && !ProbabilityBasedPathFinder.disableAbstractActions1.contains(action)
+                            && ProbabilityBasedPathFinder.disableInputs1.intersect(it.getInputsByAbstractAction(action)).isEmpty()
+                            && (includeReset ||
+                                (!ProbabilityBasedPathFinder.disableAbstractActions2.contains(action)
+                                    && ProbabilityBasedPathFinder.disableInputs2.intersect(it.getInputsByAbstractAction(action)).isEmpty()))
                 }}.filter { it.value.isNotEmpty() }
             if (canExploreAppStatesWithAbstractActions1.isNotEmpty()) {
                 canExploreAppStatesWithAbstractActions1.forEach { s, actions ->
@@ -218,7 +227,7 @@ abstract class AbstractPhaseStrategy(
         )
     }
 
-    abstract fun getCurrentTargetInputs(currentState: State<*>): Set<Input>
+    abstract fun getCurrentTargetInputs(currentState: State<*>): Set<Goal>
 
     abstract fun hasNextAction(currentState: State<*>): Boolean
 

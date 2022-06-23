@@ -12,7 +12,6 @@ import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractTransition
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
-import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.modelFeatures.ewtg.EventType
 import org.atua.modelFeatures.helper.ProbabilityDistribution
 import org.atua.modelFeatures.ewtg.Helper
@@ -218,7 +217,8 @@ class PhaseThreeStrategy(
         val currentAppState = atuaMF.getAbstractState(currentState)
         if (currentAppState==null)
             return transitionPaths
-        val runtimeAbstractStates = getUnexhaustedExploredAbstractState()
+        val includeReset = pathConstraints[PathConstraint.INCLUDE_RESET]!!
+        val runtimeAbstractStates = getUnexhaustedExploredAbstractState(includeReset)
         val goalByAbstractState = HashMap<AbstractState, List<Goal>>()
         runtimeAbstractStates.groupBy { it.window }.forEach { window, appStates ->
             var virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window)
@@ -231,8 +231,12 @@ class PhaseThreeStrategy(
                     .filter { action->
                         !action.isCheckableOrTextInput(appState)
                                 && appState.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
-                                && !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
-                                && ProbabilityBasedPathFinder.disableInputs.intersect(appState.getInputsByAbstractAction(action)).isEmpty()
+                                && !ProbabilityBasedPathFinder.disableAbstractActions1.contains(action)
+                                && ProbabilityBasedPathFinder.disableInputs1.intersect(appState.getInputsByAbstractAction(action)).isEmpty()
+                                && (includeReset || (
+                                !ProbabilityBasedPathFinder.disableAbstractActions2.contains(action)
+                                        && ProbabilityBasedPathFinder.disableInputs2.intersect(appState.getInputsByAbstractAction(action)).isEmpty()
+                                        ))
 
                     }
                 meaningfulAbstractActions.forEach { action ->
@@ -329,8 +333,8 @@ class PhaseThreeStrategy(
         return transitionPaths
     }
 
-    override fun getCurrentTargetInputs(currentState: State<*>): Set<Input> {
-        val targetEvents = ArrayList<Input>()
+    override fun getCurrentTargetInputs(currentState: State<*>): Set<Goal> {
+        val targetEvents = ArrayList<Goal>()
         targetEvents.clear()
 
         val abstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)
@@ -339,7 +343,7 @@ class PhaseThreeStrategy(
             if (targetEvent!=null) {
                 val abstractActions = atuaMF.validateEvent(targetEvent!!, currentState)
                 if (abstractActions.isNotEmpty()) {
-                    targetEvents.add(targetEvent!!)
+                    targetEvents.add(Goal(input=targetEvent,abstractAction = null))
                 }
             }/* else {
                 val availableEvents = abstractState.getAvailableInputs()

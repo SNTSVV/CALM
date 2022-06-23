@@ -52,9 +52,12 @@ class ProbabilityBasedPathFinder {
         private val disableEdges = HashSet<Edge<AbstractState, AbstractTransition>>()
         private val disablePaths = HashSet<Pair<List<AbstractTransition>, DisablePathType>>()
         val disableActionSequences = HashMap<AbstractState, ArrayList<LinkedList<AbstractAction>>>()
-        val disableInputs = HashSet<Input>()
-        val disableAbstractActions = HashSet<AbstractAction>()
-        val disableWindows: HashSet<Window> = HashSet()
+        val disableInputs1 = HashSet<Input>()
+        val disableAbstractActions1 = HashSet<AbstractAction>()
+        val disableWindows1: HashSet<Window> = HashSet()
+        val disableInputs2 = HashSet<Input>()
+        val disableAbstractActions2 = HashSet<AbstractAction>()
+        val disableWindows2: HashSet<Window> = HashSet()
         val unavailableActions = HashMap<AbstractState, ArrayList<AbstractAction>>()
         val disableActionsTriggeredByActions = HashMap<AbstractAction, HashMap<Window,ArrayList<AbstractAction>>>()
 
@@ -432,6 +435,7 @@ class ProbabilityBasedPathFinder {
                         }
                     }
                     val isAllImplicitTransitions = abstractTransitions.all { it.interactions.isEmpty() }
+                    val isNonDeterministic = mostPertinentAbstractTransitions.all {it.nondeterministic}
                     /*val isManyCardinalityAVM = if (abstractAction.isWidgetAction()) {
                         if (source.avmCardinalities[abstractAction.attributeValuationMap!!] == Cardinality.MANY) {
                             true
@@ -454,7 +458,7 @@ class ProbabilityBasedPathFinder {
                     }
                     if (similarAbstractAction!=null
                         && isConsideredForPredicting(similarAbstractAction!!)
-                        && (mostPertinentAbstractTransitions.isEmpty()
+                        && (mostPertinentAbstractTransitions.isEmpty() || isNonDeterministic
                                 || isTransitionsEmpty || isAllImplicitTransitions || isManyCardinalityAVM )
                         && (pathType == PathFindingHelper.PathType.WIDGET_AS_TARGET || pathType == PathFindingHelper.PathType.WTG)
                         && (goalsByTarget.isNotEmpty() || windowAsTarget)) {

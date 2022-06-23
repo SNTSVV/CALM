@@ -10,6 +10,7 @@ import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.Input
 import org.atua.modelFeatures.ewtg.window.Window
+import org.atua.modelFeatures.helper.Goal
 import org.droidmate.exploration.strategy.atua.ATUATestingStrategy
 import org.droidmate.exploration.strategy.atua.PhaseTwoStrategy
 import org.droidmate.explorationModel.interaction.State
@@ -28,7 +29,7 @@ class ExerciseTargetComponentTask private constructor(
     private var injectingRandomAction: Boolean = false
     private var recentChangedSystemConfiguration: Boolean = false
     var environmentChange: Boolean = false
-    val eventList:  ArrayList<Input> = ArrayList()
+    val eventList:  ArrayList<Goal> = ArrayList()
     var chosenAbstractAction: AbstractAction? = null
     var fillingData = false
     var dataFilled = false
@@ -36,7 +37,7 @@ class ExerciseTargetComponentTask private constructor(
     var alwaysUseRandomInput = false
     var randomBudget: Int = 3*atuaTestingStrategy.scaleFactor.toInt()
     private var prevAbstractState: AbstractState?=null
-    val originalEventList: ArrayList<Input> = ArrayList()
+    val originalEventList: ArrayList<Goal> = ArrayList()
 
     private val fillDataTask = PrepareContextTask.getInstance(atuaMF,atuaTestingStrategy, delay, useCoordinateClicks)
     val targetItemEvents = HashMap<AbstractAction, HashMap<String,Int>>()
@@ -58,11 +59,16 @@ class ExerciseTargetComponentTask private constructor(
         eventList.clear()
         eventList.addAll(atuaStrategy.phaseStrategy.getCurrentTargetInputs(currentState))
         eventList.forEach {
-            val actions = currentAbstractState.getAbstractActionsWithSpecificInputs(it)
-            if (actions.isNotEmpty()) {
-                availableActions.addAll(actions)
+            if (it.input!=null) {
+                val actions = currentAbstractState.getAbstractActionsWithSpecificInputs(it.input)
+                if (actions.isNotEmpty()) {
+                    availableActions.addAll(actions)
+                }
+            } else {
+                availableActions.add(it.abstractAction!!)
             }
         }
+        ignoredActions.clear()
         if (isCameraOpening(currentState)) {
             return false
         }
@@ -155,6 +161,7 @@ class ExerciseTargetComponentTask private constructor(
         isDoingRandomExplorationTask = false
         recentlyExercisedTarget = false
         injectingRandomAction = false
+        ignoredActions.clear()
     }
 
     var targetWindow: Window? = null
@@ -185,7 +192,7 @@ class ExerciseTargetComponentTask private constructor(
         return emptyList()
     }
     var isDoingRandomExplorationTask: Boolean = false
-
+    val ignoredActions = ArrayList<AbstractAction>()
     override fun chooseAction(currentState: State<*>): ExplorationAction? {
         executedCount++
         //TODO Maybe we need an extra task for returning to the target
@@ -193,29 +200,33 @@ class ExerciseTargetComponentTask private constructor(
         val currentAbstractState = atuaMF.getAbstractState(currentState)!!
         val availableActions = ArrayList<AbstractAction>()
         eventList.forEach {
-            val actions = currentAbstractState.getAbstractActionsWithSpecificInputs(it)
-            if (actions.size>1) {
-                val unexercisedActions = currentAbstractState.getUnExercisedActions(currentState,atuaMF)
-                val unexercisedTargetActions = unexercisedActions.intersect(actions)
-                if (unexercisedTargetActions.isNotEmpty()) {
-                    availableActions.addAll(unexercisedTargetActions)
-                } else {
-                    val exercisedInStateActions = currentAbstractState.abstractTransitions
-                        .filter { actions.contains(it.abstractAction)
-                                && it.interactions.isNotEmpty()
-                        }.map { it.abstractAction }.distinct()
-                    val unexercisedInStateActions = actions.subtract(exercisedInStateActions)
-                    if (unexercisedInStateActions.isNotEmpty()) {
-                        availableActions.addAll(unexercisedInStateActions)
-                    } else {
-                        availableActions.addAll(actions)
-                    }
-                }
+            if (it.abstractAction!=null){
+                availableActions.add(it.abstractAction)
             } else {
-                availableActions.addAll(actions)
+                val actions = currentAbstractState.getAbstractActionsWithSpecificInputs(it.input!!)
+                if (actions.size>1) {
+                    val unexercisedActions = currentAbstractState.getUnExercisedActions(currentState,atuaMF)
+                    val unexercisedTargetActions = unexercisedActions.intersect(actions)
+                    if (unexercisedTargetActions.isNotEmpty()) {
+                        availableActions.addAll(unexercisedTargetActions)
+                    } else {
+                        val exercisedInStateActions = currentAbstractState.abstractTransitions
+                            .filter { actions.contains(it.abstractAction)
+                                    && it.interactions.isNotEmpty()
+                            }.map { it.abstractAction }.distinct()
+                        val unexercisedInStateActions = actions.subtract(exercisedInStateActions)
+                        if (unexercisedInStateActions.isNotEmpty()) {
+                            availableActions.addAll(unexercisedInStateActions)
+                        } else {
+                            availableActions.addAll(actions)
+                        }
+                    }
+                } else {
+                    availableActions.addAll(actions)
+                }
             }
-
         }
+        availableActions.removeIf { ignoredActions.contains(it) }
         val prevAbstractState = if (atuaMF.appPrevState != null)
             atuaMF.getAbstractState(atuaMF.appPrevState!!) ?: currentAbstractState
         else
@@ -436,6 +447,7 @@ class ExerciseTargetComponentTask private constructor(
                 if (chosenWidget==null)
                 {
                     log.debug("No widget found. Choose another Window transition.")
+                    ignoredActions.add(chosenAbstractAction!!)
                     return chooseAction(currentState)
                 }
                 log.info("Choose Action for Widget: $chosenWidget")

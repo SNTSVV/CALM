@@ -491,7 +491,8 @@ class PhaseTwoStrategy(
                                          pathConstraints: Map<PathConstraint,Boolean>): List<TransitionPath> {
         val transitionPaths = ArrayList<TransitionPath>()
         val currentAbstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)!!
-        val toExploreAppStates = getUnexhaustedExploredAbstractState()
+        val includeReset = pathConstraints[PathConstraint.INCLUDE_RESET]!!
+        val toExploreAppStates = getUnexhaustedExploredAbstractState(includeReset)
         val stateByActionCount = HashMap<AbstractState, Double>()
         val goalByAbstractState = HashMap<AbstractState, List<Goal>>()
         toExploreAppStates.groupBy { it.window }.forEach { window, appStates ->
@@ -503,8 +504,12 @@ class PhaseTwoStrategy(
             appStates.forEach { appState ->
                 val meaningfulAbstractActions = appState.getUnExercisedActions(currentState, atuaMF)
                     .filter { action->
-                        !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
-                                && ProbabilityBasedPathFinder.disableInputs.intersect(appState.getInputsByAbstractAction(action)).isEmpty()
+                        !ProbabilityBasedPathFinder.disableAbstractActions1.contains(action)
+                                && ProbabilityBasedPathFinder.disableInputs1.intersect(appState.getInputsByAbstractAction(action)).isEmpty()
+                                && ( includeReset || (
+                                !ProbabilityBasedPathFinder.disableAbstractActions2.contains(action)
+                                        && ProbabilityBasedPathFinder.disableInputs2.intersect(appState.getInputsByAbstractAction(action)).isEmpty()
+                                        ))
                                 && !action.isCheckableOrTextInput(appState)
                                 && appState.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
                     }
@@ -537,8 +542,8 @@ class PhaseTwoStrategy(
         return transitionPaths
     }
 
-    override fun getCurrentTargetInputs(currentState: State<*>): Set<Input> {
-        val targetEvents = ArrayList<Input>()
+    override fun getCurrentTargetInputs(currentState: State<*>): Set<Goal> {
+        val targetEvents = ArrayList<Goal>()
 
         val abstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)!!
         if (currentTargetInputs.isEmpty()) {
@@ -546,15 +551,15 @@ class PhaseTwoStrategy(
         }
         if (abstractState.window == targetWindow) {
             val availableInputs = abstractState.getAvailableInputs()
-            targetEvents.addAll(currentTargetInputs.intersect(availableInputs))
+            targetEvents.addAll(currentTargetInputs.intersect(availableInputs).map { Goal(input = it,abstractAction = null) })
             val potentialAbstractActionS = abstractState.abstractTransitions
                 .filter { it.interactions.isEmpty()
                         && it.modelVersion == ModelVersion.BASE
                         && it.modifiedMethods.isNotEmpty()
                         && it.modifiedMethods.keys.any { !atuaMF.statementMF!!.executedMethodsMap.containsKey(it) }}
-                .map { it.abstractAction }
-            val potentialInputs = potentialAbstractActionS.map { abstractState.getInputsByAbstractAction(it)}.flatten().distinct()
-            return targetEvents.union(potentialInputs).distinct().toSet()
+                .map { Goal(input=null,abstractAction= it.abstractAction) }
+
+            return targetEvents.union(potentialAbstractActionS).distinct().toSet()
         }
         return targetEvents.toSet()
     }

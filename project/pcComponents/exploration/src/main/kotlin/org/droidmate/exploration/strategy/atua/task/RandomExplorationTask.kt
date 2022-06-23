@@ -769,7 +769,7 @@ class RandomExplorationTask constructor(
         if ((!currentAbstractState.isRequireRandomExploration() || currentAbstractState.window == lockedWindow)
             && !Helper.isOptionsMenuLayout(currentState)
             && !recentGoToExploreState) {
-            var targetStates = atuaStrategy.phaseStrategy.getUnexhaustedExploredAbstractState().filter {
+            var targetStates = atuaStrategy.phaseStrategy.getUnexhaustedExploredAbstractState(false).filter {
                 it.window == lockedWindow
                         && it != currentAbstractState
             } .toHashSet()

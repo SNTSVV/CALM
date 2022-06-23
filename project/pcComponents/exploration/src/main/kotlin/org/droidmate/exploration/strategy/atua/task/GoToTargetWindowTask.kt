@@ -31,6 +31,9 @@ class GoToTargetWindowTask (
         if (!continueMode) {
             pathConstraints.put(PathConstraint.INCLUDE_RESET, includeResetAction)
             pathConstraints.put(PathConstraint.INCLUDE_LAUNCH, true)
+        } else {
+            pathConstraints.put(PathConstraint.INCLUDE_RESET, false)
+            pathConstraints.put(PathConstraint.INCLUDE_LAUNCH, false)
         }
         pathConstraints.put(PathConstraint.MAXIMUM_DSTG,true)
 

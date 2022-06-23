@@ -16,14 +16,11 @@ import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractTransition
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.PredictedAbstractState
-import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.modelFeatures.helper.Goal
 import org.atua.modelFeatures.helper.PathFindingHelper
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
-import kotlin.math.log10
-import kotlin.math.log2
 
 class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.PathType, val destination: AbstractState) {
     val path: HashMap<Int, AbstractTransition> = HashMap()
@@ -63,7 +60,11 @@ class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.Pa
                /* val effectiveness =  it.source.abstractActionsEffectivenss[it.abstractAction]
                 if (effectiveness != null)
                     finalEffectiveness = finalEffectiveness + effectiveness*/
-            } else if (it.source.guiStates.isEmpty()) {
+            } else if (it.nondeterministic){
+                val reachPb = 1*1.0/it.nondeterministicCount
+                finalReachPb  = finalReachPb * reachPb
+            }
+            else if (it.source.guiStates.isEmpty()) {
                 val reachPb = 0.5
                 finalReachPb  = finalReachPb * reachPb
             }
