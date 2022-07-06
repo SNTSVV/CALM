@@ -12,6 +12,7 @@
 
 package org.atua.modelFeatures.helper
 
+import org.atua.calm.ModelBackwardAdapter
 import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.Rotation
 import org.atua.modelFeatures.dstg.AbstractAction
@@ -290,6 +291,9 @@ class ProbabilityBasedPathFinder {
                     it.dest.guiStates.isNotEmpty() } }) {
                 return
             }
+            if (depth>15) {
+                return
+            }
             val newMinCost = foundPaths.map { it.cost(final = false) }.minOrNull() ?: maxCost
 //            foundPaths.removeIf { it.cost() > newMinCost }
 //            val newMinCost = minCost
@@ -358,7 +362,7 @@ class ProbabilityBasedPathFinder {
                 }
             val traveredAbstractTransitions = traversedEdges.map { it.value.first }
 //            val traveredAbstractTransitions = prevAbstractTransitions
-            val traveredAppStates = traveredAbstractTransitions.map { it.source }
+            val traveredAppStates = traveredAbstractTransitions.map { it.dest }
             val allAvailableActions = source.getAvailableActions()
             val validAbstractActions = allAvailableActions.filter {
                 (it.actionType != AbstractActionType.RESET_APP
@@ -378,23 +382,42 @@ class ProbabilityBasedPathFinder {
                             && absTransition.activated == true
                             && (absTransition.interactions.isNotEmpty()
                                 || (pathContraints[PathConstraint.INCLUDE_WTG]?:false
-                                    || !absTransition.fromWTG  )
+                                    || !absTransition.fromWTG || absTransition.dest is PredictedAbstractState )
                                 /*&& (!absTransition.fromWTG || !source.abstractTransitions.any {
                                 !it.fromWTG && it.abstractAction == abstractAction
                             } )*/)
                             && absTransition.dest.window !is Launcher
-                            && absTransition.dest !is PredictedAbstractState
+//                            && absTransition.dest !is PredictedAbstractState
                 }
-                if (!abstractTransitions.any {
+                if (true || !abstractTransitions.any {
                         it.source == it.dest && it.interactions.isNotEmpty()
                     }) {
+                    val filterAbstractStateStack = Stack<AbstractState>()
+                    if (atuaMF.disablePrevAbstractStates.containsKey(abstractAction)) {
+                        val ignoreAbstractStates = HashSet<AbstractState>()
+                        for (abstractState in abstractStateStack.reversed()) {
+                            if (atuaMF.disablePrevAbstractStates[abstractAction]!!.containsKey(abstractState)) {
+                                ignoreAbstractStates.addAll(atuaMF.disablePrevAbstractStates[abstractAction]!![abstractState]!!)
+                            }
+                        }
+                        for (abstractState in abstractStateStack) {
+                            if (!ignoreAbstractStates.contains(abstractState)) {
+                                filterAbstractStateStack.push(abstractState)
+                            }
+                        }
+                    } else {
+                        filterAbstractStateStack.addAll(abstractStateStack)
+                    }
+
                     var mostPertinentAbstractTransitions = ArrayList<AbstractTransition>()
-                    mostPertinentAbstractTransitions.addAll(abstractTransitions.filter { !it.guardEnabled || !considerGuardedTransitions })
+                    mostPertinentAbstractTransitions.addAll(abstractTransitions.filter {
+                        !it.guardEnabled || !considerGuardedTransitions }.filter{it.dest !is PredictedAbstractState})
                     val guardedAbstractTransitions = abstractTransitions.subtract(mostPertinentAbstractTransitions)
-                    for (abstractState in abstractStateStack.reversed()) {
+                    for (abstractState in filterAbstractStateStack.reversed()) {
                         val selectedGuaredAbstractTransitions = guardedAbstractTransitions.filter{
                             it.dependentAbstractStates.any { s1->
-                                s1.isSimlarAbstractState(abstractState,0.8)
+                                s1 == abstractState || s1.hashCode == abstractState.hashCode
+                                        || ModelBackwardAdapter.instance.backwardEquivalentAbstractStateMapping[abstractState]?.contains(s1)?:false
                                         || (it.fromWTG && s1.window == abstractState.window)
                             }
                         }
@@ -454,7 +477,8 @@ class ProbabilityBasedPathFinder {
                             it.key.isWidgetAction() && it.key.window == abstractAction.window
                                     && it.key.actionType == abstractAction.actionType
                                     && it.key.extra == abstractAction.extra
-                                    && abstractAction.attributeValuationMap?.isDerivedFrom(it.key.attributeValuationMap!!,abstractAction.window)?:false }?.key
+                                    && (abstractAction.attributeValuationMap?.isDerivedFrom(it.key.attributeValuationMap!!,abstractAction.window)?:false
+                                    || (abstractAction.isWidgetAction() && ModelBackwardAdapter.instance.matchingAVMs[abstractAction.attributeValuationMap!!]?.contains(it.key.attributeValuationMap!!)?:false)) }?.key
                     }
                     if (similarAbstractAction!=null
                         && isConsideredForPredicting(similarAbstractAction!!)
@@ -463,7 +487,9 @@ class ProbabilityBasedPathFinder {
                         && (pathType == PathFindingHelper.PathType.WIDGET_AS_TARGET || pathType == PathFindingHelper.PathType.WTG)
                         && (goalsByTarget.isNotEmpty() || windowAsTarget)) {
                         var predictedAction = false
-                        if (traveredAbstractTransitions.any { it.dest is PredictedAbstractState && it.abstractAction == similarAbstractAction }) {
+                        if (traveredAbstractTransitions.any {
+                                it.dest is PredictedAbstractState
+                                        && it.abstractAction == abstractAction }) {
                             predictedAction = true
                         }
 //                    predictedAction = false
@@ -471,7 +497,7 @@ class ProbabilityBasedPathFinder {
                             val exisitingPredictedTransitions =
                                 abstractTransitions.filter { it.dest is PredictedAbstractState }
                             if (exisitingPredictedTransitions.isNotEmpty()) {
-                                if (!traveredAbstractTransitions.any { it.abstractAction == similarAbstractAction && it.dest is PredictedAbstractState }) {
+                                if (!traveredAbstractTransitions.any { it.abstractAction == abstractAction && it.dest is PredictedAbstractState }) {
                                     exisitingPredictedTransitions.forEach {
                                         processAbstractTransition(
                                             abstractTransition = it,
@@ -502,7 +528,7 @@ class ProbabilityBasedPathFinder {
                                     val totalcntByWindow = HashMap<Window, Int>()
                                     val enabledAbstractActions =  atuaMF.dstg.abstractActionEnables[similarAbstractAction]!!
 
-                                    for (abstractState in abstractStateStack.reversed()) {
+                                    for (abstractState in filterAbstractStateStack.reversed()) {
                                         val dependentWindow = abstractState.window
 
                                         if (enabledAbstractActions.contains(dependentWindow)
@@ -556,7 +582,7 @@ class ProbabilityBasedPathFinder {
                                                 val totalCnt = totalcntByWindow[dependentWindow]!!
                                                 val prob =
                                                     reachableAbstractActions[action]!! * 1.0 / totalCnt
-                                                if (prob>=0.1 && !disableActions.contains(action)){
+                                                if (prob>=0.4 && !disableActions.contains(action)){
                                                     if (!action.isWidgetAction()) {
                                                         if (!predictAbstractState.containsActionCount(action,atuaMF))
                                                             predictAbstractState.setActionCount(action, 0,atuaMF)
@@ -589,7 +615,7 @@ class ProbabilityBasedPathFinder {
                                             if (predictAbstractState.attributeValuationMaps.isNotEmpty()) {
                                                 predictAbstractState.updateHashCode()
                                                 val newAbstractTransition = AbstractTransition(
-                                                    abstractAction = similarAbstractAction,
+                                                    abstractAction = abstractAction,
                                                     source = source,
                                                     dest = predictAbstractState,
                                                     isImplicit = true

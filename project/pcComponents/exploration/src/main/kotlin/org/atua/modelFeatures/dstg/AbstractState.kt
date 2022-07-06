@@ -281,7 +281,6 @@ open class AbstractState(
                             modelVersion
                         )
                         associateAbstractActionWithInputs(abstractAction, input!!)
-
                     }
                 }
                 if (abstractAction.actionType == AbstractActionType.LONGCLICK) {
@@ -360,13 +359,16 @@ open class AbstractState(
     }
 
     private fun addAndInitAction(
-        resetAction: AbstractAction,
+        abstractAction: AbstractAction,
         atuaMF: ATUAMF
     ) {
-        availableAbstractActions.add(resetAction)
-        if (!containsActionCount(resetAction, atuaMF)) {
-            atuaMF.actionCount.abstractActionCount.put(resetAction, 0)
-
+        if (!abstractAction.isWidgetAction()) {
+            availableAbstractActions.add(abstractAction)
+            if (!containsActionCount(abstractAction, atuaMF)) {
+                atuaMF.actionCount.abstractActionCount.put(abstractAction, 0)
+            }
+        } else {
+            abstractAction.attributeValuationMap!!.addAndInitCount(abstractAction,atuaMF)
         }
     }
 

@@ -71,6 +71,11 @@ open class Input{
         }
     }
 
+    fun isSimilar(input: Input): Boolean {
+        return input.eventType == this.eventType
+                && ( (input.widget == null && this.widget == null)
+                || (input.widget?.structure == this.widget?.structure && input.widget?.resourceIdName == this.widget?.resourceIdName))
+    }
     fun convertToExplorationActionName(): AbstractActionType{
         return when (eventType){
             EventType.click, EventType.touch -> AbstractActionType.CLICK
@@ -100,7 +105,6 @@ open class Input{
             }
         }
     }
-
 
     override fun toString(): String {
         return "$sourceWindow-->$eventType-->[$widget]"

@@ -286,8 +286,13 @@ object DefaultStrategies: Logging {
 				// by default, if it cannot explore, presses back
 				else -> {
 					if ( !s.widgets.any { it.packageName == eContext.model.config.appName }) {
-						pressbackCnt +=1
-						ExplorationAction.pressBack()
+						if (lastActionType == "RotateUI"
+							|| lastActionType == "MinimizeMaximize") {
+							eContext.resetApp()
+						} else {
+							pressbackCnt += 1
+							ExplorationAction.pressBack()
+						}
 					}
 					else if (s.widgets.all { it.boundaries.equals(s.widgets.first().boundaries) })   {
 						log.debug("Click on Screen")

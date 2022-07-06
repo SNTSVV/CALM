@@ -99,7 +99,7 @@ class PhaseTwoStrategy(
         val witnessedTargetWindows = witnessedTargetInputs.map { it.sourceWindow }.distinct()
         val allTargetWindows = atuaMF.notFullyExercisedTargetInputs.map { it.sourceWindow }.distinct()
         val seenWindows = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it !is VirtualAbstractState
-                && it !is PredictedAbstractState
+                && it.guiStates.isNotEmpty()
                 && it.ignored == false }.map { it.window }.distinct()
         atuaMF.modifiedMethodsByWindow.keys
             .filter{ it !is Launcher
@@ -141,13 +141,16 @@ class PhaseTwoStrategy(
     override fun hasNextAction(currentState: State<*>): Boolean {
         if (atuaMF.lastUpdatedStatementCoverage == 1.0)
             return false
+        val seenWindows = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it !is VirtualAbstractState
+                && it.guiStates.isNotEmpty()
+                && it.ignored == false }.map { it.window }.distinct()
         targetWindowsCount.entries.removeIf { !atuaMF.modifiedMethodsByWindow.containsKey(it.key) }
         phase2TargetEvents.entries.removeIf { !atuaMF.notFullyExercisedTargetInputs.contains(it.key) }
         atuaMF.modifiedMethodsByWindow.keys.filter { it !is Launcher
                 && it !is OptionsMenu
                 && !targetWindowsCount.containsKey(it)}.forEach {window ->
             val abstractStates = AbstractStateManager.INSTANCE.getPotentialAbstractStates().filter { it.window == window }
-            if (abstractStates.isNotEmpty()) {
+            if (abstractStates.isNotEmpty() && seenWindows.contains(window)) {
                 targetWindowsCount.put(window,0)
             }
         }
@@ -400,22 +403,36 @@ class PhaseTwoStrategy(
                 inputScore.put(input,score)
         }
         val targetStates = getTargetAbstractStates(currentNode = currentAbState, window = targetWindow!!)
-        targetStates.removeIf { (it.modelVersion != ModelVersion.BASE && it.guiStates.isEmpty()) || it == currentAbState }
+        targetStates.removeIf { (it.modelVersion != ModelVersion.BASE && it.guiStates.isEmpty())
+                || it == currentAbState || currentTargetInputs.intersect(it.getAvailableInputs()).isEmpty() }
         val targetAbstractStatesPbMap = HashMap<AbstractState, Double>()
         val targetAbstractStateWithGoals = HashMap<AbstractState,List<Goal>> ()
         val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(targetWindow!!)
         if (virtualAbstractState == null)
             return emptyList()
-
+        val goals = ArrayList<Goal>()
+        windowTargetInputs.forEach {
+            goals.add(Goal(input = it,abstractAction = null))
+        }
         val transitionPaths = ArrayList<TransitionPath>()
         if (targetStates.isNotEmpty()) {
             targetStates.forEach {
                 targetAbstractStatesPbMap.put(it,1.0)
-                targetAbstractStateWithGoals.put(it, emptyList())
+                targetAbstractStateWithGoals.put(it, it.getAvailableInputs().intersect(windowTargetInputs).map { Goal(input = it, abstractAction = null) })
             }
-            getPathToStatesBasedOnPathType(pathType, transitionPaths, targetAbstractStatesPbMap, currentAbState, currentState,false,inputScore.isEmpty(),
-                targetAbstractStateWithGoals,maxCost,
-                emptyList(),pathConstraints)
+            getPathToStatesBasedOnPathType(
+                pathType = pathType,
+                transitionPaths = transitionPaths,
+                statesWithScore = targetAbstractStatesPbMap,
+                currentAbstractState = currentAbState,
+                currentState = currentState,
+                shortest = true,
+                windowAsTarget = false,
+                goalByAbstractState = targetAbstractStateWithGoals,
+                maxCost = maxCost,
+                pathConstraints = pathConstraints,
+                abandonedAppStates = emptyList()
+            )
             if (transitionPaths.isNotEmpty())
                 return transitionPaths
 
@@ -425,14 +442,33 @@ class PhaseTwoStrategy(
         targetAbstractStatesPbMap.put(virtualAbstractState,1.0)
         targetAbstractStateWithGoals.put(virtualAbstractState,inputScore.keys.map { Goal(input = it,abstractAction = null) })
 
-
-        getPathToStatesBasedOnPathType(pathType, transitionPaths, targetAbstractStatesPbMap, currentAbState, currentState,false,inputScore.isEmpty(),
-           targetAbstractStateWithGoals,maxCost,
-            emptyList(),pathConstraints)
+        getPathToStatesBasedOnPathType(
+            pathType = pathType,
+            transitionPaths = transitionPaths,
+            statesWithScore = targetAbstractStatesPbMap,
+            currentAbstractState = currentAbState,
+            currentState = currentState,
+            shortest = true,
+            windowAsTarget = windowTargetInputs.isEmpty(),
+            goalByAbstractState = targetAbstractStateWithGoals,
+            maxCost = maxCost,
+            pathConstraints = pathConstraints,
+            abandonedAppStates = emptyList()
+        )
         if (transitionPaths.isEmpty()) {
-            getPathToStatesBasedOnPathType(pathType, transitionPaths, targetAbstractStatesPbMap, currentAbState, currentState,false,true,
-                targetAbstractStateWithGoals,maxCost,
-                emptyList(),pathConstraints)
+            getPathToStatesBasedOnPathType(
+                pathType = pathType,
+                transitionPaths = transitionPaths,
+                statesWithScore = targetAbstractStatesPbMap,
+                currentAbstractState = currentAbState,
+                currentState = currentState,
+                shortest = true,
+                windowAsTarget = true,
+                goalByAbstractState = targetAbstractStateWithGoals,
+                maxCost = maxCost,
+                pathConstraints = pathConstraints,
+                abandonedAppStates = emptyList()
+            )
         }
         return transitionPaths
     }
@@ -450,7 +486,7 @@ class PhaseTwoStrategy(
                         && it.attributeValuationMaps.isNotEmpty()
 
             }
-
+        return ArrayList(targetAbstractStates)
         if (targetAbstractStates.isNotEmpty()) {
             //Get all AbstractState contain target events
             targetAbstractStates
@@ -1404,26 +1440,12 @@ class PhaseTwoStrategy(
 
                 }
             }*/
+            val seenWindows = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it !is VirtualAbstractState
+                    && it.guiStates.isNotEmpty()
+                    && it.ignored == false }.map { it.window }.distinct()
             val leastTriedWindowScore = HashMap(windowScores.filter {
-                val window = it.key
-                val virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window)!!
-                val statesWithScore = HashMap<AbstractState,Double>()
-                statesWithScore.put(virtualAbstractState,1.0)
-                val transitionPath = ArrayList<TransitionPath>()
-                getPathToStatesBasedOnPathType(
-                    currentState = currentState,
-                    pathType = PathFindingHelper.PathType.WIDGET_AS_TARGET,
-                    statesWithScore = statesWithScore,
-                    goalByAbstractState = emptyMap(),
-                    maxCost = 25.0*scaleFactor,
-                    windowAsTarget = true,
-                    shortest = true,
-                    transitionPaths = transitionPath,
-                    currentAbstractState = currentAbstractState,
-                    abandonedAppStates = emptyList(),
-                    pathConstraints = pathConstraints
-                )
-                transitionPath.isNotEmpty()
+                seenWindows.contains(it.key)
+                        && !ProbabilityBasedPathFinder.disableWindows1.contains(it.key)
             })
 
             leastTriedWindowScore.keys.forEach {

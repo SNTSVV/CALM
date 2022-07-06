@@ -98,7 +98,7 @@ open class ChildrenIncludedReducer(
         var nestedChildrenStructure: String = ""
         var nestedChildrenText: String = ""
         widget.childHashes.forEach { childHash ->
-            val childWidget = guiState.widgets.find { it.idHash == childHash && it.isVisible }
+            val childWidget = guiState.widgets.find { it.idHash == childHash && it.metaInfo.contains("visibleToUser = true") }
             if (childWidget != null) {
                 val nestedChildren = childReduce(childWidget,guiState,isOptionsMenu,guiTreeRectangle, rotation, autAutMF, tempChildWidgetAttributePaths)
                 nestedChildrenStructure += nestedChildren.first
@@ -117,7 +117,7 @@ open class ChildrenIncludedReducer(
     fun siblingReduce(widget: Widget, guiState: State<*>, isOptionsMenu:Boolean, guiTreeRectangle: Rectangle, rotation: org.atua.modelFeatures.Rotation, autAutMF: org.atua.modelFeatures.ATUAMF, tempChildWidgetAttributePaths: HashMap<Widget,AttributePath>): String {
         var siblingInfo = ""
         widget.childHashes.forEach { childHash ->
-            val childWidget = guiState.widgets.find { it.idHash == childHash}
+            val childWidget = guiState.widgets.find { it.idHash == childHash && it.metaInfo.contains("visibleToUser = true")}
             if (childWidget != null) {
                 val info = childReduce(childWidget,guiState,isOptionsMenu,guiTreeRectangle, rotation, autAutMF, tempChildWidgetAttributePaths)
                 siblingInfo += info.second

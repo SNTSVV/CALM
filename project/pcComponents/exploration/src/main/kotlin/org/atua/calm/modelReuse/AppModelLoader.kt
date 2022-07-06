@@ -23,12 +23,14 @@ import org.atua.modelFeatures.dstg.AbstractTransition
 import org.atua.modelFeatures.dstg.AttributeType
 import org.atua.modelFeatures.dstg.AttributeValuationMap
 import org.atua.modelFeatures.dstg.Cardinality
+import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.modelFeatures.dstg.reducer.AbstractionFunction2
 import org.atua.modelFeatures.dstg.reducer.DecisionNode2
 import org.atua.modelFeatures.ewtg.EWTGWidget
 import org.atua.modelFeatures.ewtg.EventType
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.Input
+import org.atua.modelFeatures.ewtg.ScrollDirection
 import org.atua.modelFeatures.ewtg.WindowManager
 import org.atua.modelFeatures.ewtg.WindowTransition
 import org.atua.modelFeatures.ewtg.window.Activity
@@ -517,7 +519,8 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                         val newUUID = updatedAbstractStateId.get(dependentAbstractStateId)
                         AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.abstractStateId == newUUID }
                     } else {
-                        AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.abstractStateId == dependentAbstractStateId }
+                        AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.abstractStateId == dependentAbstractStateId &&
+                                (it !is VirtualAbstractState || it.window is Launcher)}
                     }
                 }
                 if (dependentAbstractState != null)
@@ -1010,11 +1013,12 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             val clickable = attributeValuationSetRawDatum[9]
             val longClickable = attributeValuationSetRawDatum[10]
             val scrollable = attributeValuationSetRawDatum[11]
-            val checked = attributeValuationSetRawDatum[12]
-            val isLeaf = attributeValuationSetRawDatum[13]
-            val childrenStructure = attributeValuationSetRawDatum[14]
-            val childrenText = attributeValuationSetRawDatum[15]
-            val siblingInfo = attributeValuationSetRawDatum[16]
+            val scrollDirection = attributeValuationSetRawDatum[12]
+            val checked = attributeValuationSetRawDatum[13]
+            val isLeaf = attributeValuationSetRawDatum[14]
+            val childrenStructure = attributeValuationSetRawDatum[15]
+            val childrenText = attributeValuationSetRawDatum[16]
+            val siblingInfo = attributeValuationSetRawDatum[17]
 
             addAttributeIfNotNull(AttributeType.className, className, attributes)
             addAttributeIfNotNull(AttributeType.resourceId, resourceId, attributes)
@@ -1027,6 +1031,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             addAttributeIfNotNull(AttributeType.clickable, clickable, attributes)
             addAttributeIfNotNull(AttributeType.longClickable, longClickable, attributes)
             addAttributeIfNotNull(AttributeType.scrollable, scrollable, attributes)
+
             addAttributeIfNotNull(AttributeType.checked, checked, attributes)
             addAttributeIfNotNull(AttributeType.isLeaf, isLeaf, attributes)
             addAttributeIfNotNull(AttributeType.childrenStructure, childrenStructure, attributes)
@@ -1042,7 +1047,27 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             attributes: HashMap<AttributeType, String>
         ) {
             if (attributeValue != "null") {
-                attributes.put(attributeType, attributeValue)
+                if (attributeType == AttributeType.scrollDirection) {
+                    if (attributeValue.toIntOrNull() == null) {
+                        // make it compatible with old data
+                        val scrollDirectionInt =
+                            when (attributeValue) {
+                                "HORIZONTAL" -> ScrollDirection.LEFT.flagValue or ScrollDirection.RIGHT.flagValue
+                                "VERTICAL" -> ScrollDirection.UP.flagValue or ScrollDirection.DOWN.flagValue
+                                "UP" -> ScrollDirection.UP.flagValue
+                                "DOWN" -> ScrollDirection.DOWN.flagValue
+                                "LEFT" -> ScrollDirection.LEFT.flagValue
+                                "RIGHT" -> ScrollDirection.RIGHT.flagValue
+                                "UNKNOWN" -> ScrollDirection.LEFT.flagValue or ScrollDirection.RIGHT.flagValue or ScrollDirection.UP.flagValue or ScrollDirection.DOWN.flagValue
+                                else -> 0
+                            }
+                        attributes.put(attributeType, scrollDirectionInt.toString())
+                    } else {
+                        attributes.put(attributeType, attributeValue)
+                    }
+
+                } else
+                    attributes.put(attributeType, attributeValue)
             }
         }
 

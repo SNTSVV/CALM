@@ -12,6 +12,7 @@ import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractTransition
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
+import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.modelFeatures.ewtg.EventType
 import org.atua.modelFeatures.helper.ProbabilityDistribution
 import org.atua.modelFeatures.ewtg.Helper
@@ -80,7 +81,10 @@ class PhaseThreeStrategy(
             if (it.witnessed)
                 allTargetInputs.put(it,0)
         }
-        atuaMF.modifiedMethodsByWindow.keys.filter { it !is Launcher }.forEach { window ->
+        val seenWindows = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it !is VirtualAbstractState
+                && it.guiStates.isNotEmpty()
+                && it.ignored == false }.map { it.window }.distinct()
+        atuaMF.modifiedMethodsByWindow.keys.filter { it !is Launcher && seenWindows.contains(it) }.forEach { window ->
             val abstractStates = AbstractStateManager.INSTANCE.getPotentialAbstractStates().filter { it.window == window }
             if (abstractStates.isNotEmpty()) {
                 /*targetWindowsCount.put(window, 0)*/
@@ -124,8 +128,11 @@ class PhaseThreeStrategy(
         if (atuaMF.lastUpdatedStatementCoverage == 1.0) {
             return false
         }
+        val seenWindows = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it !is VirtualAbstractState
+                && it.guiStates.isNotEmpty()
+                && it.ignored == false }.map { it.window }.distinct()
         atuaMF.modifiedMethodsByWindow.keys.filter { it !is Launcher
-                && !targetWindowsCount.containsKey(it)}.forEach {window ->
+                && !targetWindowsCount.containsKey(it) && seenWindows.contains(it)}.forEach {window ->
             val abstractStates = AbstractStateManager.INSTANCE.getPotentialAbstractStates().filter { it.window == window }
             if (abstractStates.isNotEmpty()) {
                 val targetInputs = atuaMF.notFullyExercisedTargetInputs.filter {it.sourceWindow == window}
@@ -968,7 +975,14 @@ class PhaseThreeStrategy(
 
     private fun selectLeastTriedTargetWindow(maxTry: Int, numTried: Int, currentState: State<*>): Boolean {
 //        var leastExercise = targetWindowsCount.values.min()
-        var leastTriedWindows = targetWindowsCount.filter { windowScores.containsKey(it.key) }.map { Pair<Window, Int>(first = it.key, second = it.value) }
+        val seenWindows = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it !is VirtualAbstractState
+                && it.guiStates.isNotEmpty()
+                && it.ignored == false }.map { it.window }.distinct()
+
+        var leastTriedWindows = targetWindowsCount.filter {
+            windowScores.containsKey(it.key)
+                    && seenWindows.contains(it.key)
+                    && !ProbabilityBasedPathFinder.disableWindows1.contains(it.key)}.map { Pair<Window, Int>(first = it.key, second = it.value) }
 
         /*if (leastTriedWindows.isEmpty()) {
             leastTriedWindows = targetWindowsCount.map { Pair<Window, Int>(first = it.key, second = it.value) }.filter { it.second == leastExercise }
@@ -1101,8 +1115,15 @@ class PhaseThreeStrategy(
             maxTry
         }
         val reachableWindows = ArrayList<Window>()
-        val windows = WindowManager.instance.allMeaningWindows.toList()
-        getReachableWindows(windows, currentAppState, currentState, reachableWindows)
+        val seenWindows = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it !is VirtualAbstractState
+                && it.guiStates.isNotEmpty()
+                && it.ignored == false }.map { it.window }.distinct()
+        val windows = WindowManager.instance.allMeaningWindows.toList().filter {
+            !ProbabilityBasedPathFinder.disableWindows1.contains(it)
+                    && seenWindows.contains(it)
+        }
+//        getReachableWindows(windows, currentAppState, currentState, reachableWindows)
+        reachableWindows.addAll(windows)
         if (targetEvent!=null
                 && eventWindowCorrelation.containsKey(targetEvent!!)
                 && eventWindowCorrelation[targetEvent!!]!!.isNotEmpty()) {

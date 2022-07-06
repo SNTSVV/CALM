@@ -80,6 +80,7 @@ import org.droidmate.exploration.modelFeatures.explorationWatchers.CrashListMF
 import org.droidmate.exploration.modelFeatures.graph.Edge
 import org.droidmate.exploration.modelFeatures.graph.StateGraphMF
 import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF
+import org.droidmate.exploration.strategy.atua.task.FailReachingLog
 import org.droidmate.exploration.strategy.atua.task.GoToAnotherWindowTask
 import org.droidmate.explorationModel.ExplorationTrace
 import org.droidmate.explorationModel.emptyUUID
@@ -207,6 +208,7 @@ class ATUAMF(
     val inputWindowCorrelation = HashMap<Input, HashMap<Window, Double>>()
     val untriggeredTargetHiddenHandlers = hashSetOf<String>()
 
+    val disablePrevAbstractStates = HashMap<AbstractAction, HashMap<AbstractState, HashSet<AbstractState>>>()
 
     private var phase1MethodCoverage: Double = 0.0
     private var phase2MethodCoverage: Double = 0.0
@@ -294,12 +296,17 @@ class ATUAMF(
                 topCallerToModifiedMethods[it]!!.add(entry.key)
             }
         }
-
+        var nondeterminismCnt = 0
         if (reuseBaseModel) {
             org.atua.modelFeatures.ATUAMF.Companion.log.info("Loading base model...")
             loadBaseModel()
             AbstractStateManager.INSTANCE.initVirtualAbstractStates()
-
+            dstg.edges().forEach {
+                if (it.label.nondeterministic) {
+                    it.label.activated = false
+                    nondeterminismCnt++
+                }
+            }
         }
 
         postProcessingTargets()
@@ -1006,7 +1013,7 @@ class ATUAMF(
                             lastExecutedTransition!!.dest,
                             input
                         )
-                        AbstractStateManager.INSTANCE.updateEWTGBasedAbstractTranstions(windowTransition)
+                        AbstractStateManager.INSTANCE.updateEWTGAbstractTranstions(windowTransition)
                     }
 
                 }
@@ -2035,6 +2042,7 @@ class ATUAMF(
                     && lastExecutedTransition!!.abstractAction.actionType != AbstractActionType.RANDOM_KEYBOARD
                     && lastInteractions.size == 1
                 ) {
+                    val beforeAT = lastExecutedTransition
                     org.atua.modelFeatures.ATUAMF.Companion.log.info("Refining Abstract Interaction.")
                     prevAbstractStateRefinement = AbstractStateManager.INSTANCE.refineModel(
                         lastInteractions.single(),
@@ -2044,6 +2052,7 @@ class ATUAMF(
                     if (prevAbstractStateRefinement > 0) {
                         recomputeWindowStack()
                     }
+                    lastExecutedTransition = dstg.edges().find { it.label.interactions.intersect(lastInteractions).isNotEmpty() }?.label
                     org.atua.modelFeatures.ATUAMF.Companion.log.info("Refining Abstract Interaction. - DONE")
                 } else {
                     org.atua.modelFeatures.ATUAMF.Companion.log.debug("Return to a previous state. Do not need refine model.")
@@ -2928,6 +2937,7 @@ class ATUAMF(
         }
         produceTargetIdentificationReport(context)
         produceStateUIDFirstReachingReport(context)
+        produceStateReachingFailureReport(context)
     }
 
     private fun produceStateUIDFirstReachingReport(context: ExplorationContext<*, *, *>) {
@@ -2952,6 +2962,16 @@ class ATUAMF(
                 "\n- Absolute path: ${outputFile.toAbsolutePath().fileName}"
         )
         TargetInputClassification.INSTANCE.writeReport(outputFile.toString())
+        log.info("Finished writing report in ${outputFile.fileName}")
+    }
+
+    fun produceStateReachingFailureReport(context: ExplorationContext<*,*,*>) {
+        val outputFile = context.model.config.baseDir.resolve("stateReachingFailureReport.txt")
+        log.info("Prepare writing target indentification report file: " +
+                "\n- File name: ${outputFile.fileName}" +
+                "\n- Absolute path: ${outputFile.toAbsolutePath().fileName}"
+        )
+        FailReachingLog.INSTANCE.writeReport(outputFile.toString())
         log.info("Finished writing report in ${outputFile.fileName}")
     }
 

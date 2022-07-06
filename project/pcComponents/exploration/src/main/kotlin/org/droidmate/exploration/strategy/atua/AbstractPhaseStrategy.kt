@@ -73,7 +73,8 @@ abstract class AbstractPhaseStrategy(
                         || (!includeReset && ProbabilityBasedPathFinder.disableWindows2.contains(it.window))
                         || it is VirtualAbstractState
                         || it.ignored
-                        || (it.window is Dialog && (it.window as Dialog).ownerActivitys.all { it is OutOfApp })
+//                        || (it.window is Dialog && (it.window as Dialog).ownerActivitys.all { it is OutOfApp })
+                        || it.window is Dialog
                         || it.isRequestRuntimePermissionDialogBox
                         || it.isAppHasStoppedDialogBox
                         || it.attributeValuationMaps.isEmpty()
@@ -113,7 +114,7 @@ abstract class AbstractPhaseStrategy(
                 it is VirtualAbstractState
             }
             var unexercisedInputs = ArrayList<Goal>()
-            val canExploreAppStatesWithAbstractActions1 = targetStates.associateWith {  it.getUnExercisedActions(currentState, atuaMF)
+            val canExploreAppStatesWithAbstractActions1 = targetStates.associateWith {  it.getUnExercisedActions(null, atuaMF)
                 .filter { action ->
                     !action.isCheckableOrTextInput(it)
                             && it.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }

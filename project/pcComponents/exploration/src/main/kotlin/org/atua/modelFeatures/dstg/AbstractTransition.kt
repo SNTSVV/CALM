@@ -175,7 +175,7 @@ class AbstractTransition(
         ) {
             val previousSameWindowAbstractStates: List<AbstractState> =
                 AbstractStateManager.INSTANCE.getPrevSameWindowAbstractState(currentState, traceId, transitionId, true)
-                    .subtract(listOf(this.source)).toList()
+                    /*.subtract(listOf(this.source))*/.toList()
             var foundPreviousAbstractStates = false
             for (prevAppState in previousSameWindowAbstractStates) {
                 if (!AbstractStateManager.INSTANCE.goBackAbstractActions.contains(this.abstractAction)) {
@@ -192,6 +192,10 @@ class AbstractTransition(
 
                     this.guardEnabled = true
                     this.dependentAbstractStates.add(prevAppState)
+                    atuaMF.disablePrevAbstractStates.putIfAbsent(abstractAction, HashMap())
+                    atuaMF.disablePrevAbstractStates[abstractAction]!!.putIfAbsent(prevAppState, HashSet())
+                    atuaMF.disablePrevAbstractStates[abstractAction]!![prevAppState]!!.addAll(previousSameWindowAbstractStates.subtract(
+                        listOf(prevAppState)))
                     foundPreviousAbstractStates = true
                     break
                 }
@@ -205,6 +209,10 @@ class AbstractTransition(
 
                     this.guardEnabled = true
                     this.dependentAbstractStates.add(maxScores.key)
+                    atuaMF.disablePrevAbstractStates.putIfAbsent(abstractAction, HashMap())
+                    atuaMF.disablePrevAbstractStates[abstractAction]!!.putIfAbsent(maxScores.key, HashSet())
+                    atuaMF.disablePrevAbstractStates[abstractAction]!![maxScores.key]!!.addAll(previousSameWindowAbstractStates.subtract(
+                        listOf(maxScores.key)))
                 }
             }
            /* if (currentAbstractState.window == p_prevWindowAbstractState.window) {

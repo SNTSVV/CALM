@@ -12,8 +12,10 @@
 
 package org.atua.modelFeatures.dstg
 
+import org.atua.calm.ModelBackwardAdapter
 import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.ewtg.Helper
+import org.atua.modelFeatures.ewtg.window.Dialog
 import org.atua.modelFeatures.ewtg.window.Launcher
 import org.atua.modelFeatures.ewtg.window.OutOfApp
 import org.atua.modelFeatures.ewtg.window.Window
@@ -38,7 +40,28 @@ class AbstractAction private constructor (
             return this.hashCode() == other.hashCode()
         }*/
     var meaningfulScore = 50
+    fun isSimilar(action: AbstractAction) : Boolean {
+        return action.actionType == this.actionType
+                && ( (!action.isWidgetAction() && !this.isWidgetAction())
+                    || action.attributeValuationMap?.fullAttributeValuationMap == this.attributeValuationMap?.fullAttributeValuationMap)
+                && (action.extra == this.extra)
+    }
 
+    fun isEquivalent(abstractAction: AbstractAction): Boolean {
+        return this == abstractAction
+                || (
+                this.actionType == abstractAction.actionType
+                && this.extra == abstractAction.extra
+                        && (this.window == abstractAction.window || (this.window is Dialog && abstractAction.window is Dialog))
+                && this.attributeValuationMap != null
+                && abstractAction.attributeValuationMap != null
+                && (abstractAction.attributeValuationMap.isDerivedFrom(this.attributeValuationMap,this.window)
+                        || this.attributeValuationMap.isDerivedFrom(abstractAction.attributeValuationMap,this.window)
+                || ModelBackwardAdapter.instance.matchingAVMs[this.attributeValuationMap]?.contains(abstractAction.attributeValuationMap)?:false
+                        || ModelBackwardAdapter.instance.matchingAVMs[abstractAction.attributeValuationMap]?.contains(this.attributeValuationMap)?:false
+                || abstractAction.attributeValuationMap?.fullAttributeValuationMap == this.attributeValuationMap?.fullAttributeValuationMap
+                ))
+    }
     fun isItemAction(): Boolean {
         return when(actionType) {
             AbstractActionType.ITEM_CLICK,AbstractActionType.ITEM_LONGCLICK,AbstractActionType.ITEM_SELECTED -> true
@@ -83,8 +106,11 @@ class AbstractAction private constructor (
         return actionScore*meaningfulScore
     }
 
+
     fun validateSwipeAction(abstractAction: AbstractAction, guiState: State<*>): Boolean {
         if (!abstractAction.isWidgetAction() || abstractAction.actionType != AbstractActionType.SWIPE)
+            return true
+        if (abstractAction.isWebViewAction())
             return true
         val widgets = abstractAction.attributeValuationMap!!.getGUIWidgets(guiState,window)
         widgets.forEach {w->
@@ -257,7 +283,6 @@ class AbstractAction private constructor (
                     window = window
                 )
                 abstractActionsByWindow[window]!!.add(abstractAction)
-
             } else {
                 abstractAction = availableAction
             }

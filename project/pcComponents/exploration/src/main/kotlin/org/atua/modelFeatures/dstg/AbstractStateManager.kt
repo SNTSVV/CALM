@@ -47,6 +47,8 @@ import java.nio.file.Path
 import java.time.LocalDateTime
 import java.util.*
 import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
+import kotlin.collections.HashSet
 import kotlin.system.measureNanoTime
 import kotlin.system.measureTimeMillis
 
@@ -972,7 +974,8 @@ class AbstractStateManager() {
             guiState.widgets.find { !it.isKeyboard }?.metaInfo?.find { it.contains("windowId") }?.split(" = ")?.get(1)
         if (windowId != null) {
             val sameWindowIdWindow =
-                WindowManager.instance.updatedModelWindows.find { it.windowRuntimeIds.contains(windowId) }
+                WindowManager.instance.updatedModelWindows.find { it.windowRuntimeIds.contains(windowId)
+                        && (it !is Activity || it.classType == activity)}
             if (sameWindowIdWindow != null) {
                 bestMatchedNode = sameWindowIdWindow
             }
@@ -1470,7 +1473,7 @@ class AbstractStateManager() {
         similarATFromActionAS.add(abstractTransition)
         val distinctAbstractInteractions2 = similarATFromActionAS.groupBy { it.dest }
         if (distinctAbstractInteractions2.size > 1) {
-            var lv1Attributes: Set<Map<AttributeType, String>>? = null
+           /* var lv1Attributes: Set<Map<AttributeType, String>>? = null
             var valid = true
             // get the most 2 recent abstract transitions
             // if the destination is relatively similar, the non-determination
@@ -1485,8 +1488,8 @@ class AbstractStateManager() {
                 if (!isSimilar) {
                     valid = false
                 }
-            }
-            if (!valid && abstractTransition.abstractAction.isWebViewAction()) {
+            }*/
+            if (abstractTransition.abstractAction.isWebViewAction()) {
                 similarAbstractTransitions.forEach {
                     if (it != abstractTransition) {
                         it.activated = false
@@ -1494,7 +1497,7 @@ class AbstractStateManager() {
                 }
                 return true
             }
-            return valid
+            return false
         }
 
         /*val abstractStates = arrayListOf(actionAbstractState)
@@ -1835,6 +1838,7 @@ class AbstractStateManager() {
                 } else {
 //                    val isTarget = oldAbstractState.targetActions.contains(oldAbstractEdge.label.abstractAction)
                     val interactions = oldAbstractEdge.label.interactions.toList()
+                    oldAbstractEdge.label.interactions.clear()
                     interactions.forEach { interaction ->
                         if (processedGUIInteractions.contains(interaction)) {
                             //log.debug("Processed interaction in refining model")
@@ -1877,6 +1881,7 @@ class AbstractStateManager() {
                 } else {
 //                    val isTarget = oldAbstractState.targetActions.contains(oldAbstractEdge.label.abstractAction)
                     val interactions = oldAbstractEdge.label.interactions.toList()
+                    oldAbstractEdge.label.interactions.clear()
                     interactions.forEach { interaction ->
                         if (processedGUIInteractions.contains(interaction)) {
                             // log.debug("Processed interaction in refining model")
@@ -2635,6 +2640,14 @@ class AbstractStateManager() {
             fromWTG = false
         )
         atuaMF.dstg.add(newAbstractionTransition.source, newAbstractionTransition.dest, newAbstractionTransition)
+        newAbstractionTransition.dependentAbstractStates.add(keyboardClosedAbstractState)
+
+        atuaMF.disablePrevAbstractStates.putIfAbsent(abstractAction, HashMap())
+        atuaMF.disablePrevAbstractStates[abstractAction]!!.putIfAbsent(keyboardClosedAbstractState, HashSet())
+        atuaMF.disablePrevAbstractStates[abstractAction]!![keyboardClosedAbstractState]!!.addAll(atuaMF.getAbstractStateStack().subtract(
+            listOf(keyboardClosedAbstractState)))
+
+        newAbstractionTransition.guardEnabled = true
     }
 
     private fun consideredForImplicitAbstractStateAction(abstractAction: AbstractAction): Boolean {
@@ -3127,6 +3140,14 @@ class AbstractStateManager() {
                 dest = prevAbstractState
             )
             atuaMF.dstg.add(currentAbstractState, prevAbstractState, inverseAbstractInteraction)
+            inverseAbstractInteraction.dependentAbstractStates.add(prevAbstractState)
+
+            atuaMF.disablePrevAbstractStates.putIfAbsent(inverseAbstractAction, HashMap())
+            atuaMF.disablePrevAbstractStates[inverseAbstractAction]!!.putIfAbsent(prevAbstractState, HashSet())
+            atuaMF.disablePrevAbstractStates[inverseAbstractAction]!![prevAbstractState]!!.addAll(atuaMF.getAbstractStateStack().subtract(
+                listOf(prevAbstractState)))
+
+            inverseAbstractInteraction.guardEnabled = true
             //currentAbstractState.increaseActionCount(inverseAbstractAction)
         }
     }
@@ -3161,6 +3182,14 @@ class AbstractStateManager() {
                 dest = prevAbstractState
             )
             atuaMF.dstg.add(currentAbstractState, prevAbstractState, inverseAbstractInteraction)
+            inverseAbstractInteraction.dependentAbstractStates.add(prevAbstractState)
+
+            atuaMF.disablePrevAbstractStates.putIfAbsent(inverseAbstractAction, HashMap())
+            atuaMF.disablePrevAbstractStates[inverseAbstractAction]!!.putIfAbsent(prevAbstractState, HashSet())
+            atuaMF.disablePrevAbstractStates[inverseAbstractAction]!![prevAbstractState]!!.addAll(atuaMF.getAbstractStateStack().subtract(
+                listOf(prevAbstractState)))
+
+            inverseAbstractInteraction.guardEnabled = true
 //            currentAbstractState.increaseActionCount2(inverseAbstractAction, false)
         }
     }
@@ -3203,6 +3232,12 @@ class AbstractStateManager() {
                     dest = backAbstractState!!
                 )
                 backAbstractInteraction.dependentAbstractStates.add(backAbstractState)
+
+                atuaMF.disablePrevAbstractStates.putIfAbsent(backAbstractAction, HashMap())
+                atuaMF.disablePrevAbstractStates[backAbstractAction]!!.putIfAbsent(backAbstractState, HashSet())
+                atuaMF.disablePrevAbstractStates[backAbstractAction]!![backAbstractState]!!.addAll(atuaMF.getAbstractStateStack().subtract(
+                    listOf(backAbstractState)))
+
                 backAbstractInteraction.guardEnabled = true
                 atuaMF.dstg.add(currentAbstractState, backAbstractState, backAbstractInteraction)
                 // add edge condition
@@ -3210,6 +3245,11 @@ class AbstractStateManager() {
             } else {
                 if (!existingAT.dependentAbstractStates.contains(backAbstractState)) {
                     existingAT.dependentAbstractStates.add(backAbstractState)
+                    atuaMF.disablePrevAbstractStates.putIfAbsent(backAbstractAction, HashMap())
+                    atuaMF.disablePrevAbstractStates[backAbstractAction]!!.putIfAbsent(backAbstractState, HashSet())
+                    atuaMF.disablePrevAbstractStates[backAbstractAction]!![backAbstractState]!!.addAll(atuaMF.getAbstractStateStack().subtract(
+                        listOf(backAbstractState)))
+
                 }
                 existingAT.guardEnabled = true
             }
@@ -3576,7 +3616,7 @@ class AbstractStateManager() {
         return prevSameWindowAbstractStates
     }
 
-    fun updateEWTGBasedAbstractTranstions(windowTransition: WindowTransition) {
+    fun updateEWTGAbstractTranstions(windowTransition: WindowTransition) {
         val sourceAbstractStates = ABSTRACT_STATES.filter { it !is VirtualAbstractState && it !is PredictedAbstractState
                 && it.window == windowTransition.source}
         val destWindow = windowTransition.destination!!

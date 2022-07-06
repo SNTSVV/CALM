@@ -509,7 +509,8 @@ class RandomExplorationTask constructor(
             if (!isPureRandom && !recentGoToExploreState
                 && canGoToUnexploredStates(
                     currentAbstractState,
-                    currentState
+                    currentState,
+                    false
                 )
             ) {
                 atuaMF.isRandomExploration = false
@@ -518,7 +519,7 @@ class RandomExplorationTask constructor(
         }
 
         if (randomAction == null && currentAbstractState.isRequireRandomExploration()) {
-            randomAction = trySwipeAction(currentAbstractState, randomAction)
+//            randomAction = trySwipeAction(currentAbstractState, randomAction)
             val filter = currentAbstractState.getAvailableActions(currentState)
                 .filter {
                     it.isWidgetAction()
@@ -550,10 +551,24 @@ class RandomExplorationTask constructor(
         }*/
 
 
-        if (randomAction == null) {
+      /*  if (randomAction == null) {
             // Try swipe action
             randomAction = trySwipeAction(currentAbstractState, randomAction)
+        }*/
+
+        if (randomAction == null) {
+            if (!recentGoToExploreState
+                && canGoToUnexploredStates(
+                    currentAbstractState,
+                    currentState,
+                    true
+                )
+            ) {
+                atuaMF.isRandomExploration = false
+                return goToLockedWindowTask!!.chooseAction(currentState)
+            }
         }
+
 /*        if (randomAction == null) {
             val unexercisedWidgetActionsInAppState = currentAbstractState.getAvailableActions(currentState).filter {
                 !it.isCheckableOrTextInput(currentAbstractState) && it.isWidgetAction() && it.actionType != AbstractActionType.SWIPE
@@ -710,7 +725,7 @@ class RandomExplorationTask constructor(
                 it.abstractAction == action &&
                         (it.dest !is VirtualAbstractState
                                 && it.dest !is PredictedAbstractState)
-                        && it.interactions.isNotEmpty()
+//                        && it.interactions.isNotEmpty()
             } && action.meaningfulScore > 0
         }
         if (unexercisedActionsInCurrentState.isNotEmpty()) {
@@ -764,7 +779,8 @@ class RandomExplorationTask constructor(
 
     private fun canGoToUnexploredStates(
         currentAbstractState: AbstractState,
-        currentState: State<*>
+        currentState: State<*>,
+        includeReset: Boolean
     ): Boolean {
         if ((!currentAbstractState.isRequireRandomExploration() || currentAbstractState.window == lockedWindow)
             && !Helper.isOptionsMenuLayout(currentState)
@@ -794,16 +810,22 @@ class RandomExplorationTask constructor(
                         goToLockedWindowTask!!.initialize(currentState)
                         return true
                     }
-                    /*if (goToLockedWindowTask!!.possiblePaths)
-                    if (goToLockedWindowTask!!.possiblePaths.any { it.cost()<=5*atuaStrategy.scaleFactor }) {
-                    } else {
-                        log.debug("Unexercised inputs are too far.")
-                    }*/
-                    /*if (goToLockedWindowTask!!.possiblePaths.isNotEmpty()) {
+
+                }
+                if (includeReset) {
+                    if (goToLockedWindowTask!!.isAvailable(
+                            currentState = currentState,
+                            destWindow = currentAbstractState.window,
+                            includePressback = true,
+                            includeResetApp = true,
+                            isExploration = true,
+                            maxCost = 25.0
+                        )
+                    ) {
                         recentGoToExploreState = true
                         goToLockedWindowTask!!.initialize(currentState)
                         return true
-                    }*/
+                    }
                 }
             }
         }

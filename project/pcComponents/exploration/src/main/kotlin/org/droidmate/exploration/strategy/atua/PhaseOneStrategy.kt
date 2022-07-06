@@ -140,11 +140,13 @@ class PhaseOneStrategy(
     override fun registerTriggeredInputs(abstractAction: AbstractAction, guiState: State<*>) {
         val abstractState = AbstractStateManager.INSTANCE.getAbstractState(guiState)!!
         //val abstractInteractions = regressionTestingMF.abstractTransitionGraph.edges(abstractState).filter { it.label.abstractAction.equals(abstractAction) }.map { it.label }
-        phaseTargetAbstractActions.remove(abstractAction)
-        val inputs = abstractState.getInputsByAbstractAction(abstractAction)
-        if (inputs.isEmpty() || phaseTargetInputs.intersect(inputs).isEmpty()) {
-            log.warn("No input is mapped with this abstract action")
+        phaseTargetAbstractActions.removeIf {
+            it.isEquivalent(abstractAction)
         }
+        val inputs = abstractState.getInputsByAbstractAction(abstractAction)
+        /*if (inputs.isEmpty() || phaseTargetInputs.intersect(inputs).isEmpty()) {
+            log.warn("No input is mapped with this abstract action")
+        }*/
         inputs.forEach {
             if (phaseTargetInputs.contains(it)) {
                 recentTargetEvent = it
@@ -2124,6 +2126,8 @@ class PhaseOneStrategy(
                     windowRandomExplorationBudget.contains(it)
                             && !outofbudgetWindows.contains(it)
                             && !fullyExploredWindows.contains(it)
+                            && !ProbabilityBasedPathFinder.disableWindows1.contains(it)
+                            && (includeResetAction || !ProbabilityBasedPathFinder.disableWindows2.contains(it))
                             && it !is Dialog
                 }
             unexhaustedTestedWindows.forEach { window ->
@@ -2324,7 +2328,10 @@ class PhaseOneStrategy(
                 }
                 .map { it.abstractAction }*/
             val potentialAbstractActions = currentAppState.abstractTransitions.filter {
-                phaseTargetAbstractActions.contains(it.abstractAction)
+                phaseTargetAbstractActions.any { abstractAction ->
+                    it.abstractAction.isEquivalent(abstractAction)
+
+                }
                         && it.interactions.isEmpty()
             }.forEach {
                 result.add(Goal(input = null,abstractAction = it.abstractAction))
