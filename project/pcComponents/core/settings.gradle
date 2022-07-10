@@ -1,4 +1,3 @@
-
 rootProject.name = 'core'
 def isIncludedBuild = gradle.parent != null
 def libDir = '../../droidmate-libs/deviceCommonLib/deviceDaemonLib'
