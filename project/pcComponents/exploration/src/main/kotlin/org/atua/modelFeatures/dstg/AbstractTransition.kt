@@ -13,7 +13,9 @@
 package org.atua.modelFeatures.dstg
 
 import org.atua.calm.modelReuse.ModelVersion
+import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.ewtg.Helper
+import org.atua.modelFeatures.ewtg.Input
 import org.droidmate.explorationModel.ConcreteId
 import org.droidmate.explorationModel.interaction.Interaction
 import org.droidmate.explorationModel.interaction.State
@@ -24,7 +26,7 @@ import kotlin.collections.HashMap
 import kotlin.collections.HashSet
 
 class AbstractTransition(
-        val abstractAction: AbstractAction,
+        var  abstractAction: AbstractAction,
         val interactions: HashSet<Interaction<*>> = HashSet(),
         var isImplicit: Boolean/*,
         var prevWindow: Window?*/,
@@ -52,7 +54,21 @@ class AbstractTransition(
 
     var guardEnabled: Boolean = false
     var activated: Boolean = true
+        set(value) {
+            if (value == false) {
+                if (this.nondeterministic || this.interactions.isNotEmpty()) {
+                    disableAbstractTransitions.put(this, 50)
+                } else {
+                    this.source.abstractTransitions.remove(this)
+                }
+            } else {
+                disableAbstractTransitions.remove(this)
+            }
+            field = value
+        }
     var isUsefullOnce: Boolean = true
+    var nondeterministic: Boolean = false
+    var nondeterministicCount: Int = 0
     // --------------
     init {
         source.abstractTransitions.add(this)
@@ -142,16 +158,139 @@ class AbstractTransition(
         this.computeGuaranteedAVMs()
     }
 
-    fun updateGuardEnableStatus() {
-        val input = source.inputMappings.get(abstractAction)
-        if (input != null) {
-            if (AbstractStateManager.INSTANCE.guardedTransitions.contains(Pair(source.window, input.first()))) {
-                guardEnabled = true
+
+    fun updateDependentAppState(currentState: State<*>,
+                                traceId: Int,
+                                transitionId: Int,
+                                atuaMF: ATUAMF
+    ) {
+        val currentAbstractState = this.dest
+        /*val p_prevWindowAbstractState = if (transitionId != 0) {
+            atuaMF.getPrevWindowAbstractState(traceId, transitionId )
+        } else
+            null*/
+        if (/*p_prevWindowAbstractState != null
+            &&*/ !currentAbstractState.isOpeningMenus
+            && this.dest != this.source
+        ) {
+            val currentStateStack = AbstractStateManager.INSTANCE.createAppStack(traceId, transitionId-2)
+            val previousSameWindowAbstractStates: List<AbstractState> =
+                AbstractStateManager.INSTANCE.getPrevSameWindowAbstractState(currentState, currentStateStack , true)
+                    /*.subtract(listOf(this.source))*/.toList()
+            var foundPreviousAbstractStates = false
+            for (prevAppState in previousSameWindowAbstractStates) {
+                if (!AbstractStateManager.INSTANCE.goBackAbstractActions.contains(this.abstractAction)) {
+                    val inputs =
+                        this.source.getInputsByAbstractAction(this.abstractAction)
+                    inputs.forEach {
+                        if (!Input.goBackInputs.contains(it))
+                            Input.goBackInputs.add(it)
+                    }
+                } else
+                    AbstractStateManager.INSTANCE.goBackAbstractActions.add(this.abstractAction)
+                if (prevAppState.isSimlarAbstractState(currentAbstractState, 0.8)
+                ) {
+
+                    this.guardEnabled = true
+                    this.dependentAbstractStates.add(prevAppState)
+                    atuaMF.disablePrevAbstractStates.putIfAbsent(abstractAction, HashMap())
+                    atuaMF.disablePrevAbstractStates[abstractAction]!!.putIfAbsent(prevAppState, HashSet())
+                    atuaMF.disablePrevAbstractStates[abstractAction]!![prevAppState]!!.addAll(currentStateStack.subtract(
+                        listOf(prevAppState)))
+                    foundPreviousAbstractStates = true
+                    break
+                }
             }
+            if (!foundPreviousAbstractStates && previousSameWindowAbstractStates.isNotEmpty()) {
+                val notSourceStatePrevWindowAppStates = previousSameWindowAbstractStates.filterNot { it == source }
+                if (notSourceStatePrevWindowAppStates.isNotEmpty()) {
+                    val similarScores =
+                        notSourceStatePrevWindowAppStates   .associateWith { it.similarScore(currentAbstractState) }
+                    val maxScores = similarScores.maxByOrNull { it.value }!!
+
+                    this.guardEnabled = true
+                    this.dependentAbstractStates.add(maxScores.key)
+                    atuaMF.disablePrevAbstractStates.putIfAbsent(abstractAction, HashMap())
+                    atuaMF.disablePrevAbstractStates[abstractAction]!!.putIfAbsent(maxScores.key, HashSet())
+                    atuaMF.disablePrevAbstractStates[abstractAction]!![maxScores.key]!!.addAll(currentStateStack.subtract(
+                        listOf(maxScores.key)))
+                }
+            }
+           /* if (currentAbstractState.window == p_prevWindowAbstractState.window) {
+            }
+            else if (!this.dest.isSimlarAbstractState(this.source,0.8)) {
+                val previousSameWindowAbstractStates: List<AbstractState> =
+                    AbstractStateManager.INSTANCE.getPrevSameWindowAbstractState(currentState, traceId, transitionId, false)
+                for (prevAppState in previousSameWindowAbstractStates) {
+                    if (prevAppState.isSimlarAbstractState(currentAbstractState, 0.8)) {
+                       *//* if (!AbstractStateManager.INSTANCE.goBackAbstractActions.contains(this.abstractAction)) {
+                            val inputs =
+                                this.source.getInputsByAbstractAction(this.abstractAction)
+                            inputs.forEach {
+                                if (!Input.goBackInputs.contains(it))
+                                    Input.goBackInputs.add(it)
+                            }
+                        } else
+                            AbstractStateManager.INSTANCE.goBackAbstractActions.add(this.abstractAction)*//*
+                        this.guardEnabled = true
+                        this.dependentAbstractStates.add(prevAppState)
+                        break
+                    }
+                }
+            }*/
         }
     }
 
+    fun markNondeterministicTransitions() {
+        if (this.modelVersion == ModelVersion.RUNNING || this.interactions.isNotEmpty()) {
+            val explicitTransitions = this.source.abstractTransitions.filter { it.interactions.isNotEmpty() }
+            val nondeterministicTransitions = explicitTransitions.filter {
+                it != this
+                        && it.abstractAction == this.abstractAction
+                        && it.userInputs.intersect(this.userInputs).isNotEmpty()
+                        && (it.dependentAbstractStates.isEmpty()
+                        || this.dependentAbstractStates.isEmpty()
+                        || it.dependentAbstractStates.intersect(this.dependentAbstractStates).isNotEmpty())
+            }
+            if (nondeterministicTransitions.isNotEmpty()) {
+                this.nondeterministic = true
+                this.nondeterministicCount = nondeterministicTransitions.size+1
+                nondeterministicTransitions.forEach {
+                    it.nondeterministic = true
+                    it.nondeterministicCount = nondeterministicTransitions.size+1
+                }
+            }
+        } else {
+            val explicitTransitions = this.source.abstractTransitions.filter { it.modelVersion == ModelVersion.BASE && it.isExplicit()}
+            val nondeterministicTransitions = explicitTransitions.filter {
+                it != this
+                        && it.abstractAction == this.abstractAction
+                        && it.userInputs.intersect(this.userInputs).isNotEmpty()
+                        && (it.dependentAbstractStates.isEmpty()
+                        || this.dependentAbstractStates.isEmpty()
+                        || it.dependentAbstractStates.intersect(this.dependentAbstractStates).isNotEmpty())
+            }
+            if (nondeterministicTransitions.isNotEmpty()) {
+                this.nondeterministic = true
+                this.nondeterministicCount = nondeterministicTransitions.size+1
+                nondeterministicTransitions.forEach {
+                    it.nondeterministic = true
+                    it.nondeterministicCount = nondeterministicTransitions.size+1
+                }
+            }
+        }
+    }
     companion object{
+        val disableAbstractTransitions = HashMap<AbstractTransition, Int>()
+        fun updateDisableTransitions() {
+            disableAbstractTransitions.keys.forEach {
+                disableAbstractTransitions.replace(it, disableAbstractTransitions[it]!!-1)
+            }
+            val toActivateTransitions = disableAbstractTransitions.filter { it.value == 0 }.keys
+            toActivateTransitions.forEach {
+                it.activated = true
+            }
+        }
         fun computeAbstractTransitionData(actionType: AbstractActionType, interaction: Interaction<Widget>, guiState: State<Widget>, abstractState: AbstractState, atuaMF: org.atua.modelFeatures.ATUAMF): Any? {
             if (actionType == AbstractActionType.RANDOM_KEYBOARD) {
                 return interaction.targetWidget

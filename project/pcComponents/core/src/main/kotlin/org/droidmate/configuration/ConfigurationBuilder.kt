@@ -81,6 +81,7 @@ import org.droidmate.configuration.ConfigProperties.Strategies.Parameters.uiRota
 import org.droidmate.configuration.ConfigProperties.Strategies.allowRuntimeDialog
 import org.droidmate.configuration.ConfigProperties.Strategies.back
 import org.droidmate.configuration.ConfigProperties.Strategies.denyRuntimeDialog
+import org.droidmate.configuration.ConfigProperties.Strategies.manual
 import org.droidmate.configuration.ConfigProperties.Strategies.minimizeMaximize
 import org.droidmate.configuration.ConfigProperties.Strategies.playback
 import org.droidmate.configuration.ConfigProperties.Strategies.reset
@@ -98,6 +99,7 @@ import org.droidmate.configuration.ConfigProperties.UiAutomatorServer.waitForIdl
 import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF.Companion.StatementCoverage.coverageDir
 import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF.Companion.StatementCoverage.enableCoverage
 import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF.Companion.StatementCoverage.onlyCoverAppPackageName
+import org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy
 import org.droidmate.legacy.Resource
 import org.droidmate.logging.Markers.Companion.runData
 import org.droidmate.misc.EnvironmentConstants
@@ -183,6 +185,7 @@ public class ConfigurationBuilder : IConfigurationBuilder {
 			CommandLineOption(playback, description = "Enables use of playback strategy (if a playback model is provided)."),
 			CommandLineOption(ConfigProperties.Strategies.dfs, description = "Enables use of Depth-First-Search strategy."),
 			CommandLineOption(rotateUI, description = "Enables use of Rotate UI strategy."),
+			CommandLineOption(manual, description = "Enables use of manual strategy."),
 			CommandLineOption(minimizeMaximize, description = "Enables use of Minimize-Maximize strategy to attempt to close the app and reopen it on the same screen."),
 			CommandLineOption(textInput, description = "Enable use of Text Input Dictionary"),
 			// Strategies parameters
@@ -210,15 +213,19 @@ public class ConfigurationBuilder : IConfigurationBuilder {
 			CommandLineOption(delayedImgFetch, description = "Option to allow for faster exploration by delaying screen-shot fetch to an asynchronous call."),
 			CommandLineOption(imgQuality, description = "Quality of the image to be stored for fetching."),
 			// StatementCoverage
+
 			CommandLineOption(enableCoverage, description = "If true, the statement coverage of the exploration will be measured. This requires the apk to be instrumented with 'coverage' mode."),
 			CommandLineOption(onlyCoverAppPackageName, description = "Only instrument statement coverage for statements belong inside the app package name scope. Libraries with other package names will be ignored. Be aware that this filtering might not be always correct."),
 			CommandLineOption(coverageDir, description = "Path to the directory that will contain the coverage data."),
 			CommandLineOption(org.droidmate.explorationModel.config.ConfigProperties.Output.debugMode, description = "enable debug output"),
-			CommandLineOption(org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.use , description = "If true, regression testing is used"),
-			CommandLineOption(org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.budgetScale, description = "Budget scale. Increase this for longer testing time."),
-			CommandLineOption(org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.reuseBaseModel, description = "Enable base model reuse."),
-			CommandLineOption(org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.baseModelDir, description = "Base model dir."),
-			CommandLineOption(org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.reuseSameVersionModel, description = "Reuse model of the same version.")
+			CommandLineOption(RegressionStrategy.use , description = "If true, regression testing is used"),
+			CommandLineOption(RegressionStrategy.budgetScale, description = "Budget scale. Increase this for longer testing time."),
+			CommandLineOption(RegressionStrategy.reuseBaseModel, description = "Enable base model reuse."),
+			CommandLineOption(RegressionStrategy.baseModelDir, description = "Base model dir."),
+			CommandLineOption(RegressionStrategy.reuseSameVersionModel, description = "Reuse model of the same version."),
+			CommandLineOption(RegressionStrategy.randomAfterTesting,description = "Enable random exploration after ATUA/CALM"),
+			CommandLineOption(RegressionStrategy.randomStrategy,description = "Random exploration strategy"),
+			CommandLineOption(RegressionStrategy.randomTimeout,description = "Random exploration timeout")
 			).first, fs)
 
 	@Throws(ConfigurationException::class)

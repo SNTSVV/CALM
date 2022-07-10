@@ -11,6 +11,7 @@
  */
 package org.atua.modelFeatures
 
+import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
 import org.atua.modelFeatures.ewtg.Helper
@@ -23,13 +24,15 @@ import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
 class ActionCount  {
-    private val wCnt = HashMap<UUID, MutableMap<String, Int>>()
-    val widgetCount = HashMap<ConcreteId,MutableMap<String,Int>>()
+    private val wUUIDCnt = HashMap<UUID, MutableMap<String, Int>>()
+    val wConcreteIdCount = HashMap<ConcreteId,MutableMap<String,Int>>()
+    val abstractActionCount = HashMap<AbstractAction,Int>()
+
     fun widgetnNumExplored(s: State<*>, selection: Collection<Widget>): Map<Widget, Int> {
         val abstractState = AbstractStateManager.INSTANCE.getAbstractState(s)!!
         val activity = abstractState.window.classType
         val widgetCount = selection.map {
-            it to (wCnt[it.uid]?.get(activity) ?: 0)
+            it to (wUUIDCnt[it.uid]?.get(activity) ?: 0)
         }.toMap()
         return widgetCount
     }
@@ -38,7 +41,7 @@ class ActionCount  {
         val abstractState = AbstractStateManager.INSTANCE.getAbstractState(s)!!
         val activity = abstractState.window.classType
         return selection.map {
-            it to (widgetCount[it.id]?.get(activity) ?: 0)
+            it to (wConcreteIdCount[it.id]?.get(activity) ?: 0)
         }.toMap()
     }
 
@@ -48,9 +51,26 @@ class ActionCount  {
         val activity = abstractState.window.classType
         Helper.getActionableWidgetsWithoutKeyboard(guiState).forEach {
             val widgetUid = it.uid
-            if (wCnt.containsKey(widgetUid)) {
-                if (wCnt.get(widgetUid)!!.containsKey(activity)) {
-                    if (wCnt.get(widgetUid)!!.get(activity) == 0) {
+            if (wUUIDCnt.containsKey(widgetUid)) {
+                if (wUUIDCnt.get(widgetUid)!!.containsKey(activity)) {
+                    if (wUUIDCnt.get(widgetUid)!!.get(activity) == 0) {
+                        unexploredWidget.add(it)
+                    }
+                }
+            }
+        }
+        return unexploredWidget
+    }
+
+    fun getUnexploredWidget2(guiState: State<Widget>): List<Widget> {
+        val unexploredWidget = ArrayList<Widget>()
+        val abstractState = AbstractStateManager.INSTANCE.getAbstractState(guiState)!!
+        val activity = abstractState.window.classType
+        Helper.getActionableWidgetsWithoutKeyboard(guiState).forEach {
+            val widgetUid = it.id
+            if (wConcreteIdCount.containsKey(widgetUid)) {
+                if (wConcreteIdCount.get(widgetUid)!!.containsKey(activity)) {
+                    if (wConcreteIdCount.get(widgetUid)!!.get(activity) == 0) {
                         unexploredWidget.add(it)
                     }
                 }
@@ -63,17 +83,17 @@ class ActionCount  {
         val newAbstractState: AbstractState = AbstractStateManager.INSTANCE.getAbstractState(newState)!!
         Helper.getActionableWidgetsWithoutKeyboard(newState).filter { it.clickable }. forEach {
             val widgetUid = it.uid
-            if (!wCnt.containsKey(widgetUid)) {
-                wCnt.put(widgetUid, HashMap())
+            if (!wUUIDCnt.containsKey(widgetUid)) {
+                wUUIDCnt.put(widgetUid, HashMap())
             }
-            if (!wCnt.get(widgetUid)!!.containsKey(newAbstractState.window.classType)) {
-                wCnt.get(widgetUid)!!.put(newAbstractState.window.classType, 0)
+            if (!wUUIDCnt.get(widgetUid)!!.containsKey(newAbstractState.window.classType)) {
+                wUUIDCnt.get(widgetUid)!!.put(newAbstractState.window.classType, 0)
             }
-            if (!widgetCount.containsKey(it.id)) {
-                widgetCount.put(it.id, HashMap())
+            if (!wConcreteIdCount.containsKey(it.id)) {
+                wConcreteIdCount.put(it.id, HashMap())
             }
-            if (!widgetCount.get(it.id)!!.containsKey(newAbstractState.window.classType)) {
-                widgetCount.get(it.id)!!.put(newAbstractState.window.classType, 0)
+            if (!wConcreteIdCount.get(it.id)!!.containsKey(newAbstractState.window.classType)) {
+                wConcreteIdCount.get(it.id)!!.put(newAbstractState.window.classType, 0)
             }
 
         }
@@ -83,11 +103,11 @@ class ActionCount  {
         //update widget count
         val prevActivity = prevAbstractState.window.classType
         val widgetUid = interaction.targetWidget!!.uid
-        if (!wCnt.containsKey(widgetUid)) {
-            wCnt.put(widgetUid, HashMap())
+        if (!wUUIDCnt.containsKey(widgetUid)) {
+            wUUIDCnt.put(widgetUid, HashMap())
         }
-        if (!wCnt.get(widgetUid)!!.containsKey(prevActivity)) {
-            wCnt.get(widgetUid)!!.put(prevActivity, 0)
+        if (!wUUIDCnt.get(widgetUid)!!.containsKey(prevActivity)) {
+            wUUIDCnt.get(widgetUid)!!.put(prevActivity, 0)
         }
         if (interaction.targetWidget!!.clickable &&
                     interaction.actionType != "Click" && interaction.actionType != "ClickEvent") {
@@ -97,17 +117,17 @@ class ActionCount  {
             && interaction.actionType != "LongClick" && interaction.actionType != "LongClickEvent") {
             return
         }
-        val currentCnt = wCnt.get(widgetUid)!!.get(prevActivity)!!
-        wCnt.get(widgetUid)!!.put(prevActivity, currentCnt + 1)
+        val currentCnt = wUUIDCnt.get(widgetUid)!!.get(prevActivity)!!
+        wUUIDCnt.get(widgetUid)!!.put(prevActivity, currentCnt + 1)
 
         val widgetConcreteId = interaction.targetWidget!!.id
-        if (!widgetCount.containsKey(widgetConcreteId)) {
-            widgetCount.put(widgetConcreteId,HashMap())
+        if (!wConcreteIdCount.containsKey(widgetConcreteId)) {
+            wConcreteIdCount.put(widgetConcreteId,HashMap())
         }
-        if (!widgetCount.get(widgetConcreteId)!!.containsKey(prevActivity)) {
-            widgetCount.get(widgetConcreteId)!!.put(prevActivity, 0)
+        if (!wConcreteIdCount.get(widgetConcreteId)!!.containsKey(prevActivity)) {
+            wConcreteIdCount.get(widgetConcreteId)!!.put(prevActivity, 0)
         }
-        val currentCnt2 = widgetCount.get(widgetConcreteId)!!.get(prevActivity)!!
-        widgetCount.get(widgetConcreteId)!!.put(prevActivity, currentCnt2 + 1)
+        val currentCnt2 = wConcreteIdCount.get(widgetConcreteId)!!.get(prevActivity)!!
+        wConcreteIdCount.get(widgetConcreteId)!!.put(prevActivity, currentCnt2 + 1)
     }
 }

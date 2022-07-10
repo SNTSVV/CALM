@@ -94,7 +94,7 @@ class UiAutomator2DaemonDriver(waitForIdleTimeout: Long, waitForInteractiveTimeo
 					} else {
 						false
 					}
-					debugT("FETCH avg= ${tFetch / (max(nActions, 1))} ms", { fetchDeviceData(uiEnvironment, afterAction = true, useDefault = useIdleTimeoutDefault) }, inMillis = true, timer = {
+					debugT("FETCH avg= ${tFetch / (max(nActions, 1))} ms", { fetchDeviceData(uiEnvironment, afterAction = true, useShortTimeout = useIdleTimeoutDefault) }, inMillis = true, timer = {
 						//					if (action !is DeviceLaunchApp) {
 						tFetch += it
 //					}

@@ -30,6 +30,7 @@ import org.droidmate.explorationModel.interaction.Interaction
 import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
 import org.droidmate.explorationModel.retention.StringCreator
+import org.droidmate.explorationModel.sanitize
 import org.droidmate.legacy.Resource
 import org.droidmate.legacy.getExtension
 import org.droidmate.misc.deleteDir
@@ -44,6 +45,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.text.SimpleDateFormat
 import java.time.Duration
+import java.time.format.DateTimeFormatter
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.collections.ArrayList
@@ -65,7 +67,7 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
     override val coroutineContext: CoroutineContext = CoroutineName("StatementCoverageMF") + Job()
     val statementUUIDByRawString = HashMap<String,String>()
 
-     val executedMethodsMap: ConcurrentHashMap<String, Date> = ConcurrentHashMap() //methodid -> first executed
+    val executedMethodsMap: ConcurrentHashMap<String, Date> = ConcurrentHashMap() //methodid -> first executed
     val executedStatementsMap: ConcurrentHashMap<String, Date> = ConcurrentHashMap()
 
 
@@ -137,6 +139,8 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                         //val parts2 = parts[0].split(" methodId=".toRegex())
                         val timestamp = statement[0]
                         val tms = dateFormat.parse(timestamp)
+//                        val localTime = LocalDateTime.parse(timestamp, dateFormatter)
+//                        val tms = localTime.toLocalDate()
                         //NGO
                         val statementId = statementUUIDByRawString.get(statement[1])?:""
                         if (statementId!="") {
@@ -146,7 +150,7 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                                 recentExecutedMethods.add(methodId)
                             val methodFound = executedMethodsMap.containsKey(methodId)
                             if (!methodFound) {
-                                executedMethodsMap[methodId] = tms
+                                executedMethodsMap[methodId]= tms
                             }
                             val isUpdatedMethod = isModifiedMethod(methodId)
                             if (!recentExecutedStatements.contains(statementId)) {
@@ -181,10 +185,10 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                 }
 
             }
-            log.info("Current statement coverage: ${"%.2f".format(getCurrentCoverage())}. Encountered statements: ${executedStatementsMap.size}/${statementInstrumentationMap.size}")
             log.info("Current method coverage: ${"%.2f".format(getCurrentMethodCoverage())}. Encountered methods: ${executedMethodsMap.size}/${methodInstrumentationMap.size}")
+            log.info("Current statement coverage: ${"%.2f".format(getCurrentCoverage())}. Encountered statements: ${executedStatementsMap.size}/${statementInstrumentationMap.size}")
             log.info("Current modified method coverage: ${"%.2f".format(getCurrentModifiedMethodCoverage())}. Encountered modified methods: ${executedModifiedMethodsMap.size}/${modMethodInstrumentationMap.size}")
-            log.info("Current modified method's statement coverage: ${"%.2f".format(getCurrentModifiedMethodStatementCoverage())}. Encountered modified methods: ${executedModifiedMethodStatementsMap.size}/${modMethodStatementInstrumentationMap.size}")
+            log.info("Current modified method's statement coverage: ${"%.2f".format(getCurrentModifiedMethodStatementCoverage())}. Encountered modified methods' statement: ${executedModifiedMethodStatementsMap.size}/${modMethodStatementInstrumentationMap.size}")
 
             // Write the received content into a file
             if (readStatements.isNotEmpty()) {
@@ -202,6 +206,7 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
         actionUpdatedCoverageTracking.put(lastActionId,executedUpdatedStatements)
         actionIncreasingUpdatedCoverageTracking.put(lastActionId,newUpdatedExecutedStatements)
     }
+
     /**
      * Fetch the statement data form the device. Afterwards, it parses the data and updates [executedStatementsMap].
      */
@@ -237,12 +242,19 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
     private fun readModifiedMethodList(appModel: Path) {
         val jsonData = String(Files.readAllBytes(appModel))
         val jObj = JSONObject(jsonData)
+        var unfoundMethods = ArrayList<String>()
         val modifiedMethodsJson = jObj.getJSONArray("modifiedMethods")
         if (modifiedMethodsJson!=null) {
             modifiedMethodsJson.forEach {
-                modifiedMethodsList.add(it.toString())
+                if (methodIdByMethodName.containsKey(it))
+                    modifiedMethodsList.add(it.toString())
+                else {
+                    unfoundMethods.add(it.toString())
+                    log.warn("NOT registered method: $it")
+                }
             }
         }
+        log.warn("Total unfound methods: ${unfoundMethods.size}")
     }
 
     private fun getAppModelFile(apkName: String, resourceDir: Path): Path? {
@@ -457,6 +469,7 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
         log.info("Producing coverage reports finished")
         log.info("Producing action coverage report...")
         dumpActionTraceWithCoverage(context)
+        produceTargetActionCoverageHTMLReport(context)
         produceActionCoverageHTMLReport(context)
         log.info("Producing action coverage report finished.")
     }
@@ -506,7 +519,15 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                         sb.appendln("${it.key};$methodName;${Duration.between(initialDate.toInstant(), it.value.toInstant()).toMillis() / 1000}")
                     }
         }
-
+        val unexecutedMethods = methodInstrumentationMap.keys.subtract(executedMethodsMap.keys)
+        if (unexecutedMethods.isNotEmpty()) {
+            val sortedMethods = unexecutedMethods.sorted()
+            sortedMethods
+                .forEach {
+                    val methodName = methodInstrumentationMap[it]
+                    sb.appendln("${it};$methodName")
+                }
+        }
         val outputFile = context.model.config.baseDir.resolve(methodFileName)
         log.info("Prepare writing coverage file: " +
                 "\n- File name: ${outputFile.fileName}" +
@@ -558,11 +579,12 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
     fun dumpActionTraceWithCoverage(context: ExplorationContext<*, *, *>) {
         runBlocking {
             val outputFile = File(context.model.config.baseDir.resolve("actionCoverage_${context.explorationTrace.id}.csv").toAbsolutePath().toString()).bufferedWriter()
-            outputFile.write("ActionId[0];ActionType[1];SourceState[2];ResultState[3];Data[4];CoverageHash[5];ExecutedStatements[6];NewExecutedStatements[7];ExecutedUpdatedStatements[8];NewUpdatedExecutedStatements[9]")
+            outputFile.write("ActionId[0];ActionType[1];WidgetUUID[2];WidgetType[3];WidgetResourceId[4];WidgetText[5];WidgetContentDesc[6];SourceState[7];ResultState[8];Data[9];CoverageHash[10];ExecutedStatements[11];NewExecutedStatements[12];ExecutedUpdatedStatements[13];NewUpdatedExecutedStatements[14]")
             outputFile.newLine()
             val actions = context.explorationTrace.P_getActions()
             actions.forEach { action ->
-                outputFile.write("${action.actionId.toString()};${action.actionType};${action.prevState};${action.resState};\"${action.data}\";")
+                outputFile.write("${action.actionId.toString()};${action.actionType};" +
+                        "${action.targetWidget?.uid};${action.targetWidget?.className};${action.targetWidget?.resourceId};${action.targetWidget?.text?.sanitize()};${action.targetWidget?.contentDesc?.sanitize()};${action.prevState};${action.resState};\"${action.data}\";")
                 outputFile.write("${actionCoverageTracking.get(action.actionId.toString())?.hashCode()} ;${actionCoverageTracking.get(action.actionId.toString())?.size};${actionIncreasingCoverageTracking.get(action.actionId.toString())?.size};${actionUpdatedCoverageTracking.get(action.actionId.toString())?.size};${actionIncreasingUpdatedCoverageTracking.get(action.actionId.toString())?.size};")
                 outputFile.newLine()
             }
@@ -577,17 +599,27 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
 
     }
 
-    fun produceActionCoverageHTMLReport(context: ExplorationContext<*, *, *>) {
-        val actionCoverageHTMLFolderPath = context.model.config.baseDir.resolve("actionCoverageHTMLReport")
+    fun produceTargetActionCoverageHTMLReport(context: ExplorationContext<*, *, *>) {
+        val actionCoverageHTMLFolderPath = context.model.config.baseDir.resolve("actionCoverageHTML")
         // Files.createDirectory(actionCoverageHTMLFolderPath)
         // Copy the folder with the required resources
         Files.deleteIfExists(actionCoverageHTMLFolderPath)
         val zippedVisDir = Resource("actionCoverageHTML.zip").extractTo(context.model.config.baseDir)
-        try {
-            zippedVisDir.unzip(actionCoverageHTMLFolderPath)
-            Files.delete(zippedVisDir)
-        } catch (e: FileSystemException) { // FIXME temporary work-around for windows file still used issue
-            log.warn("resource zip could not be unzipped/removed ${e.localizedMessage}")
+        runBlocking {
+            try {
+                log.debug("Start unzip...")
+                zippedVisDir.unzip(actionCoverageHTMLFolderPath)
+                log.debug("Unzip done ...")
+                log.debug("Delete zip file.")
+                Files.delete(zippedVisDir)
+                log.debug("Delete zip file done.")
+            } catch (e: FileSystemException) { // FIXME temporary work-around for windows file still used issue
+                log.warn("resource zip could not be unzipped/removed ${e.localizedMessage}")
+            }
+        }
+        val screenshotFolder = actionCoverageHTMLFolderPath.resolve("screenshot")
+        if (!Files.exists(screenshotFolder)) {
+            Files.createDirectories(screenshotFolder)
         }
         val actions = ArrayList<Interaction<*>>()
         runBlocking {
@@ -643,6 +675,7 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                         Files.copy(screenshotFile, newScreenshotFile)
                     actionJSONObject.put("image", actionCoverageHTMLFolderPath.relativize(newScreenshotFile).toString())
                 }
+                actionJSONObject.put("coverageHash", actionCoverageTracking.get(actionIdStr)?.hashCode())
                 actionJSONObject.put("executedStatements", actionCoverageTracking.get(actionIdStr)?.size ?: 0)
                 actionJSONObject.put(
                     "newExecutedStatements",
@@ -656,6 +689,11 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                     "newExecutedUpdatedStatements",
                     actionIncreasingUpdatedCoverageTracking.get(actionIdStr)?.size ?: 0
                 )
+                val executedUpdatedMethods = actionIncreasingUpdatedCoverageTracking.get(actionIdStr)?.map { statementMethodInstrumentationMap[it]!! }?.distinct()?.map { getMethodName(it) }?: emptyList()
+                actionJSONObject.put(
+                    "executedUpdatedMethods",
+                    executedUpdatedMethods
+                )
                 if (it.targetWidget != null) {
                     val widget = it.targetWidget!!
                     val widgetJSONObject = JSONObject()
@@ -663,9 +701,10 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
                     widgetJSONObject.put("id", widget.id)
                     widgetJSONObject.put("uid", widget.uid)
                     widgetJSONObject.put("configId", widget.configId)
-                    widgetJSONObject.put("text", widget.text)
-                    widgetJSONObject.put("contentDesc", widget.contentDesc)
+                    widgetJSONObject.put("text", widget.text.sanitize())
+                    widgetJSONObject.put("contentDesc", widget.contentDesc.sanitize())
                     widgetJSONObject.put("className", widget.className)
+                    widgetJSONObject.put("resourceId",widget.resourceId)
                     val visibleBounds = JSONObject()
                     visibleBounds.put("leftX", widget.visibleBounds.leftX)
                     visibleBounds.put("topY", widget.visibleBounds.topY)
@@ -700,12 +739,154 @@ class StatementCoverageMF(private val statementsLogOutputDir: Path,
             }
         }
     }
+
+    fun produceActionCoverageHTMLReport(context: ExplorationContext<*, *, *>) {
+        val actionCoverageHTMLFolderPath = context.model.config.baseDir.resolve("actionCoverageHTML_All")
+        // Files.createDirectory(actionCoverageHTMLFolderPath)
+        // Copy the folder with the required resources
+        Files.deleteIfExists(actionCoverageHTMLFolderPath)
+        val zippedVisDir = Resource("actionCoverageHTML.zip").extractTo(context.model.config.baseDir)
+        runBlocking {
+            try {
+                log.debug("Start unzip...")
+                zippedVisDir.unzip(actionCoverageHTMLFolderPath)
+                log.debug("Unzip done ...")
+                log.debug("Delete zip file.")
+                Files.delete(zippedVisDir)
+                log.debug("Delete zip file done.")
+            } catch (e: FileSystemException) { // FIXME temporary work-around for windows file still used issue
+                log.warn("resource zip could not be unzipped/removed ${e.localizedMessage}")
+            }
+        }
+        val screenshotFolder = actionCoverageHTMLFolderPath.resolve("screenshot")
+        if (!Files.exists(screenshotFolder)) {
+            Files.createDirectories(screenshotFolder)
+        }
+        val actions = ArrayList<Interaction<*>>()
+        runBlocking {
+            val temp = context.explorationTrace.P_getActions()
+            temp.forEach { action ->
+
+                actions.add(action)
+            }
+        }
+//        generate data.json
+        val dataJson = JSONObject()
+        var prevActionId: Int = 0
+        actions.forEach {
+            val actionIdStr = it.actionId.toString()
+            if (actionIncreasingCoverageTracking.containsKey(actionIdStr)
+                && actionIncreasingCoverageTracking.get(actionIdStr)!!.size>0) {
+                val actionJSONObject = JSONObject()
+                dataJson.put(actionIdStr, actionJSONObject)
+                actionJSONObject.put("from", it.prevState.uid)
+                actionJSONObject.put("to", it.resState.uid)
+                actionJSONObject.put("actionType", it.actionType)
+                actionJSONObject.put("actionId", it.actionId)
+                actionJSONObject.put("data", it.data)
+                if (prevActionId != 0) {
+                    val prevActionScreenshotPath = context.model.config.baseDir
+                        .resolve("images")
+                        .resolve("${prevActionId}.jpg")
+                    val newPrevActionScreenshotPath = actionCoverageHTMLFolderPath.resolve("screenshot").resolve("${prevActionId}.jpg")
+                    if (!Files.exists(newPrevActionScreenshotPath)) {
+                        if (Files.exists(prevActionScreenshotPath)) {
+                            Files.copy(prevActionScreenshotPath,newPrevActionScreenshotPath)
+                        }
+                    }
+                    actionJSONObject.put(
+                        "prevImage",
+                        actionCoverageHTMLFolderPath.relativize(newPrevActionScreenshotPath).toString()
+                    )
+                } else {
+                    actionJSONObject.put(
+                        "prevImage",
+                        ""
+                    )
+                }
+                val screenshotFile = context.model.config.baseDir
+                    .resolve("images")
+                    .resolve("${it.actionId}.jpg")
+                if (!Files.exists(screenshotFile)) {
+                    actionJSONObject.put("image", actionJSONObject.get("prevImage"))
+                } else {
+                    val newScreenshotFile =
+                        actionCoverageHTMLFolderPath.resolve("screenshot").resolve("${it.actionId}.jpg")
+                    if (!Files.exists(newScreenshotFile))
+                        Files.copy(screenshotFile, newScreenshotFile)
+                    actionJSONObject.put("image", actionCoverageHTMLFolderPath.relativize(newScreenshotFile).toString())
+                }
+                actionJSONObject.put("coverageHash", actionCoverageTracking.get(actionIdStr)?.hashCode())
+                actionJSONObject.put("executedStatements", actionCoverageTracking.get(actionIdStr)?.size ?: 0)
+                actionJSONObject.put(
+                    "newExecutedStatements",
+                    actionIncreasingCoverageTracking.get(actionIdStr)?.size ?: 0
+                )
+                actionJSONObject.put(
+                    "executedUpdatedStatements",
+                    actionUpdatedCoverageTracking.get(actionIdStr)?.size ?: 0
+                )
+                actionJSONObject.put(
+                    "newExecutedUpdatedStatements",
+                    actionIncreasingUpdatedCoverageTracking.get(actionIdStr)?.size ?: 0
+                )
+                val executedUpdatedMethods = actionIncreasingUpdatedCoverageTracking.get(actionIdStr)?.map { statementMethodInstrumentationMap[it]!! }?.distinct()?.map { getMethodName(it) }?: emptyList()
+                actionJSONObject.put(
+                    "executedUpdatedMethods",
+                    executedUpdatedMethods
+                )
+                if (it.targetWidget != null) {
+                    val widget = it.targetWidget!!
+                    val widgetJSONObject = JSONObject()
+                    actionJSONObject.put("targetWidget", widgetJSONObject)
+                    widgetJSONObject.put("id", widget.id)
+                    widgetJSONObject.put("uid", widget.uid)
+                    widgetJSONObject.put("configId", widget.configId)
+                    widgetJSONObject.put("text", widget.text.sanitize())
+                    widgetJSONObject.put("contentDesc", widget.contentDesc.sanitize())
+                    widgetJSONObject.put("className", widget.className)
+                    widgetJSONObject.put("resourceId",widget.resourceId)
+                    val visibleBounds = JSONObject()
+                    visibleBounds.put("leftX", widget.visibleBounds.leftX)
+                    visibleBounds.put("topY", widget.visibleBounds.topY)
+                    visibleBounds.put("width", widget.visibleBounds.width)
+                    visibleBounds.put("height", widget.visibleBounds.height)
+                    widgetJSONObject.put("visibleBounds", visibleBounds)
+                }
+            }
+            prevActionId = it.actionId
+        }
+        val jsonFile = File(actionCoverageHTMLFolderPath.resolve("data.js").toString())
+        val jsonString = dataJson.toString(1)
+        jsonFile.writeText("var data = " + jsonString)
+
+//        generate html files
+        val templateHTMLFile = actionCoverageHTMLFolderPath.resolve("template.html")
+        val file = File(templateHTMLFile.toUri())
+        val content = file.readLines()
+
+        actions.forEach {
+            val actionIdStr = it.actionId.toString()
+            if (actionIncreasingCoverageTracking.containsKey(actionIdStr)
+                && actionIncreasingCoverageTracking.get(actionIdStr)!!.size>0) {
+                val newHTMLFilePath = actionCoverageHTMLFolderPath.resolve("${it.actionId}.html")
+                if (!Files.exists(newHTMLFilePath)) {
+                    Files.createFile(newHTMLFilePath)
+                    val newHTMLFile = File(newHTMLFilePath.toUri())
+                    content.forEach { line ->
+                        newHTMLFile.appendText(line.replace("##action_id##", actionIdStr))
+                    }
+                }
+            }
+        }
+    }
     companion object {
         private const val statement_header = "Statement(id);Method id;Time(Duration in sec till first occurrence)"
         private const val method_header = "Method(id);Method name;Time(Duration in sec till first occurrence)"
 
         @JvmStatic
-        private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
+        private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS")
 
         @JvmStatic
         private val log: Logger by lazy { LoggerFactory.getLogger(StatementCoverageMF::class.java) }

@@ -40,7 +40,7 @@ data class ConcreteId(val uid: UUID, val configId: UUID): Serializable {
 	}
 }
 
-internal operator fun UUID.plus(uuid: UUID?): UUID {
+operator fun UUID.plus(uuid: UUID?): UUID {
 	return if(uuid == null) this
 	else UUID(this.mostSignificantBits + uuid.mostSignificantBits, this.leastSignificantBits + uuid.mostSignificantBits)
 }
@@ -61,7 +61,7 @@ fun String.asUUID(): UUID? = if(this == "null") null else UUID.fromString(this)
 val emptyId = ConcreteId(emptyUUID, emptyUUID)
 
 /** string sanitation functions */
-fun String.removeNewLineAndSemicolon() = replace(Regex("\\r\\n|\\r|\\n")," ").replace(";"," ")
+fun String.removeNewLineAndSemicolon() = replace(Regex("\\r\\n|\\r|\\n"),"<newline>").replace(";","<semicolon>")
 
 fun String.sanitize(): String =
 	removeNewLineAndSemicolon()
@@ -84,7 +84,7 @@ fun String.splitOnCaseSwitch(): String{
 }
 
 fun String.replaceNewLine() = replace(Regex("\\r\\n|\\r|\\n"),"<newline>")
-
+fun String.replaceComma() = replace(Regex(","),"<comma>")
 
 private const val datePattern = "ddMM-HHmmss"
 internal fun timestamp(): String = DateTimeFormatter.ofPattern(datePattern).format(LocalDateTime.now())

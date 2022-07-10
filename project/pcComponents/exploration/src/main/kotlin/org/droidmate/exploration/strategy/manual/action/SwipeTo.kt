@@ -9,7 +9,7 @@ import org.droidmate.explorationModel.interaction.Widget
 object SwipeTo {
 	private const val sxOffset=100 // for right scrolling to prevent the "open menu" feature, implemented in some apps
 
-	fun widestElem(widgets:Collection<Widget>) = widgets.filter { it.isVisible && !it.isKeyboard}.maxBy { it.visibleBounds.width }
+	fun widestElem(widgets:Collection<Widget>) = widgets.filter { it.isVisible && !it.isKeyboard}.maxByOrNull { it.visibleBounds.width }
 
 	fun appArea(widgets:Collection<Widget>) = widgets.find { it.parentId == null && it.isVisible }?.visibleBounds ?: Rectangle.empty()
 
@@ -18,7 +18,7 @@ object SwipeTo {
 			it.isVisible && !it.isKeyboard &&
 					// since we try to ignore the overall layout as it may continue a menu bar which would prevent scroll to work with a start point on the menu element
 					(it.visibleBounds.topY > topY || it.visibleBounds.bottomY < bottomY)
-		}.maxBy { it.visibleBounds.height }
+		}.maxByOrNull { it.visibleBounds.height }
 	}
 
 	fun left(stateWidgets: Collection<Widget>): ExplorationAction = // use an offset of 2 from the right border since some apps do not recognize the swipe otherwise

@@ -112,6 +112,7 @@ abstract class ConfigProperties {
         val rotateUI by booleanType
         val minimizeMaximize by booleanType
         val textInput by booleanType
+        val manual by booleanType
         object Parameters : PropertyGroup() {
             val uiRotation by intType
             val randomScroll by booleanType

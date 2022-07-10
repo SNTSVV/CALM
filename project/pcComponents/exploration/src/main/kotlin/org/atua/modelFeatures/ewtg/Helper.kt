@@ -85,6 +85,8 @@ class Helper {
                     //if a widgetGroup has more
                     val matchingWidget = matchEWTGWidget(item, guiState, bestMatchedNode,  appPackage,isMenuOpen,true,guiWidgetId_ewtgWidgets)
                     if (matchingWidget != null) {
+                        if (Helper.isUserLikeInput(item) && !matchingWidget!!.verifiedNotUserlikeInput)
+                            matchingWidget!!.isUserLikeInput = true
                         guiwidget_Ewtgwidgets.put(item,matchingWidget)
                         guiWidgetId_ewtgWidgets.put(item.id,matchingWidget)
                     }
@@ -118,10 +120,17 @@ class Helper {
                         //if a widgetGroup has more
                         val matchingWidget = matchEWTGWidget(item, guiState, bestMatchedNode,appPackage ,isMenuOpen,true)
                         if (matchingWidget != null) {
+                            if (isUserLikeInput(item) && !matchingWidget.verifiedNotUserlikeInput)
+                                matchingWidget.isUserLikeInput = true
                             guiwidget_Ewtgwidgets.put(item,matchingWidget)
                             guiWidgetId_ewtgWidgets.put(item.id,matchingWidget)
                         }
                     }
+                }
+            }
+            guiwidget_Ewtgwidgets.keys.groupBy { guiwidget_Ewtgwidgets[it]!! }.forEach {
+                if (it.value.size>1) {
+                    it.key.isItemWidget = true
                 }
             }
         }
@@ -262,7 +271,6 @@ class Helper {
                 return visibileWidgetsByState.get(state)!!
             val result = ArrayList<Widget>()
             val originalVisibleWidgets = state.widgets.filter { isVisibleWidget(it) }
-            //TODO try recompute VisibleAreas
 /*            val visibleAreasByWidget = HashMap<Widget,List<Rectangle>> ()
             val topNodes = state.widgets.filter { !it.hasParent}
             val workingList = Stack<Widget>()
@@ -479,7 +487,7 @@ class Helper {
                     if (matchingScores.isEmpty()) {
                         matchedEWTGWidgets.clear()
                     } else {
-                        val minScore = matchingScores.minBy { it.value }!!.value
+                        val minScore = matchingScores.minByOrNull { it.value }!!.value
                         matchedEWTGWidgets.removeIf { matchingScores[it] != minScore }
                     }
                 }
@@ -677,7 +685,7 @@ class Helper {
                 return false
         }
 
-        fun getViewsChildrenLayout(widget: Widget, state: State<*>): ScrollDirection {
+        fun getViewsChildrenLayout(widget: Widget, state: State<*>): Int {
             val childWidgets = state.widgets.filter { Helper.isVisibleWidget(it) && widget.childHashes.contains(it.idHash) }
             var layoutDirection: LayoutDirection = LayoutDirection.UNKNOWN
             if (childWidgets.size < 2) {
@@ -735,21 +743,22 @@ class Helper {
                     }
                 }
             }
-            if ((left|| right) && (up || down ))
-                return ScrollDirection.UNKNOWN
-            if (left && right)
-                return ScrollDirection.HORIZONTAL
-            if (left)
-                return ScrollDirection.LEFT
-            if (right)
-                return ScrollDirection.RIGHT
-            if (up && down)
-                return ScrollDirection.VERTICAL
-            if (up)
-                return ScrollDirection.UP
-            return ScrollDirection.DOWN
+            var  scrollDirectionValue =  0
+            if (left) {
+                scrollDirectionValue = scrollDirectionValue or ScrollDirection.LEFT.flagValue
+            }
+            if (right) {
+                scrollDirectionValue = scrollDirectionValue or ScrollDirection.RIGHT.flagValue
+            }
+            if (up) {
+                scrollDirectionValue = scrollDirectionValue or ScrollDirection.UP.flagValue
+            }
+            if (down) {
+                scrollDirectionValue = scrollDirectionValue or ScrollDirection.DOWN.flagValue
+            }
+            return scrollDirectionValue
         }
-
+        fun Boolean.toInt() = if (this) 1 else 0
         fun hasParentWithType(it: Widget, state: State<*>, parentType: String): Boolean {
             var widget: Widget = it
             while (widget.hasParent) {
@@ -892,7 +901,9 @@ class Helper {
             parent.childHashes.forEach {
                 val childWidget = allWidgets.firstOrNull { w -> w.idHash == it && w.isVisible }
                 if (childWidget != null) {
-                    if (isInteractiveWidgetButNotKeyboard(childWidget) && isVisibleWidget(childWidget)) {
+                    if (isInteractiveWidgetButNotKeyboard(childWidget)
+                        && isVisibleWidget(childWidget)
+                        && childWidget.className != "android.webkit.WebView") {
                         interactiveWidgets.add(childWidget)
                     }
                     interactiveWidgets.addAll(getAllInteractiveChild(allWidgets, childWidget))
@@ -935,7 +946,7 @@ class Helper {
         fun computeGuiTreeDimension(guiState: State<*>): Rectangle {
             val outboundViews = guiState.widgets.filter { !it.hasParent && !it.isKeyboard }
             if (outboundViews.isNotEmpty()) {
-                val outBound = outboundViews.maxBy { it.boundaries.height + it.boundaries.width }!!.boundaries
+                val outBound = outboundViews.maxByOrNull { it.boundaries.height + it.boundaries.width }!!.boundaries
                 return outBound
             }
             val bound = guiState.widgets.sortedBy { it.boundaries.width + it.boundaries.height }.last().boundaries
@@ -945,7 +956,7 @@ class Helper {
         fun computeGuiTreeVisibleDimension(guiState: State<*>): Rectangle {
             val outboundViews = guiState.widgets.filter { !it.hasParent && !it.isKeyboard }
             if (outboundViews.isNotEmpty()) {
-                val outBound = outboundViews.maxBy { it.visibleBounds.height + it.visibleBounds.width }!!.visibleBounds
+                val outBound = outboundViews.maxByOrNull { it.visibleBounds.height + it.visibleBounds.width }!!.visibleBounds
                 return outBound
             }
             val bound = guiState.widgets.sortedBy { it.visibleBounds.width + it.visibleBounds.height }.last().visibleBounds
@@ -955,14 +966,15 @@ class Helper {
         fun isSameFullScreenDimension(rotation: org.atua.modelFeatures.Rotation, guiTreeDimension: Rectangle, autautMF: org.atua.modelFeatures.ATUAMF): Boolean {
             if (rotation == org.atua.modelFeatures.Rotation.PORTRAIT) {
                 if (guiTreeDimension.leftX == 0 && guiTreeDimension.width >= autautMF.portraitScreenSurface.width) {
-                    if (guiTreeDimension.height / autautMF.portraitScreenSurface.height.toDouble() > 0.9) {
+                    if (guiTreeDimension.height / autautMF.portraitScreenSurface.height.toDouble() > 0.95) {
                         return true
                     }
                 }
+
                 return false
             }
-            if (guiTreeDimension.leftX == 0 && guiTreeDimension.width > 0.9 * autautMF.portraitScreenSurface.height) {
-                if (guiTreeDimension.height / autautMF.portraitScreenSurface.width.toDouble() > 0.9) {
+            if (guiTreeDimension.leftX == 0 && guiTreeDimension.width > 0.95 * autautMF.portraitScreenSurface.height) {
+                if (guiTreeDimension.height / autautMF.portraitScreenSurface.width.toDouble() > 0.95) {
                     return true
                 }
             }
@@ -972,7 +984,7 @@ class Helper {
         fun isDialog(rotation: org.atua.modelFeatures.Rotation, guiTreeDimension: Rectangle, guiState: State<*>, autautMF: org.atua.modelFeatures.ATUAMF):Boolean {
             if (isSameFullScreenDimension(rotation, guiTreeDimension, autautMF))
                 return false
-            if (guiState.widgets.any { it.resourceId == "android:id/content" }) {
+            if (guiState.widgets.any { it.resourceId == "android:id/content" && it.isVisible}) {
                 return true
             }
             return false
@@ -1020,7 +1032,11 @@ class Helper {
         }
 
         fun isOptionsMenuLayout(currentState: State<*>): Boolean {
-            val root = currentState.widgets.filter { it.isVisible }.find { it.parentId == null }
+            val roots = currentState.widgets.filter { it.parentId == null }
+            if (roots.size>1) {
+                return false
+            }
+            val root = currentState.widgets.find { it.parentId == null }
             if (root == null)
             //cannot detect
                 return false
@@ -1045,11 +1061,17 @@ class Helper {
 
         fun isUserLikeInput(guiWidget: Widget): Boolean {
             return when (guiWidget.className) {
-                "android.widget.RadioButton", "android.widget.CheckBox", "android.widget.Switch", "android.widget.ToggleButton" -> true
+                "android.widget.RadioButton", "android.widget.CheckBox", "android.widget.Switch", "android.widget.ToggleButton","android.widget.CheckedTextView" -> true
                 else -> guiWidget.isInputField
             }
         }
 
+        fun isUserLikeInput(widgetClass: String):Boolean {
+            return when (widgetClass) {
+                "android.widget.RadioButton", "android.widget.CheckBox", "android.widget.Switch", "android.widget.ToggleButton", "android.widget.EditText", "android.widget.CheckedTextView"  -> true
+                else -> false
+            }
+        }
         fun getAvailableActionsForWidget(chosenWidget: Widget, currentState: State<*>,delay: Long, useCoordinateClicks:Boolean): ArrayList<ExplorationAction> {
              val availableActions = ArrayList(chosenWidget.availableActions(delay, useCoordinateClicks))
              availableActions.removeIf {!chosenWidget.clickable &&
@@ -1057,56 +1079,19 @@ class Helper {
              availableActions.removeIf { it is Swipe }
 
               if (Helper.isScrollableWidget(chosenWidget)) {
-                when (Helper.getViewsChildrenLayout(chosenWidget, currentState)) {
-                    ScrollDirection.HORIZONTAL -> {
-                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_FORWARD") }) {
-                            availableActions.add(chosenWidget.swipeLeft())
-                        }
-                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_BACKWARD") }) {
-                            availableActions.add(chosenWidget.swipeRight())
-                        }
-                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_RIGHT") }) {
-                            availableActions.add(chosenWidget.swipeLeft())
-                        }
-                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_LEFT") }) {
-                            availableActions.add(chosenWidget.swipeRight())
-                        }
-                    }
-                    ScrollDirection.VERTICAL -> {
-                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_FORWARD") }) {
-                            availableActions.add(chosenWidget.swipeUp())
-                        }
-                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_BACKWARD") }) {
-                            availableActions.add(chosenWidget.swipeDown())
-                        }
-                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_DOWN") }) {
-                            availableActions.add(chosenWidget.swipeUp())
-                        }
-                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_UP") }) {
-                            availableActions.add(chosenWidget.swipeDown())
-                        }
-                    }
-                    else -> {
-                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_FORWARD") }) {
-                            availableActions.add(chosenWidget.swipeLeft())
-                        }
-                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_BACKWARD") }) {
-                            availableActions.add(chosenWidget.swipeRight())
-                        }
-                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_RIGHT") }) {
-                            availableActions.add(chosenWidget.swipeLeft())
-                        }
-                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_LEFT") }) {
-                            availableActions.add(chosenWidget.swipeRight())
-                        }
-                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_DOWN") }) {
-                            availableActions.add(chosenWidget.swipeUp())
-                        }
-                        if (chosenWidget.metaInfo.any { it.contains("ACTION_SCROLL_UP") }) {
-                            availableActions.add(chosenWidget.swipeDown())
-                        }
-                    }
-                }
+                  val scrollDirection = Helper.getViewsChildrenLayout(chosenWidget, currentState)
+                  if (scrollDirection and ScrollDirection.LEFT.flagValue == ScrollDirection.LEFT.flagValue) {
+                      availableActions.add(chosenWidget.swipeLeft())
+                  }
+                  if (scrollDirection and ScrollDirection.RIGHT.flagValue == ScrollDirection.RIGHT.flagValue) {
+                      availableActions.add(chosenWidget.swipeRight())
+                  }
+                  if (scrollDirection and ScrollDirection.UP.flagValue == ScrollDirection.UP.flagValue) {
+                      availableActions.add(chosenWidget.swipeUp())
+                  }
+                  if (scrollDirection and ScrollDirection.DOWN.flagValue == ScrollDirection.DOWN.flagValue) {
+                      availableActions.add(chosenWidget.swipeDown())
+                  }
             }
             ExplorationTrace.widgetTargets.clear()
             if (availableActions.isNotEmpty())
@@ -1125,29 +1110,22 @@ class Helper {
                 result.add(action_data)
             }
             if (Helper.isScrollableWidget(chosenWidget)) {
-                when (Helper.getViewsChildrenLayout(chosenWidget, currentState)) {
-                    ScrollDirection.HORIZONTAL -> {
-                        val action_data1 = Pair("Swipe","SwipeLeft")
-                        result.add(action_data1)
-                        val action_data2 = Pair("Swipe","SwipeRight")
-                        result.add(action_data2)
-                    }
-                    ScrollDirection.VERTICAL -> {
-                        val action_data1 = Pair("Swipe","SwipeUp")
-                        result.add(action_data1)
-                        val action_data2 = Pair("Swipe","SwipeDown")
-                        result.add(action_data2)
-                    }
-                    else -> {
-                        val action_data1 = Pair("Swipe","SwipeLeft")
-                        result.add(action_data1)
-                        val action_data2 = Pair("Swipe","SwipeRight")
-                        result.add(action_data2)
-                        val action_data3 = Pair("Swipe","SwipeUp")
-                        result.add(action_data3)
-                        val action_data4 = Pair("Swipe","SwipeDown")
-                        result.add(action_data4)
-                    }
+                val scrollDirection = Helper.getViewsChildrenLayout(chosenWidget, currentState)
+                if (scrollDirection and ScrollDirection.LEFT.flagValue == ScrollDirection.LEFT.flagValue) {
+                    val action_data1 = Pair("Swipe","SwipeLeft")
+                    result.add(action_data1)
+                }
+                if (scrollDirection and ScrollDirection.RIGHT.flagValue == ScrollDirection.RIGHT.flagValue) {
+                    val action_data2 = Pair("Swipe","SwipeRight")
+                    result.add(action_data2)
+                }
+                if (scrollDirection and ScrollDirection.UP.flagValue == ScrollDirection.UP.flagValue) {
+                    val action_data1 = Pair("Swipe","SwipeUp")
+                    result.add(action_data1)
+                }
+                if (scrollDirection and ScrollDirection.DOWN.flagValue == ScrollDirection.DOWN.flagValue) {
+                    val action_data2 = Pair("Swipe","SwipeDown")
+                    result.add(action_data2)
                 }
             }
             return result
@@ -1187,14 +1165,11 @@ private fun Widget.getDrawOrder(): Int {
     return metaInfo.find { it.contains("drawingOrder") }!!.split(" = ")[1].toInt()
 }
 
-enum class ScrollDirection {
-    HORIZONTAL,
-    VERTICAL,
-    UP,
-    DOWN,
-    LEFT,
-    RIGHT,
-    UNKNOWN
+enum class ScrollDirection (val flagValue: Int) {
+    UP (0xf000),
+    DOWN (0xfF00),
+    LEFT (0x00f0),
+    RIGHT (0x000f)
 }
 
 enum class LayoutDirection {

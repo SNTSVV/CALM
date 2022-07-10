@@ -48,16 +48,16 @@ subprojects {
 		if (lang == "kotlin") {
 			target.dependencies {
 				// This line makes IntelliJ navigate to sources instead of external jar.
-				testCompileOnly files { project(dependency).sourceSets.test.kotlin.srcDirs }
+				testImplementationOnly files { project(dependency).sourceSets.test.kotlin.srcDirs }
 			}
 		} else
 			assert false: "Unsupported language of dependency. The language: $lang"
 
 		target.dependencies {
 			// This makes the test classes of 'dependency' project available to the classpath of 'target' project
-			testCompile project(dependency).sourceSets.test.output
+			testImplementation project(dependency).sourceSets.test.output
 			// This is just the plain project dependency.
-			compile project(dependency)
+			implementation project(dependency)
 		}
 	}
 
@@ -81,7 +81,7 @@ subprojects {
 		target.sourceSets.test.compileClasspath = target.configurations.forceJunitPriority + target.sourceSets.test.compileClasspath
 		target.dependencies {
 			forceJunitPriority 'junit:junit:4.12'
-			testCompile 'junit:junit:4.12'
+			testImplementation 'junit:junit:4.12'
 		}
 
 	}

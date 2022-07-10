@@ -131,7 +131,7 @@ fun Map<Long, Int>.padPartitions(
 	return if (this.isEmpty())
 		(0..lastPartition step partitionSize).associate { Pair(it, -1) }
 	else {
-		val maxKey = this.keys.max() ?: 0
+		val maxKey = this.keys.maxOrNull() ?: 0
 		val paddedPartitions: Map<Long, Int> = ((maxKey + partitionSize)..lastPartition step partitionSize).associate { Pair(it, -1) }
 		return this.plus(paddedPartitions)
 	}
@@ -150,6 +150,6 @@ fun Map<Long, Iterable<String>>.countsPartitionedByTime(
 			.accumulate()
 			.mapValues { it.value.count() }
 			.partition(partitionSize)
-			.accumulateMaxes(extractMax = { it.max() ?: 0 })
+			.accumulateMaxes(extractMax = { it.maxOrNull() ?: 0 })
 			.padPartitions(partitionSize, lastPartition.zeroLeastSignificantDigits(3))
 }

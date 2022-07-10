@@ -43,7 +43,7 @@ plugins {
 }
 
 // for publishing to m2
-apply (plugin= "maven")
+//apply (plugin= "maven")
 apply (plugin="maven-publish")
 
 repositories {
@@ -55,7 +55,7 @@ dependencies {
 	implementation( "org.jetbrains.kotlin:kotlin-stdlib" )
 	implementation( "org.jetbrains.kotlin:kotlin-reflect" )
 	implementation( "org.slf4j:slf4j-api:1.7.25" )
-	compile(kotlin("stdlib"))
+	implementation(kotlin("stdlib"))
 }
 
 // compile bytecode to java 8 (default is java 6)
@@ -64,7 +64,7 @@ tasks.withType<KotlinCompile> {
 }
 
 tasks.withType<Wrapper> {
-	gradleVersion = "5.3"  //define what gradle wrapper version is to be used on wrapper initialization (only if there is no wrapper yet or "gradlew wrapper" is called)
+	gradleVersion = "7.3.3"  //define what gradle wrapper version is to be used on wrapper initialization (only if there is no wrapper yet or "gradlew wrapper" is called)
 }
 
 /*

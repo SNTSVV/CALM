@@ -17,22 +17,16 @@ import android.media.AudioManager
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Bundle
-import android.os.Environment
 import android.provider.Settings
 import android.support.test.uiautomator.By
 import android.support.test.uiautomator.UiDevice
-import android.support.test.uiautomator.UiSelector
 import android.support.test.uiautomator.Until
 import android.support.test.uiautomator.click
 import android.util.Log
 import android.view.KeyEvent
-import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.core.content.FileProvider
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import org.droidmate.deviceInterface.DeviceConstants
 import org.droidmate.deviceInterface.exploration.*
 import org.droidmate.uiautomator2daemon.uiautomatorExtensions.*
@@ -41,7 +35,6 @@ import org.droidmate.uiautomator2daemon.uiautomatorExtensions.UiSelector.actable
 import org.droidmate.uiautomator2daemon.uiautomatorExtensions.UiSelector.isWebView
 import java.io.File
 import java.io.FileOutputStream
-import java.nio.file.Files
 import kotlin.math.max
 import kotlin.system.measureNanoTime
 import kotlin.system.measureTimeMillis
@@ -83,11 +76,12 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 	Log.d(logTag, "START execution ${toString()}($id)")
 	val result: Any = when(this) { // REMARK this has to be an assignment for when to check for exhaustiveness
 		is Click -> {
-			env.device.verifyCoordinate(x, y)
+//			env.device.verifyCoordinate(x, y)
 			/*env.device.executeShellCommand("input tap $x $y").apply {
 				delay(delay)
 			}*/
 			env.device.click(x, y, interactiveTimeout)
+//			delay(delay)
 		}
 		is Tick -> {
 			var success = UiHierarchy.findAndPerform(env, idMatch(idHash)) {
@@ -115,7 +109,7 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 		is LongClickEvent -> UiHierarchy.findAndPerform(env, idMatch(idHash)) { nodeInfo ->				// do this for API Level above 19 (exclusive)
 			nodeInfo.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK)}.also {
 			if(it) {
-				delay(delay)
+//				delay(delay)
 				env.waitForWindowUpdate()
 			} // wait for display update
 			Log.d(logTag, "perform successful=$it")
@@ -127,6 +121,7 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 //				delay(delay)
 //			}
 			env.device.swipe(x,y,x,y,100).also {
+//				delay(delay)
 				env.waitForWindowUpdate()
 			}
 
@@ -176,12 +171,12 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 				ActionType.CloseKeyboard -> if (env.isKeyboardOpen()) //(UiHierarchy.any(env.device) { node, _ -> env.keyboardPkgs.contains(node.packageName) })
 					env.device.pressBack()
 				else true
-				ActionType.FetchGUI -> fetchDeviceData(env = env, afterAction = true)
+				ActionType.FetchGUI -> fetchDeviceData(env = env, afterAction = false)
 				ActionType.Terminate -> false /* should never be transferred to the device */
-
 				else -> true
 			}.also {
 				if (it is Boolean && it) {
+//					delay(200)
 					env.waitForWindowUpdate()
 				}
 			}
@@ -208,7 +203,7 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 						Log.d(logTag, "trigger enter")
 						env.device.pressEnter()
 					}  // when doing multiple action sending enter may trigger a continue button but not all elements are yet filled
-
+//					delay(delay)
 					env.waitForWindowUpdate()
 				} }
 		is RotateUI -> env.device.rotate(rotation, env.automation).also {
@@ -270,7 +265,9 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 					Direction.RIGHT,Direction.DOWN -> nodeInfo.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
 				}
 			}.also {
-			if(it) { delay(idleTimeout) } // wait for display update
+			if(it) {
+				env.waitForWindowUpdate()
+			} // wait for display update
 			Log.d(logTag, "perform successful=$it")
 		}
 		is ActionQueue -> {
@@ -308,15 +305,15 @@ private suspend fun waitForSync(env: UiAutomationEnvironment, afterAction: Boole
 	else
 		env.idleTimeout
 	try {
-/*		if (afterAction) {
+		/*if (afterAction) {
 			env.lastWindows.firstOrNull { it.isApp() && !it.isKeyboard && !it.isLauncher }?.let {
 				env.device.waitForWindowUpdate(it.w.pkgName, env.interactiveTimeout) //wait sync on focused window
 			}
 		}*/
-
 		debugT("wait for IDLE avg = ${time / max(1, cnt)} ms", {
+//			env.device.waitForIdle(usingIdleTimeout)
 			env.automation.waitForIdle(50,usingIdleTimeout)
-		//env.device.waitForIdle(env.idleTimeout) // this has a minimal delay of 500ms between events until the device is considered idle
+			//		env.device.waitForIdle(env.idleTimeout) // this has a minimal delay of 500ms between events until the device is considered idle
 		}, inMillis = true,
 				timer = {
 					Log.d(logTag, "time=${it} mms")
@@ -365,9 +362,9 @@ private var wt = 0.0
 private var wc = 0
 private const val debugFetch = false
 private val isInteractive = { w: UiElementPropertiesI -> w.clickable || w.longClickable || w.checked!=null || w.isInputField}
-suspend fun fetchDeviceData(env: UiAutomationEnvironment, afterAction: Boolean = false, useDefault: Boolean=false): DeviceResponse = coroutineScope{
+suspend fun fetchDeviceData(env: UiAutomationEnvironment, afterAction: Boolean = false, useShortTimeout: Boolean=false): DeviceResponse = coroutineScope{
 	debugOut("start fetch execution",debugFetch)
-	waitForSync(env,afterAction,useDefault)
+	waitForSync(env,afterAction,useShortTimeout)
 
 	var windows: List<DisplayedWindow> = env.getDisplayedWindows()
 	var isSuccessful = true
@@ -382,6 +379,11 @@ suspend fun fetchDeviceData(env: UiAutomationEnvironment, afterAction: Boolean =
 	debugT("Fetch UI", {
 		uiHierarchy = UiHierarchy.fetch(windows,img).let{
 			if(it == null ||  it.none (isInteractive) ) {
+				if (it == null) {
+					Log.w(logTag, "Could not parse current UI screen.")
+				} else {
+					Log.w(logTag, "No interactive widgets")
+				}
 				Log.w(logTag, "first ui extraction failed or no interactive elements were found \n $it, \n ---> start a second try")
 				windows = env.getDisplayedWindows()
 				img = env.captureScreen()
@@ -389,7 +391,7 @@ suspend fun fetchDeviceData(env: UiAutomationEnvironment, afterAction: Boolean =
 					Log.d(logTag, "second try resulted in ${secondRes?.size} elements")
 				}  //retry once for the case that AccessibilityNode tree was not yet stable
 			} else it
-		} ?: emptyList<UiElementPropertiesI>()	.also {
+		} ?: emptyList<UiElementPropertiesI>().also {
 			isSuccessful = false
 			Log.e(logTag, "could not parse current UI screen ( $windows )")
 			throw java.lang.RuntimeException("UI extraction failed for windows: $windows")
@@ -417,7 +419,7 @@ suspend fun fetchDeviceData(env: UiAutomationEnvironment, afterAction: Boolean =
 
 	var xml: String = "TODO parse widget list on Pc if we need the XML or introduce a debug property to enable parsing" +
 			", because (currently) we would have to traverse the tree a second time"
-	if(debugEnabled) xml = UiHierarchy.getXml(env)
+//	if(debugEnabled) xml = UiHierarchy.getXml(env)
 
 	env.lastResponse = DeviceResponse.create( isSuccessful = isSuccessful, uiHierarchy = uiHierarchy!!,
 		uiDump = xml,
@@ -442,8 +444,8 @@ suspend fun fetchDeviceData(env: UiAutomationEnvironment, afterAction: Boolean =
 //	}
 
 private fun UiDevice.verifyCoordinate(x:Int,y:Int){
-	assert(x in 0 until displayWidth) { "Error on click coordinate invalid x:$x" }
-	assert(y in 0 until displayHeight) { "Error on click coordinate invalid y:$y" }
+	assert(x in 0 until displayWidth) { "Error on click coordinate invalid x:$x - DisplayWith: $displayWidth" }
+	assert(y in 0 until displayHeight) { "Error on click coordinate invalid y:$y - DisplayHeight: $displayHeight" }
 }
 
 private typealias twoPointStepableAction = (x0:Int,y0:Int,x1:Int,y1:Int)->Boolean
@@ -503,7 +505,7 @@ private suspend fun UiDevice.launchApp(appPackageName: String, env: UiAutomation
 				waitTime)
 
 		delay(launchActivityDelay)
-		success = UiHierarchy.waitFor(env, interactiveTimeout, actableAppElem)
+		success = UiHierarchy.waitFor(env, waitTime, actableAppElem)
 		// mute audio after app launch (for very annoying apps we may need a contentObserver listening on audio setting changes)
 		val audio = env.context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 		audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_MUTE,0)

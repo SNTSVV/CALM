@@ -49,5 +49,9 @@ out
 *.apk
 ˜
 ~
-~*.docx
 .idea
+~*.docx
+output-bk
+output
+output-atua
+output-calm

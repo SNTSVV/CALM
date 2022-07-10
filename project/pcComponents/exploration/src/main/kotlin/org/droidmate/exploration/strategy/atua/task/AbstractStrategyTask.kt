@@ -19,10 +19,12 @@ import org.droidmate.deviceInterface.exploration.ExplorationAction
 import org.droidmate.deviceInterface.exploration.GlobalAction
 import org.droidmate.deviceInterface.exploration.LongClick
 import org.droidmate.deviceInterface.exploration.LongClickEvent
+import org.droidmate.deviceInterface.exploration.Rectangle
 import org.droidmate.deviceInterface.exploration.Swipe
 import org.droidmate.deviceInterface.exploration.Tick
 import org.droidmate.deviceInterface.exploration.isClick
 import org.droidmate.deviceInterface.exploration.isEnabled
+import org.droidmate.deviceInterface.exploration.isFetch
 import org.droidmate.deviceInterface.exploration.isLongClick
 import org.droidmate.exploration.ExplorationContext
 import org.droidmate.exploration.actions.availableActions
@@ -56,6 +58,8 @@ import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.random.Random
 
 abstract class AbstractStrategyTask(
@@ -225,7 +229,7 @@ abstract class AbstractStrategyTask(
                 AbstractActionType.PRESS_HOME -> ExplorationAction.minimizeMaximize()
                 AbstractActionType.MINIMIZE_MAXIMIZE -> ExplorationAction.minimizeMaximize()
                 AbstractActionType.ROTATE_UI -> {
-                    if (currentAbstactState == org.atua.modelFeatures.Rotation.PORTRAIT) {
+                    if (currentAbstactState.rotation == org.atua.modelFeatures.Rotation.PORTRAIT) {
                         ExplorationAction.rotate(90)
                     } else {
                         ExplorationAction.rotate(-90)
@@ -278,10 +282,10 @@ abstract class AbstractStrategyTask(
             val widget = currentState.widgets.find { it.uid == interaction.targetWidget!!.uid }
             if (widget != null) {
                 action = when (interaction.actionType) {
-                    "Click" -> widget.availableActions(25, useCoordinateClicks).filter {
+                    "Click" -> widget.availableActions(delay, useCoordinateClicks).filter {
                         it.name.isClick()
                     }.singleOrNull()
-                    "LongClick" -> widget.availableActions(25, useCoordinateClicks).filter {
+                    "LongClick" -> widget.availableActions(delay, useCoordinateClicks).filter {
                         it.name.isLongClick()
                     }.singleOrNull()
                     "Swipe" -> {
@@ -289,7 +293,7 @@ abstract class AbstractStrategyTask(
                         ExplorationTrace.widgetTargets.add(widget)
                         Swipe(swipeData[0], swipeData[1], 25, true)
                     }
-                    else -> widget.availableActions(0, useCoordinateClicks).random()
+                    else -> widget.availableActions(delay, useCoordinateClicks).random()
                 }
             }
         }
@@ -304,7 +308,7 @@ abstract class AbstractStrategyTask(
         if (guiDimension.topY - 50 < 0)
             return Click(guiDimension.leftX - 50, y = guiDimension.topY)
         val abstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)!!
-        abstractState.increaseActionCount2(abstractAction, false)
+        abstractState.increaseActionCount2(abstractAction, atuaMF)
         return Click(guiDimension.leftX - 50, y = guiDimension.topY - 50)
     }
 
@@ -341,10 +345,10 @@ abstract class AbstractStrategyTask(
                     val widget = currentState.widgets.find { it.uid == interaction.targetWidget!!.uid }
                     if (widget != null) {
                         val action = when (interaction.actionType) {
-                            "Click" -> widget.availableActions(25, useCoordinateClicks).filter {
+                            "Click" -> widget.availableActions(delay, useCoordinateClicks).filter {
                                 it.name.isClick()
                             }.singleOrNull()
-                            "LongClick" -> widget.availableActions(25, useCoordinateClicks).filter {
+                            "LongClick" -> widget.availableActions(delay, useCoordinateClicks).filter {
                                 it.name.isLongClick()
                             }.singleOrNull()
                             "Swipe" -> {
@@ -352,7 +356,7 @@ abstract class AbstractStrategyTask(
                                 ExplorationTrace.widgetTargets.add(widget)
                                 Swipe(swipeData[0], swipeData[1], 25, true)
                             }
-                            else -> widget.availableActions(0, useCoordinateClicks).random()
+                            else -> widget.availableActions(delay, useCoordinateClicks).random()
                         }
                         if (action != null) {
                             actionList.add(action)
@@ -399,19 +403,19 @@ abstract class AbstractStrategyTask(
             outBoundLayout.visibleBounds.width
         val swipeAction = when (data) {
             "SwipeUp" -> {
-                val startY = outBoundLayout.visibleBounds.bottomY - screenHeight / 10
+                val startY = outBoundLayout.visibleBounds.bottomY - screenHeight / 4
                 ExplorationAction.swipe(Pair(screenWidth / 2, startY), Pair(screenWidth / 2, startY - screenHeight))
             }
             "SwipeDown" -> {
-                val startY = outBoundLayout.visibleBounds.topY + screenHeight / 10
+                val startY = outBoundLayout.visibleBounds.topY + screenHeight / 4
                 ExplorationAction.swipe(Pair(screenWidth / 2, startY), Pair(screenWidth / 2, startY + screenHeight))
             }
             "SwipeLeft" -> {
-                val startX = outBoundLayout.visibleBounds.rightX
+                val startX = outBoundLayout.visibleBounds.rightX - screenWidth / 4
                 ExplorationAction.swipe(Pair(startX, screenHeight / 2), Pair(startX - screenWidth, screenHeight / 2))
             }
             "SwipeRight" -> {
-                val startX = outBoundLayout.visibleBounds.leftX
+                val startX = outBoundLayout.visibleBounds.leftX + screenWidth / 4
                 ExplorationAction.swipe(Pair(startX, screenHeight / 2), Pair(startX + screenWidth, screenHeight / 2))
             }
             else -> {
@@ -448,7 +452,7 @@ abstract class AbstractStrategyTask(
         abstractAction: AbstractAction?
     ): ExplorationAction? {
         if (action == AbstractActionType.TEXT_INSERT && chosenWidget.isInputField) {
-            return chooseActionForTextInput(chosenWidget, currentState)
+            return chooseActionForTextInput(chosenWidget, currentState, data as String?)
         }
         val currentAbstractState = atuaMF.getAbstractState(currentState)!!
 
@@ -459,12 +463,11 @@ abstract class AbstractStrategyTask(
             val actionList: ArrayList<ExplorationAction> = ArrayList<ExplorationAction>()
             if (childWidgets.isEmpty()) {
                 if (abstractAction != null) {
-                    abstractAction.attributeValuationMap!!.actionCount.remove(abstractAction)
+                    abstractAction.attributeValuationMap!!.removeAction(abstractAction,atuaMF)
                 }
                 return null
             }
             if (action == AbstractActionType.CLICK) {
-
                 if (data == "RandomMultiple") {
                     for (i in 0..10) {
                         actionList.add(childWidgets.random().click())
@@ -478,13 +481,13 @@ abstract class AbstractStrategyTask(
                         childWidgets.random()
                     explorationAction = webViewWidget.click()
                     if (abstractAction!=null && currentAbstractState.getAttributeValuationSet(webViewWidget, currentState, atuaMF)!=null) {
-                        currentAbstractState.increaseActionCount2(abstractAction,true)
+                        currentAbstractState.increaseActionCount2(abstractAction,atuaMF)
                     }
                 } else {
                     val webViewWidget = childWidgets.random()
                     explorationAction = webViewWidget.click()
                     if (abstractAction!=null && currentAbstractState.getAttributeValuationSet(webViewWidget, currentState, atuaMF)!=null) {
-                        currentAbstractState.increaseActionCount2(abstractAction,true)
+                        currentAbstractState.increaseActionCount2(abstractAction,atuaMF)
                     }
                 }
             } else if (action == AbstractActionType.LONGCLICK) {
@@ -514,16 +517,16 @@ abstract class AbstractStrategyTask(
                     swipeableWidgets.random()
                 val swipeAction =
                     computeSwipeAction(data, actionWidget, currentState, abstractAction, currentAbstractState)
-                currentAbstractState.increaseActionCount2(abstractAction!!, true)
+                currentAbstractState.increaseActionCount2(abstractAction!!, atuaMF)
                 return swipeAction
             } else {
                 if (abstractAction != null) {
-                    abstractAction.attributeValuationMap!!.actionCount.remove(abstractAction)
+                    abstractAction.attributeValuationMap!!.removeAction(abstractAction,atuaMF)
                 }
                 return null
             }
             if (abstractAction != null) {
-                currentAbstractState.increaseActionCount2(abstractAction, false)
+                currentAbstractState.increaseActionCount2(abstractAction, atuaMF)
             }
             return explorationAction
         }
@@ -561,15 +564,49 @@ abstract class AbstractStrategyTask(
         abstractAction: AbstractAction?,
         currentAbstractState: AbstractState
     ): ExplorationAction? {
+        var scrollWidget = actionWidget
+        if (actionWidget.className == "androidx.viewpager.widget.ViewPager"
+            || actionWidget.className == "android.widget.ScrollView") {
+            var childWidget: Widget = actionWidget
+            while (childWidget.childHashes.size==1) {
+                childWidget = currentState.widgets.find { it.idHash == childWidget.childHashes.single()}!!
+                if (childWidget.visibleBounds.isNotEmpty() && childWidget.focused.isEnabled()) {
+                    scrollWidget = childWidget
+                    break
+                } else if (childWidget.childHashes.size>1 && childWidget.visibleBounds.isNotEmpty()) {
+                    scrollWidget = childWidget
+                    break
+                }
+            }
+        }
         val swipeAction =
             when (data) {
-                "SwipeUp" -> actionWidget.swipeUp()
-                "SwipeDown" -> actionWidget.swipeDown()
-                "SwipeLeft" -> actionWidget.swipeLeft()
-                "SwipeRight" -> actionWidget.swipeRight()
-                "SwipeTillEnd" -> doDeepSwipeUp(actionWidget, currentState).also {
+                "SwipeUp" -> {
+                    if (scrollWidget.className == "androidx.recyclerview.widget.RecyclerView") {
+                        val childWidgets = currentState.widgets.filter { it.parentId == scrollWidget.id }
+                        if (childWidgets.isNotEmpty() && !childWidgets.any { it.boundaries.topY == scrollWidget.boundaries.topY }) {
+                            // Here, the children of this RecyclerView are layout specially (i.e., there is a space before the first item)
+                            val visibleBounderies = childWidgets.fold(Rectangle.empty(), {r,w->
+                                val left = min(r.leftX,w.visibleBounds.leftX)
+                                val right = max(r.rightX,w.visibleBounds.rightX)
+                                val top = min(r.topY,w.visibleBounds.topY)
+                                val bottom = max(r.bottomY,w.visibleBounds.bottomY)
+                                Rectangle(left,top,right-left,bottom-top)
+                            })
+                            Swipe(Pair(visibleBounderies.center.first, visibleBounderies.center.second+visibleBounderies.height/4) , Pair(visibleBounderies.center.first, visibleBounderies.topY), 35, true)
+                        } else {
+                            scrollWidget.swipeUp()
+                        }
+                    } else {
+                        scrollWidget.swipeUp()
+                    }
+                }
+                "SwipeDown" -> scrollWidget.swipeDown()
+                "SwipeLeft" -> scrollWidget.swipeLeft()
+                "SwipeRight" -> scrollWidget.swipeRight()
+                "SwipeTillEnd" -> doDeepSwipeUp(scrollWidget, currentState).also {
                     if (abstractAction != null)
-                        currentAbstractState.increaseActionCount2(abstractAction, false)
+                        currentAbstractState.increaseActionCount2(abstractAction, atuaMF)
                 }
                 else -> {
                     if (data.isNotBlank()) {
@@ -577,10 +614,10 @@ abstract class AbstractStrategyTask(
                         Swipe(swipeInfo[0], swipeInfo[1], 25, true)
                     } else {
                         arrayListOf(
-                            actionWidget.swipeUp(),
-                            actionWidget.swipeDown(),
-                            actionWidget.swipeLeft(),
-                            actionWidget.swipeRight()
+                            scrollWidget.swipeUp(),
+                            scrollWidget.swipeDown(),
+                            scrollWidget.swipeLeft(),
+                            scrollWidget.swipeRight()
                         ).random()
                     }
                 }
@@ -638,9 +675,13 @@ abstract class AbstractStrategyTask(
     }
 
 
-    private fun chooseActionForTextInput(chosenWidget: Widget, currentState: State<*>): ExplorationAction {
-        val inputValue = TextInput.getSetTextInputValue(chosenWidget, currentState, true, InputCoverage.FILL_RANDOM)
-        val explorationAction = chosenWidget.setText(inputValue, delay = delay, sendEnter = false)
+    private fun chooseActionForTextInput(chosenWidget: Widget, currentState: State<*>, data: String?): ExplorationAction {
+        if (data == null) {
+            val inputValue = TextInput.getSetTextInputValue(chosenWidget, currentState, true, InputCoverage.FILL_RANDOM)
+            val explorationAction = chosenWidget.setText(inputValue, delay = delay, sendEnter = false)
+            return explorationAction
+        }
+        val explorationAction = chosenWidget.setText(data, delay = delay, sendEnter = false)
         return explorationAction
     }
 
@@ -657,14 +698,14 @@ abstract class AbstractStrategyTask(
         var explorationAction: ExplorationAction? = null
         var candidateWidgets = ArrayList(getChildWidgets(currentState, chosenWidget,action))
         if (candidateWidgets.isEmpty()) {
-            if (abstractAction != null) {
-                abstractAction.attributeValuationMap!!.actionCount.remove(abstractAction)
-            }
+            /*if (abstractAction != null) {
+                abstractAction.attributeValuationMap!!.removeAction(abstractAction)
+            }*/
             return null
         }
         val currentAbstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)!!
-        if (abstractAction != null)
-            currentAbstractState.increaseActionCount2(abstractAction, false)
+       /* if (abstractAction != null)
+            currentAbstractState.increaseActionCount2(abstractAction, false)*/
         if (chosenWidget.className == "android.webkit.WebView") {
             if (data is String && data != "") {
                 val targetChildWidgets = candidateWidgets.filter { it.nlpText == data || StringComparison.compareStringsLevenshtein(it.nlpText,data)>0.4 }
@@ -684,9 +725,9 @@ abstract class AbstractStrategyTask(
             else
                 lessTryWidgets.random()
             log.info("Item widget: $chosenWidget")
-            if (abstractAction!=null && currentAbstractState.getAttributeValuationSet(chosenWidget, currentState, atuaMF)!=null) {
-                currentAbstractState.increaseActionCount2(abstractAction,true)
-            }
+//            if (abstractAction!=null && currentAbstractState.getAttributeValuationSet(chosenWidget, currentState, atuaMF)!=null) {
+//                currentAbstractState.increaseActionCount2(abstractAction,true)
+//            }
             val chosenAction = when (action) {
                     AbstractActionType.ITEM_CLICK -> chosenWidget.click()
                     AbstractActionType.ITEM_LONGCLICK -> chosenWidget.longClick()
@@ -825,15 +866,16 @@ abstract class AbstractStrategyTask(
         return ExplorationAction.pressMenu()
     }
 
+    var waitForCameraApp = false
     var isClickedShutterButton = false
-    internal fun dealWithCamera(currentState: State<*>): ExplorationAction {
+    internal fun dealWithCamera(currentState: State<*>,explorationContext: ExplorationContext<*,*,*>): ExplorationAction {
         val gotItButton = currentState.widgets.find { it.text.toLowerCase().equals("got it") }
         if (gotItButton != null) {
             log.info("Widget: $gotItButton")
             return gotItButton.click()
         }
         if (!isClickedShutterButton) {
-            val shutterbutton = currentState.actionableWidgets.find { it.resourceId.contains("shutter_button") }
+            val shutterbutton = currentState.widgets.find { it.resourceId.contains("shutter_button") }
             if (shutterbutton != null) {
                 log.info("Widget: $shutterbutton")
                 val clickActions =
@@ -843,11 +885,15 @@ abstract class AbstractStrategyTask(
                     return clickActions.random()
                 }
                 ExplorationTrace.widgetTargets.clear()
+            } else {
+                if (!explorationContext.getLastAction().actionType.isFetch()) {
+                    return GlobalAction(actionType = ActionType.FetchGUI)
+                }
             }
         }
-        val doneButton = currentState.actionableWidgets.find { it.resourceId.contains("done") }
+        isClickedShutterButton = false
+        val doneButton = currentState.widgets.find { it.resourceId.contains("done") }
         if (doneButton != null) {
-
             log.info("Widget: $doneButton")
             val clickActions = doneButton.availableActions(delay, useCoordinateClicks).filter { it.name.isClick() }
             if (clickActions.isNotEmpty()) {
@@ -855,7 +901,11 @@ abstract class AbstractStrategyTask(
             }
             ExplorationTrace.widgetTargets.clear()
         }
-        return ExplorationAction.pressBack()
+        if (explorationContext.getLastAction().actionType.isFetch()) {
+            log.info("Cannot find the expected widgets in the camera app. Press back.")
+            return ExplorationAction.pressBack()
+        }
+        return GlobalAction(actionType = ActionType.FetchGUI)
     }
 
     fun clickOnOpenNavigation(currentState: State<*>): ExplorationAction {
@@ -866,7 +916,7 @@ abstract class AbstractStrategyTask(
     }
 
     fun isCameraOpening(currentState: State<*>): Boolean {
-        return currentState.widgets.any { it.packageName == "com.android.camera2" || it.packageName == "com.android.camera" }
+        return  currentState.widgets.any { it.packageName == "com.android.camera2" || it.packageName == "com.android.camera" }
     }
 
     /** filters out all crashing marked widgets from the actionable widgets of the current state **/
@@ -927,7 +977,7 @@ abstract class AbstractStrategyTask(
         currentState: State<*>
     ): Widget? {
         var chosenWidget1:Widget? = null
-        val chosenWidgets = randomAction.attributeValuationMap!!.getGUIWidgets(currentState)
+        val chosenWidgets = randomAction.attributeValuationMap!!.getGUIWidgets(currentState,randomAction.window)
         if (chosenWidgets.isEmpty()) {
             chosenWidget1 = null
         } else {

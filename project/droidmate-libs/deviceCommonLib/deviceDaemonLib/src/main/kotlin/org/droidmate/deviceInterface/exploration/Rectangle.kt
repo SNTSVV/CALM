@@ -54,10 +54,10 @@ data class Rectangle(val leftX:Int, val topY:Int, val width: Int, val height: In
 }
 
 fun List<Rectangle>.visibleOuterBounds(): Rectangle = with(filter { it.isNotEmpty() }){
-	val pl = minBy { it.leftX }
-	val pt = minBy { it.topY }
-	val pr = maxBy { it.rightX }
-	val pb = maxBy { it.bottomY }
+	val pl = minByOrNull { it.leftX }
+	val pt = minByOrNull { it.topY }
+	val pr = minByOrNull { it.rightX }
+	val pb = minByOrNull { it.bottomY }
 	return Rectangle.create(pl?.leftX ?: 0, pt?.topY ?: 0, right = pr?.rightX ?: 0, bottom = pb?.bottomY ?: 0)
 }
 
@@ -72,8 +72,8 @@ fun List<Rectangle>.isComplete():Boolean{
 	val areas = filter{ isNotEmpty() }.asSequence()
 
 	// we cannot find a neighbor for the outer areas with maxX or maxY
-	val maxX = areas.maxBy { it.rightX }?.rightX ?: -1
-	val maxY = areas.maxBy { it.bottomY }?.bottomY ?: -1
+	val maxX = areas.maxByOrNull { it.rightX }?.rightX ?: -1
+	val maxY = areas.maxByOrNull { it.bottomY }?.bottomY ?: -1
 	areas.forEach { r ->
 		if(!complete) return false
 		complete = (if(r.rightX<maxX) areas.any {

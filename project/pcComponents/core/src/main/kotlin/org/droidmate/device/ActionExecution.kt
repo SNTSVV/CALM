@@ -27,6 +27,10 @@ lateinit var exception: DeviceException
 private var performT: Long = 0
 private var performN: Int = 0
 
+// measure for specific actions
+var performClickT: Long = 0
+var performClickN: Int = 0
+
 private suspend fun performAction(action: ExplorationAction, app: IApk, device: IRobustDevice){
 	when {
 		action.name == ActionType.Terminate.name -> terminate(app, device)
@@ -45,7 +49,7 @@ private suspend fun performAction(action: ExplorationAction, app: IApk, device: 
 		}
 		action is LaunchApp || (action is ActionQueue && action.actions.any { it is LaunchApp }) -> {
 			//resetApp(app, device)
-			device.forceStop(app)
+			//device.forceStop(app)
 			defaultExecution(action, device)
 		}
 		else -> debugT("perform $action on average ${performT / max(performN, 1)} ms", {
@@ -54,8 +58,14 @@ private suspend fun performAction(action: ExplorationAction, app: IApk, device: 
 		}, timer = {
 			performT += it / 1000000
 			performN += 1
+			if (action.name == "Click") {
+				performClickT += it / 1000000
+				performClickN += 1
+				println("perform Click on average ${performClickT / performClickN} ms")
+			}
 		}, inMillis = true)
 	}
+
 }
 
 @Throws(DeviceException::class)

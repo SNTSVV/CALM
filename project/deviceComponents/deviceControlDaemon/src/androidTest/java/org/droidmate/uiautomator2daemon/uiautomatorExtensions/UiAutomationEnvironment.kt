@@ -156,7 +156,7 @@ data class UiAutomationEnvironment(val idleTimeout: Long = 100, val interactiveT
 	}
 
 	private suspend fun processWindows(w: AccessibilityWindowInfo, uncoveredC: MutableList<Rect>): DisplayedWindow? {
-		debugOut("process ${w.id}", false)
+		debugOut("process ${w.id}", true)
 		var outRect = Rect()
 		// REMARK we wait that the app AND keyboard root nodes are available for synchronization reasons
 		// otherwise we may extract an app widget as definedAsVisible which would have been hidden behind the input window

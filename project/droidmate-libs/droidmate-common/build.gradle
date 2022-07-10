@@ -11,8 +11,9 @@ compileKotlin {
 }
 
 dependencies {
-	compile project(":deviceDaemonLib")
-	compile 'com.natpryce:konfig:1.6.6.0'  // configuration library
+	implementation (project(":deviceDaemonLib"))
+	implementation 'com.natpryce:konfig:1.6.6.0'  // configuration library
+	implementation ("org.slf4j:slf4j-api:1.7.25")
 	testImplementation 'junit:junit:4.12'
 	testImplementation "org.jetbrains.kotlin:kotlin-test:${project.ext.kotlin_version}"
 	implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
@@ -24,8 +25,8 @@ dependencies {
 	implementation 'ch.qos.logback:logback-classic:1.2.3'
 	implementation 'ch.qos.logback:logback-core:1.2.3'
 
-	compile 'com.google.jimfs:jimfs:1.1'
-	compile 'commons-io:commons-io:2.6'
+	implementation 'com.google.jimfs:jimfs:1.1'
+	implementation 'commons-io:commons-io:2.6'
 
 
 

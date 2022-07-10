@@ -1,6 +1,7 @@
 package org.droidmate.exploration.strategy
 
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import org.atua.modelFeatures.ATUAMF
 import org.droidmate.deviceInterface.exploration.*
 import org.droidmate.exploration.ExplorationContext
@@ -174,9 +175,10 @@ object DefaultStrategies: Logging {
 	 *  - we try to wait for up to ${maxWaittime}s (default 5s) if any interactive element appears
 	 *  - if the app has crashed we terminate
 	 */
-	fun handleTargetAbsence(prio: Int, maxWaitTime: Long = 1000) = object : AExplorationStrategy(){
+	fun handleTargetAbsence(prio: Int, maxWaitTime: Long = 500) = object : AExplorationStrategy(){
 		private var cnt = 0
 		private var pressbackCnt = 0
+		private var waitCnt = 0
 		private var clickScreen = false
 		private var pressEnter = false
 		// may be used to terminate if there are no targets after waiting for maxWaitTime
@@ -193,6 +195,7 @@ object DefaultStrategies: Logging {
 					pressEnter = false
 					terminate = false
 					waitingForLaunch = false
+					waitCnt = 0
 				}
 			}
 			return hasNext
@@ -251,7 +254,12 @@ object DefaultStrategies: Logging {
 					}
 				}
 				s.isHomeScreen  -> {
-					eContext.launchApp()
+					/*if (lastActionType.isPressBack()
+						|| lastActionType=="PressHome" || lastActionType=="MinimizeMaximize" )*/
+					if (lastActionType != "LaunchApp")
+						eContext.launchApp()
+					else
+						eContext.resetApp()
 				}
 				lastActionType.isPressBack() -> {
 					// if previous action was back, terminate
@@ -277,15 +285,35 @@ object DefaultStrategies: Logging {
 				}
 				// by default, if it cannot explore, presses back
 				else -> {
-					if (s.visibleTargets.isEmpty() && !lastActionType.isFetch()) {
+					if ( !s.widgets.any { it.packageName == eContext.model.config.appName }) {
+						if (lastActionType == "RotateUI"
+							|| lastActionType == "MinimizeMaximize") {
+							eContext.resetApp()
+						} else {
+							pressbackCnt += 1
+							ExplorationAction.pressBack()
+						}
+					}
+					else if (s.widgets.all { it.boundaries.equals(s.widgets.first().boundaries) })   {
+						log.debug("Click on Screen")
+						val largestWidget = s.widgets.maxByOrNull { it.boundaries.width+it.boundaries.height }
+						if (largestWidget !=null && !clickScreen) {
+							clickScreen = true
+							largestWidget.click()
+						} else {
+							pressEnter = true
+							ExplorationAction.pressEnter()
+						}
+					} else if (s.visibleTargets.isEmpty() && waitCnt <= 3 ) {
 						delay(maxWaitTime)
-						GlobalAction(ActionType.FetchGUI)
+						waitCnt++
+						if (waitCnt < 2)
+							GlobalAction(ActionType.FetchGUI)
+						else
+							GlobalAction(ActionType.MinimizeMaximize)
 					}
 					// if current state is not a relevent state
-					else if ( !s.widgets.any { it.packageName == eContext.model.config.appName }) {
-						pressbackCnt +=1
-						ExplorationAction.pressBack()
-					} else if ( !s.visibleTargets.any { it.clickable }  ) {
+					 else if ( !s.visibleTargets.any { it.clickable }  ) {
 						// for example: vlc video player
 						log.debug("Cannot explore because of no actionable widgets. Randomly choose PressBack or Click")
 						if (pressEnter || clickScreen) {
@@ -295,7 +323,7 @@ object DefaultStrategies: Logging {
 						} else
 						{
 							log.debug("Click on Screen")
-							val largestWidget = s.widgets.maxBy { it.boundaries.width+it.boundaries.height }
+							val largestWidget = s.widgets.maxByOrNull { it.boundaries.width+it.boundaries.height }
 							if (largestWidget !=null) {
 								clickScreen = true
 								largestWidget.click()
@@ -331,13 +359,15 @@ object DefaultStrategies: Logging {
 			// we do not require the element with the text ALLOW or OK to be clickabe since there may be overlaying elements
 			// which handle the touch event for this button, however as a consequence we may click non-interactive labels
 			// that is why we restricted this strategy to be executed at most [maxTries] from the same state
-			val allowButton: Widget = eContext.getCurrentState().widgets.filter{it.isVisible}.let { widgets ->
+			val allowButton: Widget? = eContext.getCurrentState().widgets.filter{it.isVisible}.let { widgets ->
 				widgets.firstOrNull { it.resourceId == "com.android.packageinstaller:id/permission_allow_button" ||
 				it.resourceId == "com.android.permissioncontroller:id/permission_allow_foreground_only_button" }
-					?: widgets.firstOrNull { it.text.contains("ALLOW") } ?: widgets.first { it.text.toUpperCase() == "OK" }
+					?: widgets.firstOrNull { it.text.lowercase().contains("allow") } ?: widgets.firstOrNull { it.text.lowercase() == "ok" }
 			}
-
-			return allowButton.click(ignoreClickable = true)
+			if (allowButton!=null)
+				return allowButton.click(ignoreClickable = true)
+			else
+				return eContext.getCurrentState().widgets.filter { it.canInteractWith }.first().click()
 		}
 	}
 
@@ -420,5 +450,24 @@ object DefaultStrategies: Logging {
 
 		override suspend fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> nextAction(eContext: ExplorationContext<M, S, W>): ExplorationAction =
 			ExplorationAction.pressBack()
+	}
+
+	fun manual(prio: Int) = object : AExplorationStrategy() {
+		override fun getPriority(): Int {
+			return prio
+		}
+
+		override suspend fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> hasNext(eContext: ExplorationContext<M, S, W>): Boolean {
+			return true
+		}
+
+		override suspend fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> computeNextAction(eContext: ExplorationContext<M, S, W>): ExplorationAction {
+			runBlocking {
+				println("Do any action and then press anykey to continue")
+				val line = readLine()
+			}
+			return GlobalAction(actionType = ActionType.FetchGUI)
+		}
+
 	}
 }

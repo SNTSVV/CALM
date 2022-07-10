@@ -24,6 +24,9 @@ import org.droidmate.explorationModel.interaction.State
 
 open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
                                                          val scaleFactor: Double = 1.0,
+                                                         val timeout: Int,
+                                                         val randomTimeout: Int,
+                                                         val randomStrategy: Int,
                                                          dictionary: List<String> = emptyList(),
                                                          useCoordinateClicks: Boolean = true
 ) : RandomWidget(priority, dictionary,useCoordinateClicks) {
@@ -50,6 +53,13 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
     var isFullyRandomExploration: Boolean = false
     var latestAbstractAction: AbstractAction? = null
     lateinit var phaseStrategy: AbstractPhaseStrategy
+    lateinit var phaseStrategy0: AbstractPhaseStrategy
+    lateinit var phaseStrategy1: AbstractPhaseStrategy
+    lateinit var phaseStrategy2: AbstractPhaseStrategy
+    lateinit var phaseStrategy3: AbstractPhaseStrategy
+    lateinit var phaseStrategy4: AbstractPhaseStrategy
+    var currentPhase: Int = 1
+
     //lateinit var phaseTwoStrategy: AbstractPhaseStrategy
     /**
      * Mutex for synchronization
@@ -61,15 +71,36 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
     }
 
     var prevNode: AbstractState? = null
+    var doResetBeforeStop: Boolean = false
 
+    override suspend fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> hasNext(eContext: ExplorationContext<M, S, W>): Boolean {
+
+     /*   val diff = eContext.getExplorationTimeInMs()
+        if (timeout in 1..diff) {
+            if (doResetBeforeStop)
+                return false
+            else
+                return true
+        }*/
+        return super.hasNext(eContext)
+    }
 
 
     internal suspend fun<M: AbstractModel<S, W>,S: State<W>,W: Widget> chooseRegression(eContext: ExplorationContext<M,S,W>): ExplorationAction {
 /*        if (!phaseStrategy.fullControl && handleTargetAbsent.hasNext(eContext)) {
             return handleTargetAbsent.nextAction(eContext)
         }*/
-        var chosenAction: ExplorationAction
+        atuaMF.actionProcessedByATUAStrategy = true
+
+        var chosenAction: ExplorationAction = ExplorationAction.pressBack()
         ExplorationTrace.widgetTargets.clear()
+/*        if (timeout in 1..diff) {
+            if (!doResetBeforeStop) {
+                chosenAction = eContext.resetApp()
+                doResetBeforeStop = true
+                return chosenAction
+            }
+        }*/
         val currentState = eContext.getCurrentState()
         val currentAbstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)
         if (currentAbstractState == null) {
@@ -79,6 +110,9 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
             log.info("Cannot retrieve current abstract state.")
             return eContext.resetApp()
         }
+        /*if (eContext.explorationTrace.getActions().any { it.actionType == "ResetApp" })*/
+        log.info("Current abstract state: ${currentAbstractState}")
+        log.info("Abstract State counts: ${AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter{it.guiStates.isNotEmpty()}.size}")
 
         if ((AbstractStateManager.INSTANCE.launchStates[AbstractStateManager.LAUNCH_STATE.NORMAL_LAUNCH]==currentAbstractState
                 || AbstractStateManager.INSTANCE.launchStates[AbstractStateManager.LAUNCH_STATE.RESET_LAUNCH]==currentAbstractState)
@@ -89,8 +123,68 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
 //        if(currentAbstractState.isOpeningKeyboard && !AbstractStateManager.instance.ABSTRACT_STATES.any { it !is VirtualAbstractState && it.window == currentAbstractState.window && !it.isOpeningKeyboard }) {
 //            return GlobalAction(actionType = ActionType.CloseKeyboard)
 //        }
-
-        if (!phaseStrategy.hasNextAction(eContext.getCurrentState())) {
+        if (timeout > 0) {
+            val diff = eContext.getExplorationTimeInMs()
+            if (currentPhase != 4 && (timeout-randomTimeout) in 1..diff) {
+                phaseStrategy4 = RandomExplorationStrategy(this,scaleFactor, delay, useCoordinateClicks,strategy = randomStrategy)
+                phaseStrategy = phaseStrategy4
+                currentPhase = 4
+            }
+        }
+        if  (currentPhase == 0) {
+            if (phaseStrategy0.hasNextAction(eContext.getCurrentState())) {
+                phaseStrategy = phaseStrategy0
+                chosenAction = phaseStrategy0.nextAction(eContext)
+            }
+            else {
+                phaseStrategy1 = PhaseOneStrategy(this, scaleFactor, delay, useCoordinateClicks)
+                currentPhase = 1
+            }
+        }
+        if  (currentPhase == 1) {
+            if (phaseStrategy1.hasNextAction(eContext.getCurrentState())) {
+                phaseStrategy = phaseStrategy1
+                chosenAction = phaseStrategy1.nextAction(eContext)
+            }
+            else {
+                val unreachableWindows = (phaseStrategy1 as PhaseOneStrategy).unreachableWindows
+                phaseStrategy2 = PhaseTwoStrategy(this, scaleFactor, delay, useCoordinateClicks, unreachableWindows)
+                atuaMF.updateStage1Info(eContext)
+                currentPhase = 2
+            }
+        }
+        if (currentPhase == 2) {
+            /*if (phaseStrategy1.hasNextAction(eContext.getCurrentState())) {
+                phaseStrategy = phaseStrategy1
+                chosenAction = phaseStrategy1.nextAction(eContext)
+            } else*/ if (phaseStrategy2.hasNextAction(eContext.getCurrentState())) {
+                phaseStrategy = phaseStrategy2
+                chosenAction = phaseStrategy2.nextAction(eContext)
+            } else {
+                phaseStrategy3 = PhaseThreeStrategy(this, scaleFactor, delay, useCoordinateClicks)
+                atuaMF.updateStage2Info(eContext)
+                currentPhase = 3
+            }
+        }
+        if (currentPhase == 3) {
+            /*if (phaseStrategy1.hasNextAction(eContext.getCurrentState())) {
+                phaseStrategy = phaseStrategy1
+                chosenAction = phaseStrategy1.nextAction(eContext)
+            } else */if (phaseStrategy3.hasNextAction(eContext.getCurrentState())) {
+                phaseStrategy = phaseStrategy3
+                chosenAction = phaseStrategy3.nextAction(eContext)
+            } else {
+                return ExplorationAction.terminateApp()
+            }
+        }
+        if (currentPhase == 4) {
+            if (phaseStrategy.hasNextAction(eContext.getCurrentState())) {
+                chosenAction = phaseStrategy.nextAction(eContext)
+            } else {
+                chosenAction = ExplorationAction.pressBack()
+            }
+        }
+        /*if (!phaseStrategy.hasNextAction(eContext.getCurrentState())) {
             if (phaseStrategy is PhaseOneStrategy) {
                 val unreachableWindows = (phaseStrategy as PhaseOneStrategy).unreachableWindows
                 val potentialTargetWindows =
@@ -115,12 +209,7 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
             } else if (phaseStrategy is PhaseThreeStrategy) {
                 return ExplorationAction.terminateApp()
             }
-        }
-
-        log.info("Current abstract state: ${currentAbstractState}")
-        log.info("Abstract State counts: ${AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter{it.guiStates.isNotEmpty()}.size}")
-        val availableWidgets = eContext.getCurrentState().widgets
-        chosenAction = phaseStrategy.nextAction(eContext)
+        }*/
         prevNode = atuaMF.getAbstractState(eContext.getCurrentState())
         return chosenAction
     }
@@ -131,7 +220,7 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
             if (abstractStates.isNotEmpty()) {
                 val targetInputs = atuaMF.notFullyExercisedTargetInputs.filter {it.sourceWindow == window && it.eventType!=EventType.implicit_launch_event
                         && it.eventType != EventType.resetApp}
-                val realisticInputs = abstractStates.map { it.inputMappings.values }.flatten().flatten().distinct()
+                val realisticInputs = abstractStates.map { it.getAvailableInputs() }.flatten().distinct()
                 val realisticTargetInputs = targetInputs.intersect(realisticInputs)
                 if (realisticTargetInputs.isNotEmpty()) {
                     return true
@@ -144,7 +233,11 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
     override fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> initialize(initialContext: ExplorationContext<M, S, W>) {
         super.initialize(initialContext)
         eContext = initialContext
-        phaseStrategy = PhaseOneStrategy(this,scaleFactor,delay, useCoordinateClicks)
+        phaseStrategy0 = ReachabilityTestStrategy(this,scaleFactor,delay, useCoordinateClicks)
+        phaseStrategy = phaseStrategy0
+        phaseStrategy1 = PhaseOneStrategy(this,scaleFactor,delay, useCoordinateClicks)
+        phaseStrategy = phaseStrategy1
+        currentPhase = 1
     }
 
 
@@ -171,6 +264,7 @@ class HandleTargetAbsent():  AExplorationStrategy() {
     override fun getPriority(): Int = 1
 
     override suspend fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> hasNext(eContext: ExplorationContext<M, S, W>): Boolean {
+
         val hasNext = !eContext.explorationCanMoveOn().also {
             if(it) {
                 cnt = 0  // reset the counter if we can proceed
@@ -274,7 +368,7 @@ class HandleTargetAbsent():  AExplorationStrategy() {
                     } else
                     {
                         log.debug("Click on Screen")
-                        val largestWidget = s.widgets.maxBy { it.boundaries.width+it.boundaries.height }
+                        val largestWidget = s.widgets.maxByOrNull { it.boundaries.width+it.boundaries.height }
                         if (largestWidget !=null) {
                             clickScreen = true
                             largestWidget.click()

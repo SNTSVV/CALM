@@ -22,7 +22,7 @@
 // Konrad Jamrozik <jamrozik at st dot cs dot uni-saarland dot de>
 //
 // web: www.droidmate.org
-import org.droidmate.buildsrc.BuildKt
+import org.atua.buildsrc.BuildKt
 
 // DroidMate, an automated execution generator for Android apps.
 // Copyright (C) 2012-2018. Saarland University

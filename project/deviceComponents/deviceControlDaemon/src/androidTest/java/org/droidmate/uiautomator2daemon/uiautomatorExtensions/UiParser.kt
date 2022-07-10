@@ -101,16 +101,36 @@ abstract class UiParser {
 			true
 		else
 			false*/
-		var isTransparent = if (layoutViewClasses.contains(className) && !isFocusable && !isClickable && !isLongClickable &&!isCheckable && !isScrollable )
-			true
+		val selected = if(actionList.contains(AccessibilityNodeInfo.AccessibilityAction.ACTION_SELECT)&& markedAsOccupied) isSelected else null
+		val hasClickableDescendant1 = children.any(isClickableDescendant)
+
+		// In case of Citymapper, there is a transparent layer with children inside
+
+		var isTransparent = if (!isFocusable && !isClickable && !isLongClickable &&!isCheckable && !isScrollable  ) {
+			if (!hasClickableDescendant1)
+				true
+			else if (children.isEmpty() && layoutViewClasses.contains(className))
+				true
+			else if (layoutViewClasses.contains(className))
+				true
+			else
+				false
+		}
 		else
 			false
 		props.add("isTransparent = ${isTransparent}")
 		// due to bottomUp strategy we will only get coordinates which are not overlapped by other UiElements
-		val visibleAreas = if(!isEnabled || !isVisibleToUser || isTransparent) emptyList()
+		val visibleAreas = if(!isEnabled || !isVisibleToUser) emptyList()
+				else if (isTransparent) {
+					val childrenC = children.flatMap { boundsList -> boundsList.visibleAreas } // allow the parent boundaries to contain all definedAsVisible child coordinates
+					props.add("childrenC = ${childrenC}")
+					uncoveredArea = false
+					nodeRect.visibleAxisR(childrenC)
+				}
 				else nodeRect.visibleAxis(w.area).map { it.toRectangle() }.let { area ->
-					if (area.isEmpty()) {
+					if (area.isEmpty() ) {
 						val childrenC = children.flatMap { boundsList -> boundsList.visibleAreas } // allow the parent boundaries to contain all definedAsVisible child coordinates
+						props.add("childrenC = ${childrenC}")
 						uncoveredArea = false
 						nodeRect.visibleAxisR(childrenC)
 					} else{
@@ -138,7 +158,14 @@ abstract class UiParser {
 				visibleOuterBounds()
 			}
 		}
-		val selected = if(actionList.contains(AccessibilityNodeInfo.AccessibilityAction.ACTION_SELECT)&& markedAsOccupied) isSelected else null
+		val hasClickableDescendant2 = children.any(isClickableDescendant).let { hasClickableDescendant ->
+			// check if there are already 'selectable' items in the visible bounds of it, if so set clickable descendants to true
+			if (!hasClickableDescendant && selected.isEnabled()) {
+				// this visible area contains 'selectable/clickable' items therefore we want to mark this as having such descendants even if it is no direct parent but only an 'uncle' to these elements
+				processedNodes.any { visibleBounds.contains(it.visibleBounds) && isClickableDescendant(it) }
+			} else hasClickableDescendant
+		}
+
 		return UiElementProperties(
 				idHash = idHash,
 				imgId = computeImgId(img,visibleBounds),
@@ -159,19 +186,13 @@ abstract class UiParser {
 				enabled = isEnabled,
 				isInputField = isEditable || actionList.contains(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_TEXT),
 				isPassword = isPassword,
-				clickable = isClickable,
+				clickable = (isClickable || safeCharSeqToString(className).equals("android.widget.Button") ),
 				longClickable = isLongClickable,
 				checked = if (isCheckable) isChecked else null,
 				focused = if (isFocusable) isFocused else null,
 				scrollable = isScrollable,
 				selected = selected, // ignore 'transparent' layouts
-				hasClickableDescendant = children.any(isClickableDescendant).let { hasClickableDescendant ->
-					// check if there are already 'selectable' items in the visible bounds of it, if so set clickable descendants to true
-					if (!hasClickableDescendant && selected.isEnabled()) {
-						// this visible area contains 'selectable/clickable' items therefore we want to mark this as having such descendants even if it is no direct parent but only an 'uncle' to these elements
-						processedNodes.any { visibleBounds.contains(it.visibleBounds) && isClickableDescendant(it) }
-					} else hasClickableDescendant
-				},
+				hasClickableDescendant = hasClickableDescendant2,
 				definedAsVisible = isVisibleToUser,
 				boundaries = nodeRect.toRectangle(),
 				visibleAreas = visibleAreas,
@@ -186,7 +207,9 @@ abstract class UiParser {
 			"android.widget.AbsoluteLayout",
 	"android.widget.FrameLayout",
 	"android.widget.GridLayout",
-	"android.widget.LinearLayout")
+	"android.widget.LinearLayout",
+	"android.widget.RelativeLayout")
+
 	private fun computeImgId(img: Bitmap?, b: Rectangle): Int {
 		if (img == null || b.isEmpty()) return 0
 		val subImg = Bitmap.createBitmap(b.width, b.height, Bitmap.Config.ARGB_8888)
@@ -243,7 +266,7 @@ abstract class UiParser {
 					ser.addAttribute("inputType", node.inputType)
 					ser.addAttribute("checkable", node.isCheckable)
 					ser.addAttribute("checked", node.isChecked)
-					ser.addAttribute("clickable", node.isClickable)
+					ser.addAttribute("clickable", (node.isClickable || node.className.equals("android.widget.Button") ))
 					ser.addAttribute("enabled", node.isEnabled)
 					ser.addAttribute("focusable", node.isFocusable)
 					ser.addAttribute("focused", node.isFocused)

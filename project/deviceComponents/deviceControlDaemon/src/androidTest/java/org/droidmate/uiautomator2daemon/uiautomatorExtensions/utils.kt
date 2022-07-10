@@ -94,10 +94,10 @@ operator fun Coordinate.rangeTo(c: Coordinate): Collection<Coordinate> {
 }
 
 fun visibleOuterBounds(r: Collection<Rect>): Rectangle = with(r.filter { !it.isEmpty }){
-	val pl = minBy { it.left }
-	val pt = minBy { it.top }
-	val pr = maxBy { it.right }
-	val pb = maxBy { it.bottom }
+	val pl = minByOrNull { it.left }
+	val pt = minByOrNull { it.top }
+	val pr = maxByOrNull { it.right }
+	val pb = maxByOrNull { it.bottom }
 	return Rectangle.create(pl?.left ?: 0, pt?.top ?: 0, right = pr?.right ?: 0, bottom = pb?.bottom ?: 0)
 }
 

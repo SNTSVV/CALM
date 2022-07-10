@@ -12,6 +12,7 @@
 
 package org.atua.modelFeatures.ewtg
 
+import org.atua.calm.modelReuse.ModelVersion
 import org.droidmate.exploration.modelFeatures.graph.*
 import org.atua.modelFeatures.*
 import org.atua.modelFeatures.ewtg.window.Activity
@@ -27,6 +28,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.BufferedWriter
 import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 import kotlin.collections.HashSet
 
@@ -94,7 +96,8 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
                                 eventTypeString = action,
                                 eventHandlers = emptySet(),
                                 widget = ewtgWidget,
-                                sourceWindow = sourceNode
+                                sourceWindow = sourceNode,
+                                modelVersion = ModelVersion.RUNNING
 
                         )
                         if (event != null) {
@@ -102,7 +105,7 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
                                 source = sourceNode,
                                 destination = targetNode,
                                 input = event,
-                                prevWindow = null
+                                dependingWindows = ArrayList()
                             )
                             this.add(sourceNode,targetNode,windowTransition)
                         }
@@ -120,9 +123,15 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
                 val edges = this.edges(owner, o)
 
                 if (edges.isEmpty()) {
-                    val input = Input.getOrCreateInput(HashSet(),EventType.press_menu.toString(),null,o)
+                    val input = Input.getOrCreateInput(
+                        eventHandlers =  HashSet(),
+                        eventTypeString =  EventType.press_menu.toString(),
+                        widget =  null,
+                        sourceWindow = o,
+                        createdAtRuntime = false,
+                        modelVersion = ModelVersion.RUNNING)
                     if (input != null)
-                        this.add(owner, o, WindowTransition(owner,o,input,null))
+                        this.add(owner, o, WindowTransition(owner,o,input, ArrayList()))
                 }
             }
 
@@ -143,9 +152,15 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
             val activityNode = WindowManager.instance.updatedModelWindows.find { it.classType == wtgNode.classType && it is Activity }
             if (activityNode != null) {
                 if (this.edges(activityNode, wtgNode).isEmpty()) {
-                    val input = Input.getOrCreateInput(HashSet(),EventType.press_menu.toString(),null,activityNode)
+                    val input = Input.getOrCreateInput(
+                        eventHandlers =  HashSet(),
+                        eventTypeString =  EventType.press_menu.toString(),
+                        widget =  null,
+                        sourceWindow =  activityNode,
+                        createdAtRuntime = false,
+                        modelVersion = ModelVersion.RUNNING)
                     if (input != null)
-                        this.add(activityNode, wtgNode, WindowTransition(activityNode,wtgNode,input,null))
+                        this.add(activityNode, wtgNode, WindowTransition(activityNode,wtgNode,input,ArrayList()))
                 }
             }
 
@@ -262,7 +277,7 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
                     source = dest,
                     destination = it.destination!!.data,
                     input = it.label.input,
-                    prevWindow = it.label.prevWindow
+                    dependingWindows = it.label.dependingWindows
             )
             newTransition.input.sourceWindow.inputs.remove(newTransition.input)
             newTransition.input.sourceWindow = dest
@@ -276,7 +291,7 @@ class EWTG(private val graph: IGraph<Window, WindowTransition> =
                         source = v.data,
                         destination = dest,
                         input = e.label.input,
-                        prevWindow = e.label.prevWindow
+                        dependingWindows = e.label.dependingWindows
                 )
                 newTransition.input.sourceWindow = v.data
                 this.add(newTransition.source, newTransition.destination, newTransition)

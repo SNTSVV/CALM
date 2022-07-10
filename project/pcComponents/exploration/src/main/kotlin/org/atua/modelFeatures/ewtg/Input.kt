@@ -12,7 +12,7 @@
 
 package org.atua.modelFeatures.ewtg
 
-import org.atua.modelFeatures.ATUAMF
+import org.atua.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractState
@@ -25,6 +25,8 @@ import java.lang.Exception
 
 
 open class Input{
+
+    val MAX_SCORE: Int = 100
     val eventType: EventType
     val eventHandlers: HashSet<String> = HashSet()
     var widget: EWTGWidget?
@@ -33,6 +35,7 @@ open class Input{
         field = value
         value.inputs.add(this)
     }
+    var witnessed: Boolean = false
     val createdAtRuntime: Boolean
     val verifiedEventHandlers = HashSet<String>() //if an event handler appears in this set, we will not remove it from event's handlers
     val coveredMethods = HashMap<String,Boolean> ()
@@ -45,13 +48,17 @@ open class Input{
     var usefullOnce: Boolean = false
     var isUseless: Boolean? = null
     var mappingActionIds = HashMap<String,ArrayList<String>>()
+    val modelVersion: ModelVersion
+    var exercisedInThePast: Boolean = false
+    var meaningfulScore: Int = 50
 
-    private constructor(eventType: EventType, eventHandlers: Set<String>, widget: EWTGWidget?,sourceWindow: Window,createdAtRuntime: Boolean=false) {
+    private constructor(eventType: EventType, eventHandlers: Set<String>, widget: EWTGWidget?,sourceWindow: Window,createdAtRuntime: Boolean=false, modelVersion: ModelVersion) {
        this.eventType = eventType
        this.eventHandlers.addAll(eventHandlers)
        this.widget = widget
        this.sourceWindow = sourceWindow
         this.createdAtRuntime = createdAtRuntime
+        this.modelVersion = modelVersion
         allInputs.add(this)
         sourceWindow.inputs.add(this)
         val exisingInput = allInputs.find {
@@ -64,6 +71,11 @@ open class Input{
         }
     }
 
+    fun isSimilar(input: Input): Boolean {
+        return input.eventType == this.eventType
+                && ( (input.widget == null && this.widget == null)
+                || (input.widget?.structure == this.widget?.structure && input.widget?.resourceIdName == this.widget?.resourceIdName))
+    }
     fun convertToExplorationActionName(): AbstractActionType{
         return when (eventType){
             EventType.click, EventType.touch -> AbstractActionType.CLICK
@@ -94,9 +106,12 @@ open class Input{
         }
     }
 
-
     override fun toString(): String {
         return "$sourceWindow-->$eventType-->[$widget]"
+    }
+
+    fun resetMeaningfulScore() {
+        meaningfulScore = 50
     }
 
 
@@ -161,7 +176,8 @@ open class Input{
                              eventTypeString: String,
                              widget: EWTGWidget?,
                              sourceWindow: Window,
-                             createdAtRuntime: Boolean=false): Input? {
+                             createdAtRuntime: Boolean=false,
+                             modelVersion: ModelVersion): Input? {
             val refinedEventTypeString = when(eventTypeString){
                 "touch" -> "click"
                 "implicit_menu" -> "press_menu"
@@ -169,7 +185,7 @@ open class Input{
                 else -> eventTypeString
             }
             val eventType = EventType.valueOf(refinedEventTypeString)
-            if (eventType == EventType.fake_action || eventType == EventType.resetApp)
+            if (eventType == EventType.fake_action)
                 return null
             var events = allInputs.filter { it.eventType.equals(eventType) && it.widget == widget && it.sourceWindow == sourceWindow }
             //var event = allTargetStaticEvents.firstOrNull {it.eventTypeString.equals(eventTypeString) && (it.widget!!.equals(widget)) }
@@ -184,9 +200,14 @@ open class Input{
                 }
                 return events.first()
             }
-            val event = Input(eventHandlers = HashSet(eventHandlers)
-                    , eventType = eventType
-                    , widget = widget, sourceWindow = sourceWindow, createdAtRuntime = createdAtRuntime)
+            val event = Input(eventHandlers = HashSet(eventHandlers),
+                eventType = eventType,
+                widget = widget,
+                sourceWindow = sourceWindow,
+                createdAtRuntime = createdAtRuntime,
+                modelVersion = modelVersion)
+            if (event.createdAtRuntime)
+                event.witnessed = true
             return event
         }
 
@@ -203,7 +224,8 @@ open class Input{
                         eventTypeString = eventType.toString(),
                         widget = null,
                         sourceWindow = prevAbstractState.window,
-                        createdAtRuntime = true
+                        createdAtRuntime = true,
+                        modelVersion = ModelVersion.RUNNING
                 )
                 /*newInput = Input(
                         eventType = eventType,
@@ -217,37 +239,10 @@ open class Input{
                 newInput.data = abstractTransition.abstractAction.extra
                 newInput.eventHandlers.addAll(abstractTransition.handlers.map { it.key })
 
-                val prevWindows = abstractTransition.dependentAbstractStates.map { it.window }
+                associateAbstractActionsWithInput(prevAbstractState, abstractTransition, newInput)
 
-                if(prevWindows.isNotEmpty()) {
-                    prevWindows.forEach { prevWindow->
-                        wtg.add(prevAbstractState.window, newAbstractState.window, WindowTransition(
-                                prevAbstractState.window,
-                                newAbstractState.window,
-                                newInput!!,
-                                prevWindow
-                        ))
-                    }
-                } else {
-                    wtg.add(prevAbstractState.window, newAbstractState.window, WindowTransition(
-                            prevAbstractState.window,
-                            newAbstractState.window,
-                            newInput!!,
-                            null
-                    ))
-                }
-                if (!prevAbstractState.inputMappings.containsKey(abstractTransition.abstractAction)) {
-                    prevAbstractState.inputMappings.put(abstractTransition.abstractAction, hashSetOf())
-                }
-                prevAbstractState.inputMappings.get(abstractTransition.abstractAction)!!.add(newInput)
-                AbstractStateManager.INSTANCE.ABSTRACT_STATES.filterNot { it == prevAbstractState }.filter { it.window == prevAbstractState.window }.forEach {
-                    val similarAbstractAction = it.getAvailableActions().find { it == abstractTransition.abstractAction }
-                    if (similarAbstractAction != null) {
-                        it.inputMappings.put(similarAbstractAction, hashSetOf(newInput!!))
-                    }
-                }
             } else {
-                val attributeValuationSet = abstractTransition.abstractAction.attributeValuationMap
+                val attributeValuationSet = abstractTransition.abstractAction.attributeValuationMap!!
                 if (!prevAbstractState.EWTGWidgetMapping.containsKey(attributeValuationSet)) {
                     val attributeValuationSetId = if (attributeValuationSet.getResourceId().isBlank())
                         ""
@@ -279,7 +274,8 @@ open class Input{
                             eventTypeString = eventType.toString(),
                             widget = staticWidget,
                             sourceWindow = prevAbstractState.window,
-                            createdAtRuntime = true
+                            createdAtRuntime = true,
+                            modelVersion = ModelVersion.RUNNING
                     )
                     if (newInput == null)
                         return
@@ -292,49 +288,66 @@ open class Input{
                     )*/
                     newInput.data = abstractTransition.abstractAction.extra
                     newInput.eventHandlers.addAll(abstractTransition.handlers.map { it.key })
-
-                    val prevWindows = abstractTransition.dependentAbstractStates.map { it.window }
-
-                    if(prevWindows.isNotEmpty()) {
-                        prevWindows.forEach { prevWindow->
-                            wtg.add(prevAbstractState.window, newAbstractState.window, WindowTransition(
-                                    prevAbstractState.window,
-                                    newAbstractState.window,
-                                    newInput!!,
-                                    prevWindow
-                            ))
-                        }
-                    } else {
-                        wtg.add(prevAbstractState.window, newAbstractState.window, WindowTransition(
-                                prevAbstractState.window,
-                                newAbstractState.window,
-                                newInput!!,
-                                null
-                        ))
-                    }
-                    if (!prevAbstractState.inputMappings.containsKey(abstractTransition.abstractAction)) {
-                        prevAbstractState.inputMappings.put(abstractTransition.abstractAction, hashSetOf())
-                    }
-                    prevAbstractState.inputMappings.get(abstractTransition.abstractAction)!!.add(newInput)
-                    AbstractStateManager.INSTANCE.ABSTRACT_STATES.filterNot { it == prevAbstractState }.filter { it.window == prevAbstractState.window }.forEach {
-                        val similarAbstractAction = it.getAvailableActions().find { it == abstractTransition.abstractAction }
-                        if (similarAbstractAction != null) {
-                            it.inputMappings.put(similarAbstractAction, hashSetOf(newInput))
-                        }
-                    }
+                    associateAbstractActionsWithInput(prevAbstractState, abstractTransition, newInput)
                 }
             }
         }
 
-        fun getOrCreateInputFromAbstractAction(abstractState: AbstractState, abstractAction: AbstractAction) {
+        fun createWindowTransition(
+            dependingWindows: List<Window>,
+            wtg: EWTG,
+            prevAbstractState: AbstractState,
+            newAbstractState: AbstractState,
+            newInput: Input?
+        ): WindowTransition
+        {
+            val existingEdges = wtg.edges(prevAbstractState.window).filter { it.destination!!.data == newAbstractState.window
+                    && it.label.input == newInput!!}
+            if (existingEdges.isNotEmpty()) {
+                existingEdges.forEach {
+                    it.label.dependingWindows.addAll(dependingWindows)
+                }
+                return existingEdges.first().label
+            } else {
+                val edge = wtg.add(
+                    prevAbstractState.window, newAbstractState.window, WindowTransition(
+                        prevAbstractState.window,
+                        newAbstractState.window,
+                        newInput!!,
+                        ArrayList(dependingWindows)
+                    )
+                )
+                return edge.label
+            }
+        }
+
+        private fun associateAbstractActionsWithInput(
+            prevAbstractState: AbstractState,
+            abstractTransition: AbstractTransition,
+            newInput: Input
+        ) {
+            prevAbstractState.associateAbstractActionWithInputs(abstractTransition.abstractAction, newInput)
+            AbstractStateManager.INSTANCE.ABSTRACT_STATES.filterNot { it == prevAbstractState }
+                .filter { it.window == prevAbstractState.window }.forEach {
+                    val similarAbstractAction = it.getAvailableActions().find { it == abstractTransition.abstractAction }
+                    if (similarAbstractAction != null) {
+                        it.associateAbstractActionWithInputs(similarAbstractAction, newInput)
+                    }
+                }
+        }
+
+        fun getOrCreateInputFromAbstractAction(abstractState: AbstractState, abstractAction: AbstractAction,modelVersion: ModelVersion) {
             val eventType = Input.getEventTypeFromActionName(abstractAction.actionType)
-            if (eventType == EventType.fake_action || eventType == EventType.resetApp)
+            if (eventType == EventType.fake_action)
                 return
             var newInput: Input?
             if (abstractAction.attributeValuationMap == null) {
-                val exisitingInput = abstractState.window.inputs.find {
-                    it.eventType == eventType
-                }
+                val exisitingInput = if (eventType == EventType.resetApp) {
+                     Input.allInputs.find { it.eventType == EventType.resetApp }
+                } else
+                    abstractState.window.inputs.find {
+                        it.eventType == eventType
+                    }
                 if (exisitingInput!=null)
                     newInput = exisitingInput
                 else {
@@ -343,7 +356,8 @@ open class Input{
                         eventTypeString = eventType.toString(),
                         widget = null,
                         sourceWindow = abstractState.window,
-                        createdAtRuntime = true
+                        createdAtRuntime = true,
+                        modelVersion = modelVersion
                     )
                     if (newInput == null)
                         return
@@ -356,11 +370,7 @@ open class Input{
                 )*/
                     newInput.data = abstractAction.extra
                 }
-
-                if (!abstractState.inputMappings.containsKey(abstractAction)) {
-                    abstractState.inputMappings.put(abstractAction, hashSetOf())
-                }
-                abstractState.inputMappings.get(abstractAction)!!.add(newInput)
+                abstractState.associateAbstractActionWithInputs(abstractAction,newInput)
             } else {
                 val attributeValuationSet = abstractAction.attributeValuationMap
                 if (!abstractState.EWTGWidgetMapping.containsKey(attributeValuationSet)) {
@@ -383,35 +393,22 @@ open class Input{
                 }
                 if (abstractState.EWTGWidgetMapping.contains(attributeValuationSet)) {
                     val staticWidget = abstractState.EWTGWidgetMapping[attributeValuationSet]!!
-                    val exisitingInput = abstractState.window.inputs.find {
-                        it.eventType == eventType
-                                && it.widget == staticWidget
-                    }
-                    if (exisitingInput!=null) {
-                        newInput = exisitingInput
-                    } else {
-                        newInput = Input.getOrCreateInput(
-                            eventHandlers = emptySet(),
-                            eventTypeString = eventType.toString(),
-                            widget = staticWidget,
-                            sourceWindow = abstractState.window,
-                            createdAtRuntime = true
-                        )
-                        if (newInput == null)
-                            return
-                        newInput.data = abstractAction.extra
-                    }
-
-                    if (!abstractState.inputMappings.containsKey(abstractAction)) {
-                        abstractState.inputMappings.put(abstractAction, hashSetOf())
-                    }
-                    abstractState.inputMappings.get(abstractAction)!!.add(newInput)
+                    newInput = Input.getOrCreateInput(
+                        eventHandlers = emptySet(),
+                        eventTypeString = eventType.toString(),
+                        widget = staticWidget,
+                        sourceWindow = abstractState.window,
+                        createdAtRuntime = true,
+                        modelVersion = modelVersion
+                    )
+                    if (newInput != null)
+                        abstractState.associateAbstractActionWithInputs(abstractAction,newInput)
                 }
             }
         }
     }
-    class LaunchAppEvent(launcher: Window): Input(EventType.implicit_launch_event, HashSet(),null,sourceWindow = launcher)
-    class FakeEvent(sourceWindow: Window): Input(EventType.fake_action, HashSet(), null,sourceWindow)
+    class LaunchAppEvent(launcher: Window): Input(EventType.implicit_launch_event, HashSet(),null,sourceWindow = launcher, modelVersion = ModelVersion.RUNNING)
+    class FakeEvent(sourceWindow: Window): Input(EventType.fake_action, HashSet(), null,sourceWindow, modelVersion = ModelVersion.RUNNING)
 }
 
 enum class BooleanConfirm {

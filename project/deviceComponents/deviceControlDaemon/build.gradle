@@ -24,7 +24,7 @@
 // web: www.droidmate.org
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-android-extensions' // necessary for the IDE to resolve android internal instrumentation API methods
+apply plugin: 'kotlin-parcelize' // necessary for the IDE to resolve android internal instrumentation API methods
 apply plugin: 'project-report'
 
 apply from: file("../../../versions.gradle")
@@ -37,13 +37,13 @@ buildscript {
 		jcenter()
 	}
 	dependencies {
-		classpath 'com.android.tools.build:gradle:3.6.1'
+		classpath "com.android.tools.build:gradle:${project.ext.androidGradlePlugin_version}"
 		classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${project.ext.kotlin_version}"
 	}
 }
 
 wrapper{
-	gradleVersion = '5.3'  //define what gradle wrapper version is to be used on wrapper initialization (only if there is no wrapper yet or 'gradlew wrapper' is called)
+	gradleVersion = '7.3.3'  //define what gradle wrapper version is to be used on wrapper initialization (only if there is no wrapper yet or 'gradlew wrapper' is called)
 }
 
 android {
@@ -73,7 +73,7 @@ android {
 }
 
 repositories {
-	mavenCentral()
+//	google()
 	jcenter()
 
 	maven {

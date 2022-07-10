@@ -27,7 +27,7 @@ plugins {
 	`maven-publish`
 }
 
-apply (plugin= "maven")
+//apply (plugin= "maven")
 apply (plugin="maven-publish")
 
 repositories {
@@ -44,7 +44,7 @@ dependencies {
 //		}
 //	}
 
-	compile ("org.droidmate:deviceDaemonLib:2.4.4-RC1")
+	implementation (project(":deviceDaemonLib"))
 
 	implementation ("com.natpryce:konfig:1.6.6.0")  // configuration library
 	implementation ("org.slf4j:slf4j-api:1.7.25")
@@ -67,7 +67,7 @@ tasks.withType<KotlinCompile> {
 }
 
 tasks.withType<Wrapper> {
-	gradleVersion = "5.3"  //define what gradle wrapper version is to be used on wrapper initialization (only if there is no wrapper yet or "gradlew wrapper" is called)
+	gradleVersion = "7.3.3"  //define what gradle wrapper version is to be used on wrapper initialization (only if there is no wrapper yet or "gradlew wrapper" is called)
 }
 
 /*

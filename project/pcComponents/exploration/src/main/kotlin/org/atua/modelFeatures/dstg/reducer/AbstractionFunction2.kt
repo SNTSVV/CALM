@@ -26,6 +26,7 @@ import org.atua.modelFeatures.dstg.AttributeValuationMap
 import org.atua.modelFeatures.ewtg.EWTGWidget
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.WindowManager
+import org.atua.modelFeatures.ewtg.window.Dialog
 import org.atua.modelFeatures.ewtg.window.Window
 import org.droidmate.explorationModel.interaction.Interaction
 import org.droidmate.explorationModel.interaction.State
@@ -53,7 +54,6 @@ class AbstractionFunction2 (val root: DecisionNode2) {
                 && it.abstractAction == abstractTransition.abstractAction
                 && it.dest.window == abstractTransition.dest.window}
         return result
-        // TODO check
     }
 
     fun Widget.isInteractiveLeaf(guiState: State<*>): Boolean {
@@ -85,8 +85,13 @@ class AbstractionFunction2 (val root: DecisionNode2) {
                 break
             else
                 currentDecisionNode = currentDecisionNode.nextNode
-
-            if (isOptionsMenu && isInteractiveLeaf && level <= 5) {
+            val needLevel5 = (isInteractiveLeaf && level <= 5) && (
+                    isOptionsMenu
+                            || window.classType.contains("Settings")
+                            || window.classType.contains("Preferences")
+                            || (window is Dialog && guiWidget.clickable)
+                    )
+            if (needLevel5 ){
                if (ewtgWidget!=null && !currentDecisionNode!!.ewtgWidgets.contains(ewtgWidget))
                    currentDecisionNode!!.ewtgWidgets.add(ewtgWidget)
             }

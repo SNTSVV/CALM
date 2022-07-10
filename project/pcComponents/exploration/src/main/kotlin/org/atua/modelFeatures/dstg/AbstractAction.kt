@@ -12,33 +12,55 @@
 
 package org.atua.modelFeatures.dstg
 
+import org.atua.calm.ModelBackwardAdapter
+import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.ewtg.Helper
-import org.droidmate.exploration.actions.swipeDown
-import org.droidmate.exploration.actions.swipeLeft
-import org.droidmate.exploration.actions.swipeRight
-import org.droidmate.exploration.actions.swipeUp
+import org.atua.modelFeatures.ewtg.window.Dialog
+import org.atua.modelFeatures.ewtg.window.Launcher
+import org.atua.modelFeatures.ewtg.window.OutOfApp
+import org.atua.modelFeatures.ewtg.window.Window
+import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF
 import org.droidmate.explorationModel.interaction.Interaction
 import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
+import kotlin.math.max
+import kotlin.math.min
 
-data class AbstractAction (
+class AbstractAction private constructor (
         val actionType: AbstractActionType,
         val attributeValuationMap: AttributeValuationMap?=null,
+        var window: Window,
         val extra: Any?=null
     ) {
-    override fun hashCode(): Int {
-        var hash = 31
-        hash += actionType.hashCode()
-        if (attributeValuationMap!=null)
-            hash+=attributeValuationMap!!.hashCode
-        if (extra!=null)
-            hash+=extra!!.hashCode()
-        return hash
+    private val MAX_SCORE: Int = 100
+
+    /*override fun equals(other: Any?): Boolean {
+            if (other !is AbstractAction)
+                return false
+            return this.hashCode() == other.hashCode()
+        }*/
+    var meaningfulScore = 50
+    fun isSimilar(action: AbstractAction) : Boolean {
+        return action.actionType == this.actionType
+                && ( (!action.isWidgetAction() && !this.isWidgetAction())
+                    || action.attributeValuationMap?.fullAttributeValuationMap == this.attributeValuationMap?.fullAttributeValuationMap)
+                && (action.extra == this.extra)
     }
-    override fun equals(other: Any?): Boolean {
-        if (other !is AbstractAction)
-            return false
-        return this.hashCode() == other.hashCode()
+
+    fun isEquivalent(abstractAction: AbstractAction): Boolean {
+        return this == abstractAction
+                || (
+                this.actionType == abstractAction.actionType
+                && this.extra == abstractAction.extra
+                        && (this.window == abstractAction.window || (this.window is Dialog && abstractAction.window is Dialog))
+                && this.attributeValuationMap != null
+                && abstractAction.attributeValuationMap != null
+                && (abstractAction.attributeValuationMap.isDerivedFrom(this.attributeValuationMap,this.window)
+                        || this.attributeValuationMap.isDerivedFrom(abstractAction.attributeValuationMap,this.window)
+                || ModelBackwardAdapter.instance.matchingAVMs[this.attributeValuationMap]?.contains(abstractAction.attributeValuationMap)?:false
+                        || ModelBackwardAdapter.instance.matchingAVMs[abstractAction.attributeValuationMap]?.contains(this.attributeValuationMap)?:false
+                || abstractAction.attributeValuationMap?.fullAttributeValuationMap == this.attributeValuationMap?.fullAttributeValuationMap
+                ))
     }
     fun isItemAction(): Boolean {
         return when(actionType) {
@@ -57,17 +79,14 @@ data class AbstractAction (
         return actionType == AbstractActionType.LAUNCH_APP || actionType == AbstractActionType.RESET_APP
     }
 
-    fun isCheckableOrTextInput(): Boolean {
+    fun isCheckableOrTextInput(appState: AbstractState): Boolean {
         if (attributeValuationMap == null)
             return false
         if (attributeValuationMap.isInputField()) {
             return true
         }
-        val className = attributeValuationMap.getClassName()
-        return when(className) {
-            "android.widget.RadioButton", "android.widget.CheckBox", "android.widget.Switch", "android.widget.ToggleButton" -> true
-            else -> false
-        }
+        return attributeValuationMap.isUserLikeInput(appState)
+
     }
 
     fun isActionQueue(): Boolean {
@@ -76,21 +95,24 @@ data class AbstractAction (
 
     fun getScore(): Double {
         var actionScore = when(actionType) {
-            AbstractActionType.PRESS_BACK -> 0.5
+            AbstractActionType.PRESS_BACK -> 0.1 // Press back should be the last action to be executedd
             AbstractActionType.SWIPE -> 0.5
             AbstractActionType.LONGCLICK,AbstractActionType.ITEM_LONGCLICK -> 2.0
             AbstractActionType.CLICK,AbstractActionType.ITEM_CLICK -> 4.0
             else -> 1.0
         }
         if (attributeValuationMap == null)
-            return actionScore
-        return actionScore
+            return actionScore*meaningfulScore
+        return actionScore*meaningfulScore
     }
+
 
     fun validateSwipeAction(abstractAction: AbstractAction, guiState: State<*>): Boolean {
         if (!abstractAction.isWidgetAction() || abstractAction.actionType != AbstractActionType.SWIPE)
             return true
-        val widgets = abstractAction.attributeValuationMap!!.getGUIWidgets(guiState)
+        if (abstractAction.isWebViewAction())
+            return true
+        val widgets = abstractAction.attributeValuationMap!!.getGUIWidgets(guiState,window)
         widgets.forEach {w->
             var valid = false
             if (w.metaInfo.any { it.contains("ACTION_SCROLL_FORWARD") }) {
@@ -117,7 +139,85 @@ data class AbstractAction (
         return false
     }
 
+    fun updateMeaningfulScore(
+        lastInteraction: Interaction<*>,
+        newState: State<*>,
+        prevState: State<*>,
+        coverageIncreased: Boolean,
+        randomExploration: Boolean,
+        atuaMF: ATUAMF
+    ) {
+        val actionId = lastInteraction.actionId
+//        val actionableWidgets = Helper.getVisibleWidgets(prevState)
+
+        val newAppState = atuaMF.getAbstractState(newState)
+        val prevAppState = atuaMF.getAbstractState(prevState)
+        if (newAppState == null)
+            return
+        if (prevAppState == null)
+            return
+        val inputs = prevAppState.getInputsByAbstractAction(this)
+//        val unexploredActionableWidgets = atuaMF.actionCount.getUnexploredWidget(newState).filter { !Helper.isUserLikeInput(it) }
+        val unexploredAbstractActions = newAppState.getUnExercisedActions(currentState = newState,atuaMF = atuaMF).filter {
+            !it.isCheckableOrTextInput(newAppState) && it.isWidgetAction() }
+        val windowWidgetFrequency = AbstractStateManager.INSTANCE.attrValSetsFrequency[newAppState.window]
+
+        val firstAppearActions =
+            if (windowWidgetFrequency == null || windowWidgetFrequency.isEmpty())
+                unexploredAbstractActions
+            else
+                unexploredAbstractActions.filter { windowWidgetFrequency[it.attributeValuationMap!!] == 1 }
+        if (coverageIncreased
+//            || atuaMF.stateVisitCount[structureUuid] == 1 )
+            || (firstAppearActions.isNotEmpty()
+                    && firstAppearActions.map { newAppState.getInputsByAbstractAction(it) }.flatten().any { it.meaningfulScore>0 }
+                    && atuaMF.abstractStateVisitCount[newAppState]==1
+                    && newAppState.window !is OutOfApp
+                    && newAppState.window !is Launcher)) {
+            meaningfulScore = min(meaningfulScore+25,MAX_SCORE)
+            if (randomExploration) {
+                window.meaningfullScore = min (window.meaningfullScore+5, window.MAX_SCORE)
+                inputs.forEach {
+                    it.meaningfulScore = min (it.meaningfulScore+10,it.MAX_SCORE)
+
+                }
+            }
+        }
+        else if (prevState == newState || newState.isHomeScreen) {
+            meaningfulScore = max(meaningfulScore-50,0)
+            if(randomExploration) {
+                window.meaningfullScore = max(window.meaningfullScore-5,0)
+                inputs.forEach {
+                    it.meaningfulScore = max(it.meaningfulScore-20,0)
+                }
+            }
+        }
+        else {
+            meaningfulScore = max(meaningfulScore-25,0)
+            if (meaningfulScore < 0)
+                meaningfulScore ==0
+            if (randomExploration) {
+                window.meaningfullScore = max(window.meaningfullScore-5,0)
+                inputs.forEach {
+                    it.meaningfulScore = max(it.meaningfulScore-20,0)
+                }
+            }
+        }
+        inputs.size
+    }
+
+    override fun toString(): String {
+        return "$actionType - $attributeValuationMap - $window"
+    }
+
+    fun reset() {
+        meaningfulScore = 100
+
+    }
+
     companion object {
+        val abstractActionsByWindow = HashMap<Window,ArrayList<AbstractAction>>()
+
         fun normalizeActionType(interaction: Interaction<Widget>, prevState: State<*>): AbstractActionType {
             val actionType = interaction.actionType
             var abstractActionType = when (actionType) {
@@ -134,6 +234,8 @@ data class AbstractAction (
                     val clickCoordination = Helper.parseCoordinationData(interaction.data)
                     if (clickCoordination.first < guiDimension.leftX || clickCoordination.second < guiDimension.topY) {
                         abstractActionType = AbstractActionType.CLICK_OUTBOUND
+                    } else {
+                        abstractActionType = AbstractActionType.CLICK
                     }
                 }
             }
@@ -157,10 +259,34 @@ data class AbstractAction (
             return swipeAction
         }
 
-        fun getLaunchAction(): AbstractAction? {
-            return AbstractAction(
-                    actionType = AbstractActionType.LAUNCH_APP
-            )
+        /**
+         * The return abstract action needs to be associated with window'input
+         */
+        fun getOrCreateAbstractAction(actionType: AbstractActionType,
+                                      attributeValuationMap: AttributeValuationMap? = null,
+                                      extra: Any? = null,
+                                      window: Window
+        ): AbstractAction {
+            val abstractAction: AbstractAction
+            abstractActionsByWindow.putIfAbsent(window, ArrayList())
+            val availableActions = abstractActionsByWindow[window]!!.filter {
+                it.actionType == actionType
+                        && it.attributeValuationMap == attributeValuationMap
+                        && it.extra == extra
+            }
+            val availableAction = availableActions.firstOrNull()
+            if (availableAction == null) {
+                abstractAction = AbstractAction(
+                    actionType = actionType,
+                    attributeValuationMap = attributeValuationMap,
+                    extra = extra,
+                    window = window
+                )
+                abstractActionsByWindow[window]!!.add(abstractAction)
+            } else {
+                abstractAction = availableAction
+            }
+            return abstractAction
         }
 
         fun getOrCreateAbstractAction(actionType: AbstractActionType,
@@ -170,24 +296,27 @@ data class AbstractAction (
                                       attributeValuationMap: AttributeValuationMap?,
                                       atuaMF: org.atua.modelFeatures.ATUAMF
         ): AbstractAction {
-            val actionData = computeAbstractActionExtraData(actionType, interaction, guiState, abstractState, atuaMF)
-
             val abstractAction: AbstractAction
-            val availableAction = abstractState.getAvailableActions().find {
+            val actionData = computeAbstractActionExtraData(actionType, interaction, guiState, abstractState, atuaMF)
+            abstractActionsByWindow.putIfAbsent(abstractState.window, ArrayList())
+            val availableActions = abstractActionsByWindow[abstractState.window]!!.filter {
                 it.actionType == actionType
                         && it.attributeValuationMap == attributeValuationMap
                         && it.extra == actionData
             }
-
+            val availableAction = availableActions.firstOrNull()
             if (availableAction == null) {
                 abstractAction = AbstractAction(
                         actionType = actionType,
                         attributeValuationMap = attributeValuationMap,
-                        extra = actionData
+                        extra = actionData,
+                        window = abstractState.window
                 )
-                abstractState.addAction(abstractAction)
+                abstractActionsByWindow[abstractState.window]!!.add(abstractAction)
+                abstractState.addAction(abstractAction,atuaMF)
             } else {
                 abstractAction = availableAction
+                abstractState.addAction(abstractAction,atuaMF)
             }
             return abstractAction
         }
@@ -221,5 +350,6 @@ enum class  AbstractActionType(val actionName: String) {
     UNKNOWN("Underived"),
     FAKE_ACTION("FakeAction"),
     TERMINATE("Terminate"),
-    WAIT("FetchGUI")
+    WAIT("FetchGUI"),
+    PRESS_ENTER("PressEnter")
 }

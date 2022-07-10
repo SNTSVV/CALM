@@ -12,16 +12,25 @@
 
 package org.atua.modelFeatures.ewtg
 
+import org.atua.calm.ModelBackwardAdapter
+import org.atua.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractTransition
 import org.atua.modelFeatures.dstg.AbstractState
+import org.atua.modelFeatures.dstg.AttributeValuationMap
+import org.atua.modelFeatures.dstg.PredictedAbstractState
+import org.atua.modelFeatures.ewtg.window.Dialog
+import org.atua.modelFeatures.helper.Goal
 import org.atua.modelFeatures.helper.PathFindingHelper
+import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
 class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.PathType, val destination: AbstractState) {
     val path: HashMap<Int, AbstractTransition> = HashMap()
     var reachabilityScore: Double = 1.0
-    val goal = ArrayList<Input>()
+    val goal = ArrayList<Goal>()
+    val abstractStateStack = Stack<AbstractState>()
     fun getFinalDestination(): AbstractState{
         return destination
     }
@@ -34,17 +43,56 @@ class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.Pa
         return false
     }
 
-    fun cost(start: Int=0): Int {
-        var cost = 0
+    fun cost(start: Int=0, final:Boolean): Double {
+        var cost = 0.0
+        var baseCost = 0.0
         path.values.drop(start).forEach {
             if (it.abstractAction.actionType == AbstractActionType.RESET_APP)
-                cost+=8
+                baseCost+=10
             else if (it.abstractAction.actionType == AbstractActionType.LAUNCH_APP)
-                cost+=6
+                baseCost+=5
             else
-                cost+=1
+                baseCost+=1
         }
-        return cost
+        var finalReachPb = 1.0
+        var finalEffectiveness = 1.0
+        path.values.drop(start).forEach {
+            if (it.source is PredictedAbstractState) {
+                val reachPb = it.source.abstractActionsProbability[it.abstractAction]
+                if (reachPb != null)
+                    finalReachPb = finalReachPb * reachPb
+               /* val effectiveness =  it.source.abstractActionsEffectivenss[it.abstractAction]
+                if (effectiveness != null)
+                    finalEffectiveness = finalEffectiveness + effectiveness*/
+            } else if (it.nondeterministic){
+                val reachPb = 1*1.0/it.nondeterministicCount
+                finalReachPb  = finalReachPb * reachPb
+            }
+            else if (it.source.guiStates.isEmpty()) {
+                val reachPb = 0.5
+                finalReachPb  = finalReachPb * reachPb
+            }
+        }
+        val failurePb = 1.0 - finalReachPb
+        if (final && goal.isNotEmpty() && destination is PredictedAbstractState) {
+            val destinationAvailableActions = goal.map {
+                if (it.abstractAction != null) {
+                    arrayListOf(it.abstractAction!!)
+                } else {
+                    val abstractActions = destination.getAbstractActionsWithSpecificInputs(it.input!!)
+                    ArrayList(abstractActions)
+                }
+            }.flatten().distinct()
+            val avgProb = destinationAvailableActions.map { destination.abstractActionsProbability[it]?:0.0 }.maxOrNull()?:0.0
+            cost = baseCost+ (baseCost/2 * (1.0 - (avgProb*finalReachPb)))
+        } else {
+            cost = baseCost + (baseCost/2 * failurePb)
+        }
+       /* if (final && destination !is VirtualAbstractState && destination !is PredictedAbstractState) {
+            finalEffectiveness = finalEffectiveness+ log10(destination.getUnExercisedActions2(null).size.toDouble())
+        }*/
+        val finalCost = cost/finalEffectiveness
+        return finalCost
     }
 
 
@@ -60,8 +108,13 @@ class PathTraverser (val transitionPath: TransitionPath) {
             return null
         return transitionPath.path[latestEdgeId!!]
     }
+    fun getNextTransition(): AbstractTransition? {
+        if (latestEdgeId == null)
+            return null
+        return transitionPath.path[latestEdgeId!!+1]
+    }
     fun next(): AbstractTransition? {
-        if(finalStateAchieved())
+        if(isEnded())
             return null
         if (latestEdgeId == null)
             latestEdgeId = 0
@@ -71,33 +124,38 @@ class PathTraverser (val transitionPath: TransitionPath) {
         return edge
     }
 
-    fun finalStateAchieved(): Boolean {
+    fun isEnded(): Boolean {
         return latestEdgeId == transitionPath.path!!.size-1
     }
 
     fun canContinue(currentAppState: AbstractState): Boolean {
         val nextAbstractTransition = transitionPath.path[latestEdgeId!! + 1]
+
         val nextAction = nextAbstractTransition?.abstractAction
         if (nextAction == null)
             return false
-
-        if (nextAbstractTransition!!.guardEnabled)
+        if (currentAppState.window !is Dialog && currentAppState.window != nextAbstractTransition.source.window) {
             return false
-        if (!nextAction.isWidgetAction())
+        }
+/*        if (nextAbstractTransition!!.guardEnabled)
+            return false*/
+        if (!nextAction.isWidgetAction() ) {
+            if (nextAbstractTransition.source is PredictedAbstractState) {
+                return true
+            }
+            if (currentAppState.isOpeningKeyboard != nextAbstractTransition.source.isOpeningKeyboard)
+                return false
+            if (currentAppState.isOpeningMenus != nextAbstractTransition.source.isOpeningMenus)
+                return false
             return true
+        }
         val targetAVM = nextAction!!.attributeValuationMap!!
         if (currentAppState.attributeValuationMaps.contains(targetAVM)) {
             return true
-        }
-        currentAppState.attributeValuationMaps.forEach {
-            if (it.isDerivedFrom(targetAVM))
-                return true
-        }
-        val nextInput = nextAbstractTransition!!.source.inputMappings[nextAction]
-        if (nextInput!=null) {
-            if (currentAppState.inputMappings.values.flatten().intersect(nextInput).isNotEmpty()) {
-                return true
-            }
+        } else if (currentAppState.attributeValuationMaps.any { it.fullAttributeValuationMap == targetAVM.fullAttributeValuationMap }) {
+            return true
+        } else if (currentAppState.getAvailableActions(null).any { it.isEquivalent(nextAction) }) {
+            return true
         }
         return false
     }

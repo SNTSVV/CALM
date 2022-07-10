@@ -27,6 +27,7 @@ package org.droidmate.exploration
 
 import com.natpryce.konfig.Configuration
 import kotlinx.coroutines.*
+import org.atua.modelFeatures.ewtg.Helper
 import org.droidmate.configuration.ConfigProperties
 import org.droidmate.device.android_sdk.IApk
 import org.droidmate.deviceInterface.exploration.*
@@ -97,7 +98,7 @@ class ExplorationContext<M,S,W> @JvmOverloads constructor(val cfg: Configuration
 			//val resourceDir = Paths.get(cfg[ConfigProperties.Output.outputDir].path).toAbsolutePath().resolve(EnvironmentConstants.dir_name_temp_extracted_resources).toAbsolutePath()
 			val resourceDir = Paths.get(cfg[ConfigProperties.Exploration.apksDir].path).toAbsolutePath()
 			addWatcher(StatementCoverageMF(coverageDir, readDeviceStatements, model.config.appName, resourceDir))
-			if (model.config[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.use]) {
+			if (true || model.config[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.use]) {
 				val manualInput = model.config[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.manualInput]
 				val manualIntent = model.config[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.manualIntent]
 				val reuseBaseModel = model.config[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.reuseBaseModel]
@@ -235,7 +236,9 @@ class ExplorationContext<M,S,W> @JvmOverloads constructor(val cfg: Configuration
 
 	private fun isActivityChooser(currentState: S): Boolean {
 		return currentState.widgets.any{
-			it.packageName == "android" && it.resourceId == "android:id/resolver_list"}
+			it.packageName == "android"
+					&& it.resourceId == "android:id/resolver_list"
+					}
 	}
 
 	fun isOpenWithDialog() = getCurrentState().widgets.any { it.text == "JUST ONCE" || it.text == "ALWAYS" }

@@ -99,6 +99,15 @@ enum class EventType {
 
     END_MARKER_NEVER_USE;
 
+    fun isWidgetEvent(): Boolean {
+        return when (this) {
+            click,long_click,select,scroll,swipe, drag,touch -> true
+            item_click,item_long_click,item_selected -> true
+            zoom_in,zoom_out -> true
+            else -> false
+        }
+    }
+
     val isImplicit: Boolean
         get() = this.ordinal > EXPLICIT_IMPLICIT_SEPARATOR.ordinal
 

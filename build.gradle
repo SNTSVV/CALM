@@ -25,7 +25,7 @@ buildscript {
 apply from: file("${rootProject.projectDir}/versions.gradle")
 
 wrapper{
-	gradleVersion = '5.4'  //define what gradle wrapper version is to be used on wrapper initialization (only if there is no wrapper yet or 'gradlew wrapper' is called)
+	gradleVersion = '7.3.3'  //define what gradle wrapper version is to be used on wrapper initialization (only if there is no wrapper yet or 'gradlew wrapper' is called)
 }
 
 allprojects {
@@ -39,7 +39,7 @@ allprojects {
 		maven { url = "https://soot-build.cs.upb.de/nexus/repository/soot-release/" }
 		maven { url = "https://soot-build.cs.upb.de/nexus/repository/soot-snapshot/" }
 		maven { url = 'https://jitpack.io'	}
-		jcenter()
+		maven { url = "https://mvnrepository.com/artifact/org.jetbrains.kotlin/kotlin-stdlib-jdk8"}
 		mavenCentral()
 		mavenLocal()
 	}
@@ -53,7 +53,7 @@ allprojects {
 //			force dmDriverLib
 			// cache dynamic versions for 10 minutes
 			
-			dependencySubstitution {
+			/*dependencySubstitution {
 				def targetProject = findProject(":deviceDaemonLib")
 				if (targetProject != null) {
 					def substitution = substitute module("com.github.hotzkow:platformInterfaceLib") with project(":deviceDaemonLib")
@@ -66,7 +66,7 @@ allprojects {
 //				println "use composite build directory (explorationModel) instead of artifact from server"
 					substitute module("com.github.hotzkow:explorationModel") with project(":explorationModel")
 				}
-			}
+			}*/
 
 			cacheDynamicVersionsFor 10*60, 'seconds'
 			// don't cache changing modules at all
@@ -92,7 +92,7 @@ task Debug {
 }
 
 configure(artifactModules){
-	apply plugin: 'maven'
+//	apply plugin: 'maven'
 	apply plugin: 'java'
 
 	task sourcesJar(type: Jar, dependsOn: "classes") {
@@ -122,6 +122,7 @@ configure(pcJvmTargets) {
 	}
 
 	dependencies {
+		implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
 		implementation "org.jetbrains.kotlin:kotlin-stdlib"
 		implementation "org.jetbrains.kotlin:kotlin-reflect"
 		implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:${project.ext.coroutines_version}"
@@ -135,7 +136,7 @@ mainClassName = "org.droidmate.api.ExplorationAPI"
 // Run by ':project:run'
 (tasks.run as JavaExec).configure {
 
-	sourceSets.main.runtimeClasspath = classpath
+//	sourceSets.main.runtimeClasspath = classpath
 
 	workingDir rootDir
 	def argsFile = Paths.get("$rootDir/args.txt")
@@ -149,7 +150,7 @@ mainClassName = "org.droidmate.api.ExplorationAPI"
 apply plugin: "kotlin"
 
 dependencies {
-	compile project(":project:pcComponents:core")
+	implementation project(":project:pcComponents:core")
 }
 
 jar {

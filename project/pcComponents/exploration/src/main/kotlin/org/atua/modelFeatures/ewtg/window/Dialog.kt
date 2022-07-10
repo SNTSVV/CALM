@@ -29,9 +29,12 @@ class Dialog(classType: String,
                 classType = this.classType,
                 allocMethod = this.allocMethod,
                 runtimeCreated = this.isRuntimeCreated,
-                isBaseModel = false
+                isBaseModel = false,
+                isGrantedRuntimeDialog = this.isGrantedRuntimeDialog
         )
         newDialog.isInputDialog = this.isInputDialog
+        newDialog.ownerActivitys.addAll(this.ownerActivitys)
+        newDialog.dialogType = this.dialogType
         return newDialog
     }
 

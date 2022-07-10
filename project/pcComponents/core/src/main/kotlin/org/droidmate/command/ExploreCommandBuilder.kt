@@ -60,6 +60,7 @@ import org.droidmate.tools.DeviceTools
 import org.droidmate.tools.IDeviceTools
 import java.nio.file.Path
 import java.util.*
+import org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy
 
 @Suppress("unused", "MemberVisibilityCanBePrivate")
 open class ExploreCommandBuilder(
@@ -106,18 +107,36 @@ open class ExploreCommandBuilder(
     }
 
     private fun fromConfig(cfg: ConfigurationWrapper): ExploreCommandBuilder {
+        conditionalEnable(cfg[ConfigProperties.Strategies.manual]) {
+            strategies.add(DefaultStrategies.manual(getNextSelectorPriority()))
+        }
+
         conditionalEnable(cfg[ConfigProperties.Strategies.playback], cfg) { withPlayback(cfg) }
 
         conditionalEnable(cfg[actionLimit] > 0, cfg) { terminateAfterActions(cfg) }
         conditionalEnable(cfg[timeLimit] > 0, cfg) { terminateAfterTime(cfg) }
         resetOnCrash()
+
         conditionalEnable(cfg[ConfigProperties.Strategies.allowRuntimeDialog]) { allowRuntimePermissions() }
         conditionalEnable(cfg[ConfigProperties.Strategies.denyRuntimeDialog]) { denyRuntimePermissions() }
         loginWithGoogle()
         pressBackOnAds()
         //dealWithAndroidDialog()
         resetOnInvalidState()
+        conditionalEnable(cfg[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.use]
+                && !cfg[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.budgetScale].isNaN()) {
+            conditionalEnable(!cfg[RegressionStrategy.randomAfterTesting]) {
+                addATUATestingStrategy(cfg[RegressionStrategy.budgetScale],-1,-1,1)
+            }
+            conditionalEnable(cfg[RegressionStrategy.randomAfterTesting]) {
+                val randomTime = cfg[RegressionStrategy.randomTimeout]*60*1000
+                val atuaTime = cfg[timeLimit]*60*1000
+                addATUATestingStrategy(cfg[RegressionStrategy.budgetScale],atuaTime,randomTime ,cfg[RegressionStrategy.randomStrategy])
 
+//                addRandomStrategy(useCoordinationClick = true)
+            }
+
+        }
         conditionalEnable(cfg[resetEvery] > 0, cfg) { resetOnIntervals(cfg) }
         conditionalEnable(cfg[pressBackProbability] > 0, cfg) { randomBack(cfg) }
 
@@ -127,10 +146,7 @@ open class ExploreCommandBuilder(
 
         conditionalEnable(cfg[ConfigProperties.Strategies.explore], cfg) { addRandomStrategy() }
 
-        conditionalEnable(cfg[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.use]
-                && !cfg[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.budgetScale].isNaN()) {
-            addATUATestingStrategy(cfg[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.budgetScale])
-        }
+
 
 
         conditionalEnable(
@@ -138,7 +154,8 @@ open class ExploreCommandBuilder(
             cfg
         ) { collectStatementCoverage() }
 
-        selectors.add(DefaultSelector.regressionTestingMF(getNextSelectorPriority()))
+        selectors.add(DefaultSelector.ATUA_MF(getNextSelectorPriority()))
+
 
 
         return this
@@ -228,13 +245,17 @@ open class ExploreCommandBuilder(
         return this
     }
 
-    fun addRandomStrategy(): ExploreCommandBuilder {
-        strategies.add(RandomWidget(getNextSelectorPriority()))
+    fun addRandomStrategy(useCoordinationClick: Boolean = false): ExploreCommandBuilder {
+        strategies.add(RandomWidget(getNextSelectorPriority(),useCoordinateClicks = useCoordinationClick))
         return this
     }
 
-    fun addATUATestingStrategy(budgetScale: Double): ExploreCommandBuilder{
-        strategies.add(ATUATestingStrategy(getNextSelectorPriority(),budgetScale))
+    fun addATUATestingStrategy(budgetScale: Double, timeoutMS: Int, randomTimeMS: Int, randomStrategy: Int): ExploreCommandBuilder{
+        strategies.add(ATUATestingStrategy(getNextSelectorPriority(),
+             scaleFactor= budgetScale,
+        timeout = timeoutMS,
+            randomTimeout = randomTimeMS,
+        randomStrategy = randomStrategy ))
 
         return this
     }

@@ -28,6 +28,8 @@ import org.gradle.api.tasks.testing.logging.TestLoggingContainer
 
 buildscript {
 	repositories {
+		google()
+//		jcenter()
 		mavenCentral()
 	}
 	apply from: file("../versions.gradle") // contains kotlin_version
@@ -40,9 +42,10 @@ apply from: file("../versions.gradle") // contains kotlin_version
 apply plugin: 'kotlin'
 
 repositories {
-	mavenCentral()
-	jcenter()
+	google()
+//	jcenter()
 	mavenLocal()
+	mavenCentral()
 	maven { url = "https://jitpack.io" }
 }
 
