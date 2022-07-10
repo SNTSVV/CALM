@@ -68,6 +68,7 @@ class AbstractTransition(
         }
     var isUsefullOnce: Boolean = true
     var nondeterministic: Boolean = false
+    var nondeterministicCount: Int = 0
     // --------------
     init {
         source.abstractTransitions.add(this)
@@ -172,9 +173,10 @@ class AbstractTransition(
             &&*/ !currentAbstractState.isOpeningMenus
             && this.dest != this.source
         ) {
+            val currentStateStack = AbstractStateManager.INSTANCE.createAppStack(traceId, transitionId-2)
             val previousSameWindowAbstractStates: List<AbstractState> =
-                AbstractStateManager.INSTANCE.getPrevSameWindowAbstractState(currentState, traceId, transitionId, true)
-                    .subtract(listOf(this.source)).toList()
+                AbstractStateManager.INSTANCE.getPrevSameWindowAbstractState(currentState, currentStateStack , true)
+                    /*.subtract(listOf(this.source))*/.toList()
             var foundPreviousAbstractStates = false
             for (prevAppState in previousSameWindowAbstractStates) {
                 if (!AbstractStateManager.INSTANCE.goBackAbstractActions.contains(this.abstractAction)) {
@@ -191,6 +193,10 @@ class AbstractTransition(
 
                     this.guardEnabled = true
                     this.dependentAbstractStates.add(prevAppState)
+                    atuaMF.disablePrevAbstractStates.putIfAbsent(abstractAction, HashMap())
+                    atuaMF.disablePrevAbstractStates[abstractAction]!!.putIfAbsent(prevAppState, HashSet())
+                    atuaMF.disablePrevAbstractStates[abstractAction]!![prevAppState]!!.addAll(currentStateStack.subtract(
+                        listOf(prevAppState)))
                     foundPreviousAbstractStates = true
                     break
                 }
@@ -204,6 +210,10 @@ class AbstractTransition(
 
                     this.guardEnabled = true
                     this.dependentAbstractStates.add(maxScores.key)
+                    atuaMF.disablePrevAbstractStates.putIfAbsent(abstractAction, HashMap())
+                    atuaMF.disablePrevAbstractStates[abstractAction]!!.putIfAbsent(maxScores.key, HashSet())
+                    atuaMF.disablePrevAbstractStates[abstractAction]!![maxScores.key]!!.addAll(currentStateStack.subtract(
+                        listOf(maxScores.key)))
                 }
             }
            /* if (currentAbstractState.window == p_prevWindowAbstractState.window) {
@@ -244,8 +254,10 @@ class AbstractTransition(
             }
             if (nondeterministicTransitions.isNotEmpty()) {
                 this.nondeterministic = true
+                this.nondeterministicCount = nondeterministicTransitions.size+1
                 nondeterministicTransitions.forEach {
                     it.nondeterministic = true
+                    it.nondeterministicCount = nondeterministicTransitions.size+1
                 }
             }
         } else {
@@ -260,8 +272,10 @@ class AbstractTransition(
             }
             if (nondeterministicTransitions.isNotEmpty()) {
                 this.nondeterministic = true
+                this.nondeterministicCount = nondeterministicTransitions.size+1
                 nondeterministicTransitions.forEach {
                     it.nondeterministic = true
+                    it.nondeterministicCount = nondeterministicTransitions.size+1
                 }
             }
         }

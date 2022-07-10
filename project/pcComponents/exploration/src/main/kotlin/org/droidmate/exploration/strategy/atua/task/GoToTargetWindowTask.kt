@@ -12,6 +12,7 @@ class GoToTargetWindowTask (
     atuaTestingStrategy: ATUATestingStrategy,
     delay: Long, useCoordinateClicks: Boolean) : GoToAnotherWindowTask(regressionWatcher, atuaTestingStrategy, delay, useCoordinateClicks) {
 
+    var abstractAtionAsTarget: Boolean = false
     override fun increaseExecutedCount() {
         executedCount++
     }
@@ -26,9 +27,13 @@ class GoToTargetWindowTask (
         else
             computeNextPathType(currentPath!!.pathType,includeResetAction)*/
         val pathConstraints = HashMap<PathConstraint,Boolean>()
+        pathConstraints.put(PathConstraint.TARGET_ABSTRACT_ACTION, abstractAtionAsTarget)
         if (!continueMode) {
             pathConstraints.put(PathConstraint.INCLUDE_RESET, includeResetAction)
             pathConstraints.put(PathConstraint.INCLUDE_LAUNCH, true)
+        } else {
+            pathConstraints.put(PathConstraint.INCLUDE_RESET, false)
+            pathConstraints.put(PathConstraint.INCLUDE_LAUNCH, false)
         }
         pathConstraints.put(PathConstraint.MAXIMUM_DSTG,true)
 

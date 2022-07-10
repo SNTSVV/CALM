@@ -1,24 +1,13 @@
 package org.droidmate.exploration.strategy.atua
 
-import org.atua.calm.ewtgdiff.EWTGDiff
-import org.atua.calm.modelReuse.ModelHistoryInformation
 import org.atua.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
-import org.atua.modelFeatures.dstg.Cardinality
 import org.atua.modelFeatures.dstg.VirtualAbstractState
-import org.atua.modelFeatures.ewtg.EWTGWidget
-import org.atua.modelFeatures.ewtg.EventType
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.Input
 import org.atua.modelFeatures.ewtg.TransitionPath
-import org.atua.modelFeatures.ewtg.WindowManager
-import org.atua.modelFeatures.ewtg.window.Activity
-import org.atua.modelFeatures.ewtg.window.Dialog
-import org.atua.modelFeatures.ewtg.window.Launcher
-import org.atua.modelFeatures.ewtg.window.OptionsMenu
-import org.atua.modelFeatures.ewtg.window.OutOfApp
 import org.atua.modelFeatures.ewtg.window.Window
 import org.atua.modelFeatures.helper.Goal
 import org.atua.modelFeatures.helper.PathConstraint
@@ -37,7 +26,6 @@ import org.droidmate.exploration.strategy.atua.task.PrepareContextTask
 import org.droidmate.exploration.strategy.atua.task.RandomExplorationTask
 import org.droidmate.explorationModel.ExplorationTrace
 import org.droidmate.explorationModel.interaction.State
-import org.droidmate.explorationModel.interaction.Widget
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -536,8 +524,9 @@ class RandomExplorationStrategy(
         val currentAbstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)
         if (currentAbstractState == null)
             return transitionPaths
+        val includeResetAction = pathConstraints[PathConstraint.INCLUDE_RESET]!!
         val goalByAbstractState = HashMap<AbstractState, List<Goal>>()
-        val runtimeAbstractStates = ArrayList(getUnexhaustedExploredAbstractState())
+        val runtimeAbstractStates = ArrayList(getUnexhaustedExploredAbstractState(includeResetAction))
         runtimeAbstractStates.groupBy { it.window }.forEach { window, appStates ->
             var virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window)
             if (virtualAbstractState == null) {
@@ -552,12 +541,14 @@ class RandomExplorationStrategy(
                 appState.getUnExercisedActions(null, atuaMF).filter { action ->
                     !action.isCheckableOrTextInput(appState)
                             && appState.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
-                            && !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
-                            && ProbabilityBasedPathFinder.disableInputs.intersect(
-                        appState.getInputsByAbstractAction(
-                            action
-                        )
-                    ).isEmpty()
+                            && !ProbabilityBasedPathFinder.disableAbstractActions1.contains(action)
+                            && ProbabilityBasedPathFinder.disableInputs1.intersect(
+                        appState.getInputsByAbstractAction(action)).isEmpty()
+                            && (includeResetAction || (
+                            !ProbabilityBasedPathFinder.disableAbstractActions2.contains(action)
+                                    && ProbabilityBasedPathFinder.disableInputs2.intersect(
+                                appState.getInputsByAbstractAction(action)).isEmpty()
+                                    ))
                 }.forEach { action ->
                     toExploreInputs.add(Goal(input = null, abstractAction = action))
                 }
@@ -670,8 +661,8 @@ class RandomExplorationStrategy(
         return transitionPaths
     }
 
-    override fun getCurrentTargetInputs(currentState: State<*>): Set<Input> {
-        val result = ArrayList<Input>()
+    override fun getCurrentTargetInputs(currentState: State<*>): Set<Goal> {
+        val result = ArrayList<Goal>()
         val availableTargetInputsWithActions = HashMap<Input, List<AbstractAction>>()
 
         val abstractState = atuaMF.getAbstractState(currentState)!!
@@ -732,7 +723,7 @@ class RandomExplorationStrategy(
     }
 
     private fun getAbstractStateExecutedActionsCount(abstractState: AbstractState) =
-        abstractState.getActionCountMap().filter { it.key.isWidgetAction() }.map { it.value }.sum()
+        abstractState.getActionCountMap(atuaMF).filter { it.key.isWidgetAction() }.map { it.value }.sum()
 
     private fun isLoginWindow(currentAppState: AbstractState): Boolean {
         val activity = currentAppState.window.classType.toLowerCase()

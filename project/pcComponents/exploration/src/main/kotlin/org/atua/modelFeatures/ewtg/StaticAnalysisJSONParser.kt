@@ -561,7 +561,7 @@ class StaticAnalysisJSONParser() {
                         val eventHandlers =
                             jsonEventHandlers.map { statementCoverageMF.getMethodId(it as String) }.toSet()
                         val jsonEventType = eventJsonObject["action"] as String
-                        if (!Input.isIgnoreEvent(jsonEventType) && jsonEventType != EventType.implicit_back_event.name) {
+                        if (!Input.isIgnoreEvent(jsonEventType) ) {
                             if (Input.isNoWidgetEvent(jsonEventType)) {
                                 ewtgWidget = null
                             } else {
@@ -664,7 +664,7 @@ class StaticAnalysisJSONParser() {
                         else
                             jsonEventType = jsonEvent["eventType"] as String
                         var ewtgWidget: EWTGWidget?
-                        if (!Input.isIgnoreEvent(jsonEventType) && jsonEventType != EventType.implicit_back_event.name) {
+                        if (!Input.isIgnoreEvent(jsonEventType)) {
                             if (Input.isNoWidgetEvent(jsonEventType)
                             ) {
                                 ewtgWidget = null
@@ -906,7 +906,7 @@ class StaticAnalysisJSONParser() {
                     if (eventType == "touch")
                         eventType = "click"
                     var ewtgWidget: EWTGWidget? = null
-                    if (!Input.isIgnoreEvent(eventType) && eventType != EventType.implicit_back_event.name) {
+                    if (!Input.isIgnoreEvent(eventType)) {
                         if (Input.isNoWidgetEvent(eventType)) {
                             ewtgWidget = null
                         } else {

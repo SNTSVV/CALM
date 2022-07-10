@@ -81,7 +81,10 @@ class PhaseThreeStrategy(
             if (it.witnessed)
                 allTargetInputs.put(it,0)
         }
-        atuaMF.modifiedMethodsByWindow.keys.filter { it !is Launcher }.forEach { window ->
+        val seenWindows = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it !is VirtualAbstractState
+                && it.guiStates.isNotEmpty()
+                && it.ignored == false }.map { it.window }.distinct()
+        atuaMF.modifiedMethodsByWindow.keys.filter { it !is Launcher && seenWindows.contains(it) }.forEach { window ->
             val abstractStates = AbstractStateManager.INSTANCE.getPotentialAbstractStates().filter { it.window == window }
             if (abstractStates.isNotEmpty()) {
                 /*targetWindowsCount.put(window, 0)*/
@@ -125,8 +128,11 @@ class PhaseThreeStrategy(
         if (atuaMF.lastUpdatedStatementCoverage == 1.0) {
             return false
         }
+        val seenWindows = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it !is VirtualAbstractState
+                && it.guiStates.isNotEmpty()
+                && it.ignored == false }.map { it.window }.distinct()
         atuaMF.modifiedMethodsByWindow.keys.filter { it !is Launcher
-                && !targetWindowsCount.containsKey(it)}.forEach {window ->
+                && !targetWindowsCount.containsKey(it) && seenWindows.contains(it)}.forEach {window ->
             val abstractStates = AbstractStateManager.INSTANCE.getPotentialAbstractStates().filter { it.window == window }
             if (abstractStates.isNotEmpty()) {
                 val targetInputs = atuaMF.notFullyExercisedTargetInputs.filter {it.sourceWindow == window}
@@ -218,7 +224,8 @@ class PhaseThreeStrategy(
         val currentAppState = atuaMF.getAbstractState(currentState)
         if (currentAppState==null)
             return transitionPaths
-        val runtimeAbstractStates = getUnexhaustedExploredAbstractState()
+        val includeReset = pathConstraints[PathConstraint.INCLUDE_RESET]!!
+        val runtimeAbstractStates = getUnexhaustedExploredAbstractState(includeReset)
         val goalByAbstractState = HashMap<AbstractState, List<Goal>>()
         runtimeAbstractStates.groupBy { it.window }.forEach { window, appStates ->
             var virtualAbstractState = AbstractStateManager.INSTANCE.getVirtualAbstractState(window)
@@ -231,8 +238,12 @@ class PhaseThreeStrategy(
                     .filter { action->
                         !action.isCheckableOrTextInput(appState)
                                 && appState.getInputsByAbstractAction(action).any { it.meaningfulScore > 0 }
-                                && !ProbabilityBasedPathFinder.disableAbstractActions.contains(action)
-                                && ProbabilityBasedPathFinder.disableInputs.intersect(appState.getInputsByAbstractAction(action)).isEmpty()
+                                && !ProbabilityBasedPathFinder.disableAbstractActions1.contains(action)
+                                && ProbabilityBasedPathFinder.disableInputs1.intersect(appState.getInputsByAbstractAction(action)).isEmpty()
+                                && (includeReset || (
+                                !ProbabilityBasedPathFinder.disableAbstractActions2.contains(action)
+                                        && ProbabilityBasedPathFinder.disableInputs2.intersect(appState.getInputsByAbstractAction(action)).isEmpty()
+                                        ))
 
                     }
                 meaningfulAbstractActions.forEach { action ->
@@ -329,8 +340,8 @@ class PhaseThreeStrategy(
         return transitionPaths
     }
 
-    override fun getCurrentTargetInputs(currentState: State<*>): Set<Input> {
-        val targetEvents = ArrayList<Input>()
+    override fun getCurrentTargetInputs(currentState: State<*>): Set<Goal> {
+        val targetEvents = ArrayList<Goal>()
         targetEvents.clear()
 
         val abstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)
@@ -339,7 +350,7 @@ class PhaseThreeStrategy(
             if (targetEvent!=null) {
                 val abstractActions = atuaMF.validateEvent(targetEvent!!, currentState)
                 if (abstractActions.isNotEmpty()) {
-                    targetEvents.add(targetEvent!!)
+                    targetEvents.add(Goal(input=targetEvent,abstractAction = null))
                 }
             }/* else {
                 val availableEvents = abstractState.getAvailableInputs()
@@ -964,7 +975,14 @@ class PhaseThreeStrategy(
 
     private fun selectLeastTriedTargetWindow(maxTry: Int, numTried: Int, currentState: State<*>): Boolean {
 //        var leastExercise = targetWindowsCount.values.min()
-        var leastTriedWindows = targetWindowsCount.filter { windowScores.containsKey(it.key) }.map { Pair<Window, Int>(first = it.key, second = it.value) }
+        val seenWindows = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it !is VirtualAbstractState
+                && it.guiStates.isNotEmpty()
+                && it.ignored == false }.map { it.window }.distinct()
+
+        var leastTriedWindows = targetWindowsCount.filter {
+            windowScores.containsKey(it.key)
+                    && seenWindows.contains(it.key)
+                    && !ProbabilityBasedPathFinder.disableWindows1.contains(it.key)}.map { Pair<Window, Int>(first = it.key, second = it.value) }
 
         /*if (leastTriedWindows.isEmpty()) {
             leastTriedWindows = targetWindowsCount.map { Pair<Window, Int>(first = it.key, second = it.value) }.filter { it.second == leastExercise }
@@ -1097,8 +1115,15 @@ class PhaseThreeStrategy(
             maxTry
         }
         val reachableWindows = ArrayList<Window>()
-        val windows = WindowManager.instance.allMeaningWindows.toList()
-        getReachableWindows(windows, currentAppState, currentState, reachableWindows)
+        val seenWindows = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it !is VirtualAbstractState
+                && it.guiStates.isNotEmpty()
+                && it.ignored == false }.map { it.window }.distinct()
+        val windows = WindowManager.instance.allMeaningWindows.toList().filter {
+            !ProbabilityBasedPathFinder.disableWindows1.contains(it)
+                    && seenWindows.contains(it)
+        }
+//        getReachableWindows(windows, currentAppState, currentState, reachableWindows)
+        reachableWindows.addAll(windows)
         if (targetEvent!=null
                 && eventWindowCorrelation.containsKey(targetEvent!!)
                 && eventWindowCorrelation[targetEvent!!]!!.isNotEmpty()) {

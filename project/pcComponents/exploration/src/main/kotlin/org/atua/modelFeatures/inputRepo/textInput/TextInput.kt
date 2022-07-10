@@ -140,8 +140,15 @@ class TextInput () {
                         .joinToString("")
                 }
             }
-            historyTextInput.add(textValue)
-            return textValue
+            if (widget.text.matches(Regex( "\\w*\\.\\w+"))) {
+                val subfix = widget.text
+                val insertText = textValue + subfix
+                historyTextInput.add(insertText)
+                return insertText
+            } else {
+                historyTextInput.add(textValue)
+                return textValue
+            }
         }
 
         protected open fun randomInt(): String{

@@ -12,18 +12,19 @@
 
 package org.atua.modelFeatures.ewtg
 
+import org.atua.calm.ModelBackwardAdapter
+import org.atua.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractTransition
 import org.atua.modelFeatures.dstg.AbstractState
+import org.atua.modelFeatures.dstg.AttributeValuationMap
 import org.atua.modelFeatures.dstg.PredictedAbstractState
-import org.atua.modelFeatures.dstg.VirtualAbstractState
+import org.atua.modelFeatures.ewtg.window.Dialog
 import org.atua.modelFeatures.helper.Goal
 import org.atua.modelFeatures.helper.PathFindingHelper
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
-import kotlin.math.log10
-import kotlin.math.log2
 
 class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.PathType, val destination: AbstractState) {
     val path: HashMap<Int, AbstractTransition> = HashMap()
@@ -63,7 +64,11 @@ class TransitionPath(val root: AbstractState, val pathType: PathFindingHelper.Pa
                /* val effectiveness =  it.source.abstractActionsEffectivenss[it.abstractAction]
                 if (effectiveness != null)
                     finalEffectiveness = finalEffectiveness + effectiveness*/
-            } else if (it.source.guiStates.isEmpty()) {
+            } else if (it.nondeterministic){
+                val reachPb = 1*1.0/it.nondeterministicCount
+                finalReachPb  = finalReachPb * reachPb
+            }
+            else if (it.source.guiStates.isEmpty()) {
                 val reachPb = 0.5
                 finalReachPb  = finalReachPb * reachPb
             }
@@ -125,9 +130,13 @@ class PathTraverser (val transitionPath: TransitionPath) {
 
     fun canContinue(currentAppState: AbstractState): Boolean {
         val nextAbstractTransition = transitionPath.path[latestEdgeId!! + 1]
+
         val nextAction = nextAbstractTransition?.abstractAction
         if (nextAction == null)
             return false
+        if (currentAppState.window !is Dialog && currentAppState.window != nextAbstractTransition.source.window) {
+            return false
+        }
 /*        if (nextAbstractTransition!!.guardEnabled)
             return false*/
         if (!nextAction.isWidgetAction() ) {
@@ -143,17 +152,11 @@ class PathTraverser (val transitionPath: TransitionPath) {
         val targetAVM = nextAction!!.attributeValuationMap!!
         if (currentAppState.attributeValuationMaps.contains(targetAVM)) {
             return true
-        }
-        currentAppState.attributeValuationMaps.forEach {
-            if (it.isDerivedFrom(targetAVM,currentAppState.window))
-                return true
-        }
-/*        val nextInputs = nextAbstractTransition!!.source.getInputsByAbstractAction(nextAction)
-        val inputIntersection = currentAppState.getAvailableInputs().intersect(nextInputs)
-        if (inputIntersection.isNotEmpty()) {
-//            val potentialAbstractActions = inputIntersection.map { currentAppState.getAbstractActionsWithSpecificInputs(it) }.flatten().distinct()
+        } else if (currentAppState.attributeValuationMaps.any { it.fullAttributeValuationMap == targetAVM.fullAttributeValuationMap }) {
             return true
-        }*/
+        } else if (currentAppState.getAvailableActions(null).any { it.isEquivalent(nextAction) }) {
+            return true
+        }
         return false
     }
 }

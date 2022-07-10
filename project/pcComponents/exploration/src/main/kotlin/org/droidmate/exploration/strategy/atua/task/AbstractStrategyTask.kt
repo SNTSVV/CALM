@@ -311,7 +311,7 @@ abstract class AbstractStrategyTask(
         if (guiDimension.topY - 50 < 0)
             return Click(guiDimension.leftX - 50, y = guiDimension.topY)
         val abstractState = AbstractStateManager.INSTANCE.getAbstractState(currentState)!!
-        abstractState.increaseActionCount2(abstractAction, false)
+        abstractState.increaseActionCount2(abstractAction, atuaMF)
         return Click(guiDimension.leftX - 50, y = guiDimension.topY - 50)
     }
 
@@ -466,7 +466,7 @@ abstract class AbstractStrategyTask(
             val actionList: ArrayList<ExplorationAction> = ArrayList<ExplorationAction>()
             if (childWidgets.isEmpty()) {
                 if (abstractAction != null) {
-                    abstractAction.attributeValuationMap!!.removeAction(abstractAction)
+                    abstractAction.attributeValuationMap!!.removeAction(abstractAction,atuaMF)
                 }
                 return null
             }
@@ -484,13 +484,13 @@ abstract class AbstractStrategyTask(
                         childWidgets.random()
                     explorationAction = webViewWidget.click()
                     if (abstractAction!=null && currentAbstractState.getAttributeValuationSet(webViewWidget, currentState, atuaMF)!=null) {
-                        currentAbstractState.increaseActionCount2(abstractAction,true)
+                        currentAbstractState.increaseActionCount2(abstractAction,atuaMF)
                     }
                 } else {
                     val webViewWidget = childWidgets.random()
                     explorationAction = webViewWidget.click()
                     if (abstractAction!=null && currentAbstractState.getAttributeValuationSet(webViewWidget, currentState, atuaMF)!=null) {
-                        currentAbstractState.increaseActionCount2(abstractAction,true)
+                        currentAbstractState.increaseActionCount2(abstractAction,atuaMF)
                     }
                 }
             } else if (action == AbstractActionType.LONGCLICK) {
@@ -520,16 +520,16 @@ abstract class AbstractStrategyTask(
                     swipeableWidgets.random()
                 val swipeAction =
                     computeSwipeAction(data, actionWidget, currentState, abstractAction, currentAbstractState)
-                currentAbstractState.increaseActionCount2(abstractAction!!, true)
+                currentAbstractState.increaseActionCount2(abstractAction!!, atuaMF)
                 return swipeAction
             } else {
                 if (abstractAction != null) {
-                    abstractAction.attributeValuationMap!!.removeAction(abstractAction)
+                    abstractAction.attributeValuationMap!!.removeAction(abstractAction,atuaMF)
                 }
                 return null
             }
             if (abstractAction != null) {
-                currentAbstractState.increaseActionCount2(abstractAction, false)
+                currentAbstractState.increaseActionCount2(abstractAction, atuaMF)
             }
             return explorationAction
         }
@@ -609,7 +609,7 @@ abstract class AbstractStrategyTask(
                 "SwipeRight" -> scrollWidget.swipeRight()
                 "SwipeTillEnd" -> doDeepSwipeUp(scrollWidget, currentState).also {
                     if (abstractAction != null)
-                        currentAbstractState.increaseActionCount2(abstractAction, false)
+                        currentAbstractState.increaseActionCount2(abstractAction, atuaMF)
                 }
                 else -> {
                     if (data.isNotBlank()) {

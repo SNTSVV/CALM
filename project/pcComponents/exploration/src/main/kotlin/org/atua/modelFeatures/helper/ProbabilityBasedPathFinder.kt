@@ -12,6 +12,7 @@
 
 package org.atua.modelFeatures.helper
 
+import org.atua.calm.ModelBackwardAdapter
 import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.Rotation
 import org.atua.modelFeatures.dstg.AbstractAction
@@ -37,9 +38,13 @@ import org.slf4j.LoggerFactory
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
+import kotlin.collections.HashSet
+import kotlin.math.cos
 
 class ProbabilityBasedPathFinder {
     companion object {
+
+
         @JvmStatic
         private val log: Logger by lazy { LoggerFactory.getLogger(this::class.java) }
 
@@ -48,8 +53,12 @@ class ProbabilityBasedPathFinder {
         private val disableEdges = HashSet<Edge<AbstractState, AbstractTransition>>()
         private val disablePaths = HashSet<Pair<List<AbstractTransition>, DisablePathType>>()
         val disableActionSequences = HashMap<AbstractState, ArrayList<LinkedList<AbstractAction>>>()
-        val disableInputs = HashSet<Input>()
-        val disableAbstractActions = HashSet<AbstractAction>()
+        val disableInputs1 = HashSet<Input>()
+        val disableAbstractActions1 = HashSet<AbstractAction>()
+        val disableWindows1: HashSet<Window> = HashSet()
+        val disableInputs2 = HashSet<Input>()
+        val disableAbstractActions2 = HashSet<AbstractAction>()
+        val disableWindows2: HashSet<Window> = HashSet()
         val unavailableActions = HashMap<AbstractState, ArrayList<AbstractAction>>()
         val disableActionsTriggeredByActions = HashMap<AbstractAction, HashMap<Window,ArrayList<AbstractAction>>>()
 
@@ -282,6 +291,9 @@ class ProbabilityBasedPathFinder {
                     it.dest.guiStates.isNotEmpty() } }) {
                 return
             }
+            if (depth>15) {
+                return
+            }
             val newMinCost = foundPaths.map { it.cost(final = false) }.minOrNull() ?: maxCost
 //            foundPaths.removeIf { it.cost() > newMinCost }
 //            val newMinCost = minCost
@@ -350,14 +362,15 @@ class ProbabilityBasedPathFinder {
                 }
             val traveredAbstractTransitions = traversedEdges.map { it.value.first }
 //            val traveredAbstractTransitions = prevAbstractTransitions
-            val traveredAppStates = traveredAbstractTransitions.map { it.source }
+            val traveredAppStates = traveredAbstractTransitions.map { it.dest }
             val allAvailableActions = source.getAvailableActions()
             val validAbstractActions = allAvailableActions.filter {
                 (it.actionType != AbstractActionType.RESET_APP
                         || (depth == 0 && pathContraints[PathConstraint.INCLUDE_RESET]?:false ))
                         && it.actionType != AbstractActionType.ACTION_QUEUE
                         && it.actionType != AbstractActionType.UNKNOWN
-                        && (!(pathContraints[PathConstraint.FORCING_LAUNCH]?:false) || depth!=0 || it.actionType == AbstractActionType.LAUNCH_APP)
+                        && (!(pathContraints[PathConstraint.FORCING_LAUNCH]?:false)
+                        || depth!=0 || it.actionType == AbstractActionType.LAUNCH_APP)
                         /*&& (it.actionType != AbstractActionType.SWIPE || !it.isWebViewAction())*/
 
             }
@@ -367,223 +380,280 @@ class ProbabilityBasedPathFinder {
                     (!absTransition.abstractAction.isItemAction() || absTransition.abstractAction.isWebViewAction())
                     && absTransition.abstractAction == abstractAction
                             && absTransition.activated == true
-                            && (!considerGuardedTransitions || !absTransition.guardEnabled ||
-                                    absTransition.dependentAbstractStates.intersect(abstractStateStack.toList()).isNotEmpty() ||
-                            (absTransition.fromWTG
-                                    && absTransition.dependentAbstractStates.any { abstractStateStack.map { it.window }.contains(it.window) } ))
-                            && (pathContraints[PathConstraint.INCLUDE_WTG]?:false
-                            || !absTransition.fromWTG )
-                            && (!absTransition.fromWTG || !source.abstractTransitions.any {
+                            && (absTransition.interactions.isNotEmpty()
+                                || (pathContraints[PathConstraint.INCLUDE_WTG]?:false
+                                    || !absTransition.fromWTG || absTransition.dest is PredictedAbstractState )
+                                /*&& (!absTransition.fromWTG || !source.abstractTransitions.any {
                                 !it.fromWTG && it.abstractAction == abstractAction
-                            } )
-                            && !traveredAbstractTransitions.contains(absTransition)
+                            } )*/)
+                            && absTransition.dest.window !is Launcher
+//                            && absTransition.dest !is PredictedAbstractState
                 }
-
-                val goodAbstactTransitions = abstractTransitions.filter {
-                    it.dest.window !is Launcher &&
-                            it.dest !is PredictedAbstractState
-                            && !traveredAppStates.contains(it.dest)
-                            && it.source != it.dest
-                }
-                var mostPertinentAbstractTransitions = ArrayList<AbstractTransition>()
-                mostPertinentAbstractTransitions.addAll(goodAbstactTransitions.filter { !it.guardEnabled || !considerGuardedTransitions })
-                val guardedAbstractTransitions = goodAbstactTransitions.subtract(mostPertinentAbstractTransitions)
-                for (abstractState in abstractStateStack.reversed()) {
-                    val selectedGuaredAbstractTransitions = guardedAbstractTransitions.filter { it.dependentAbstractStates.contains(abstractState) }
-                    if (selectedGuaredAbstractTransitions.isNotEmpty()) {
-                        mostPertinentAbstractTransitions.addAll(selectedGuaredAbstractTransitions)
-                        break
-                    }
-                }
-                var selectedExercisedAbstractTransition = false
-                if (mostPertinentAbstractTransitions.isNotEmpty()) {
-                    mostPertinentAbstractTransitions.forEach { abstractTransition ->
-                        selectedExercisedAbstractTransition = processAbstractTransition(
-                            abstractTransition = abstractTransition,
-                            traversedEdges = traversedEdges,
-                            pathType = pathType,
-                            atuaMF = atuaMF,
-                            prevEdgeId = prevEdgeId,
-                            root = root,
-                            pathTracking = pathTracking,
-                            maxCost = maxCost,
-                            foundPaths = foundPaths,
-                            abstractStateStack = abstractStateStack,
-                            source = source,
-                            nextTransitions = nextTransitions,
-                            finalTargets = finalTargets,
-                            goalsByTarget = goalsByTarget,
-                            abandonedAppStates = abandonedAppStates,
-                            windowAsTarget = windowAsTarget,
-                            maximumDSTG = pathContraints[PathConstraint.MAXIMUM_DSTG]?:false
-                        )
-                    }
-                }
-                val isAllImplicitTransitions = abstractTransitions.all { it.interactions.isEmpty() }
-                val isTransitionsEmpty = abstractTransitions.isEmpty()
-                if (isConsideredForPredicting(abstractAction)
-                    && atuaMF.dstg.abstractActionEnables.contains(abstractAction)
-                    && ((!selectedExercisedAbstractTransition
-                            && ( isAllImplicitTransitions || isTransitionsEmpty))
-                        || abstractAction.isItemAction())
-                        && (pathType == PathFindingHelper.PathType.WIDGET_AS_TARGET || pathType == PathFindingHelper.PathType.WTG)
-                        && (goalsByTarget.isNotEmpty() || windowAsTarget)
-                ) {
-                    var predictedAction = false
-                    if (traveredAbstractTransitions.any { it.dest is PredictedAbstractState && it.abstractAction == abstractAction }) {
-                        predictedAction = true
-                    }
-//                    predictedAction = false
-                    if (!predictedAction) {
-                        val exisitingPredictedTransitions =
-                            abstractTransitions.filter { it.dest is PredictedAbstractState }
-                        if (exisitingPredictedTransitions.isNotEmpty()) {
-                            if (!traveredAbstractTransitions.any { it.abstractAction == abstractAction && it.dest is PredictedAbstractState }) {
-                                exisitingPredictedTransitions.forEach {
-                                    processAbstractTransition(
-                                        abstractTransition = it,
-                                        traversedEdges = traversedEdges,
-                                        pathType = pathType,
-                                        atuaMF = atuaMF,
-                                        prevEdgeId = prevEdgeId,
-                                        root = root,
-                                        pathTracking = pathTracking,
-                                        maxCost = maxCost,
-                                        foundPaths = foundPaths,
-                                        abstractStateStack = abstractStateStack,
-                                        source = source,
-                                        nextTransitions = nextTransitions,
-                                        finalTargets = finalTargets,
-                                        goalsByTarget = goalsByTarget,
-                                        abandonedAppStates = abandonedAppStates,
-                                        windowAsTarget = windowAsTarget,
-                                        maximumDSTG = pathContraints[PathConstraint.MAXIMUM_DSTG]?:false
-                                    )
-                                }
+                if (true || !abstractTransitions.any {
+                        it.source == it.dest && it.interactions.isNotEmpty()
+                    }) {
+                    val filterAbstractStateStack = Stack<AbstractState>()
+                    if (atuaMF.disablePrevAbstractStates.containsKey(abstractAction)) {
+                        val ignoreAbstractStates = HashSet<AbstractState>()
+                        for (abstractState in abstractStateStack.reversed()) {
+                            if (!ignoreAbstractStates.contains(abstractState) && atuaMF.disablePrevAbstractStates[abstractAction]!!.containsKey(abstractState)) {
+                                ignoreAbstractStates.addAll(atuaMF.disablePrevAbstractStates[abstractAction]!![abstractState]!!)
                             }
-                        } else {
-                            // predict destination
-                            if ( abstractAction.isWidgetAction() || abstractAction.actionType == AbstractActionType.PRESS_BACK
-                            ) {
-                                var reachableAbstractActionsByWindow: HashMap<Window,HashMap<AbstractAction, Int>> = HashMap()
-                                val totalcntByWindow = HashMap<Window, Int>()
-                                for (abstractState in abstractStateStack.reversed()) {
-                                    val dependentWindow = abstractState.window
-                                    if (atuaMF.dstg.abstractActionEnables[abstractAction]!!.contains(dependentWindow)
-                                    ) {
-                                        reachableAbstractActionsByWindow.put(dependentWindow, HashMap())
-                                        reachableAbstractActionsByWindow[dependentWindow]!!.putAll(
-                                            atuaMF.dstg.abstractActionEnables[abstractAction]!![dependentWindow]!!.filter {
-                                                it.key.actionType != AbstractActionType.RESET_APP
-                                                        && it.key.isWidgetAction()
-                                            })
-                                        totalcntByWindow.put(dependentWindow,
-                                            atuaMF.dstg.abstractActionCounts[dependentWindow]!![abstractAction]!!)
-                                        break
-                                    }
-                                }
+                        }
+                        for (abstractState in abstractStateStack) {
+                            if (!ignoreAbstractStates.contains(abstractState)) {
+                                filterAbstractStateStack.push(abstractState)
+                            }
+                        }
+                    } else {
+                        filterAbstractStateStack.addAll(abstractStateStack)
+                    }
 
-                                if(atuaMF.dstg.abstractActionEnables[abstractAction]!!.any { it.key is FakeWindow }) {
-                                    val fakeWindow = FakeWindow.getOrCreateNode(false)
-                                    reachableAbstractActionsByWindow.put(fakeWindow,HashMap())
-                                    reachableAbstractActionsByWindow[fakeWindow]!!.putAll(atuaMF.dstg.abstractActionEnables[abstractAction]!![fakeWindow]!!.filter {
-                                        it.key.actionType != AbstractActionType.RESET_APP
-                                                && it.key.isWidgetAction()
-                                    })
-                                    totalcntByWindow.put(fakeWindow, atuaMF.dstg.abstractActionCounts[fakeWindow]!![abstractAction]!!)
-                                }
-
-                                val reachableStates = atuaMF.dstg.abstractActionStateEnable[abstractAction]!!
-                                reachableAbstractActionsByWindow.keys.forEach { dependentWindow->
-                                    val reachableAbstractActions = reachableAbstractActionsByWindow[dependentWindow]!!
-                                    val disableActions = disableActionsTriggeredByActions[abstractAction]?.get(dependentWindow)?:emptyList<AbstractAction>()
-                                    val abstractActionsByWindow = reachableAbstractActions.keys.groupBy { it.window }
-                                    abstractActionsByWindow.filter { it.key !is Launcher }. forEach { window, abstractActions ->
-                                        val activity = window.classType
-                                        val predictAbstractState = PredictedAbstractState(
-                                            activity = activity,
-                                            window = window,
-                                            rotation = Rotation.PORTRAIT,
-                                            isOutOfApplication = (window is OutOfApp),
-                                            isOpeningMenus = false,
-                                            isRequestRuntimePermissionDialogBox = false,
-                                            isOpeningKeyboard = false,
-                                            inputMappings = HashMap()
-                                        )
-                                        abstractActions.forEach { action ->
-                                            val totalCnt = totalcntByWindow[dependentWindow]!!
-                                            val prob =
-                                                reachableAbstractActions[action]!! * 1.0 / totalCnt
-                                            if (/*prob>=0.1 && */!disableActions.contains(action)){
-                                                if (!action.isWidgetAction()) {
-                                                    if (!predictAbstractState.containsActionCount(action))
-                                                        predictAbstractState.setActionCount(action, 0)
-                                                }
-                                                if (action.attributeValuationMap != null && !predictAbstractState.attributeValuationMaps.contains(
-                                                        action.attributeValuationMap
-                                                    )
-                                                ) {
-                                                    predictAbstractState.attributeValuationMaps.add(action.attributeValuationMap)
-                                                    predictAbstractState.avmCardinalities.putIfAbsent(
-                                                        action.attributeValuationMap,
-                                                        Cardinality.ONE
-                                                    )
-                                                }
-                                                val inputs =
-                                                    EWTG_DSTGMapping.INSTANCE.inputsByAbstractActions.get(action)
-                                                inputs?.forEach {
-                                                    predictAbstractState.associateAbstractActionWithInputs(action, it)
-                                                }
-                                                predictAbstractState.abstractActionsProbability.put(action, prob)
-
-
-                                                val effectiveness = if (totalCnt == 1) 0.0
-                                                else  reachableStates.size.toDouble() / totalCnt
-                                                predictAbstractState.abstractActionsEffectivenss.put(action,effectiveness)
-                                            }
-                                            AbstractStateManager.INSTANCE.initAbstractInteractions(predictAbstractState)
-
-                                        }
-                                        if (predictAbstractState.attributeValuationMaps.isNotEmpty()) {
-                                            predictAbstractState.updateHashCode()
-                                            val newAbstractTransition = AbstractTransition(
-                                                abstractAction = abstractAction,
-                                                source = source,
-                                                dest = predictAbstractState,
-                                                isImplicit = true
-                                            )
-                                            source.abstractTransitions.add(newAbstractTransition)
-                                            atuaMF.dstg.add(source, predictAbstractState, newAbstractTransition)
-
-                                            processAbstractTransition(
-                                                abstractTransition = newAbstractTransition,
-                                                traversedEdges = traversedEdges,
-                                                pathType = pathType,
-                                                prevEdgeId = prevEdgeId,
-                                                root = root,
-                                                pathTracking = pathTracking,
-                                                foundPaths = foundPaths,
-                                                abstractStateStack = abstractStateStack,
-                                                source = source,
-                                                nextTransitions = nextTransitions,
-                                                finalTargets = finalTargets,
-                                                maxCost = maxCost,
-                                                goalsByTarget = goalsByTarget,
-                                                atuaMF = atuaMF,
-                                                abandonedAppStates = abandonedAppStates,
-                                                windowAsTarget = windowAsTarget,
-                                                maximumDSTG = pathContraints[PathConstraint.MAXIMUM_DSTG]?:false
-                                            )
-                                        }
-
-                                    }
-                                }
-
+                    var mostPertinentAbstractTransitions = ArrayList<AbstractTransition>()
+                    mostPertinentAbstractTransitions.addAll(abstractTransitions.filter {
+                        !it.guardEnabled || !considerGuardedTransitions }.filter{it.dest !is PredictedAbstractState})
+                    val guardedAbstractTransitions = abstractTransitions.subtract(mostPertinentAbstractTransitions)
+                    for (abstractState in filterAbstractStateStack.reversed()) {
+                        val selectedGuaredAbstractTransitions = guardedAbstractTransitions.filter{
+                            it.dependentAbstractStates.any { s1->
+                                s1 == abstractState || s1.hashCode == abstractState.hashCode
+                                        || ModelBackwardAdapter.instance.backwardEquivalentAbstractStateMapping[abstractState]?.contains(s1)?:false
+                                        || (it.fromWTG && s1.window == abstractState.window)
+                            }
+                        }
+                        if (selectedGuaredAbstractTransitions.isNotEmpty()) {
+                            mostPertinentAbstractTransitions.addAll(selectedGuaredAbstractTransitions)
+                            break
+                        }
+                    }
+                    /*if (mostPertinentAbstractTransitions.isEmpty()) {
+                        mostPertinentAbstractTransitions.addAll(goodAbstactTransitions)
+                    }*/
+                    var selectedExercisedAbstractTransition = false
+                    if (mostPertinentAbstractTransitions.isNotEmpty()) {
+                        mostPertinentAbstractTransitions.forEach { abstractTransition ->
+                            if (!traveredAppStates.contains(abstractTransition.dest)
+                                && !traveredAbstractTransitions.contains(abstractTransition)
+                                && abstractTransition.source != abstractTransition.dest) {
+                                selectedExercisedAbstractTransition = processAbstractTransition(
+                                    abstractTransition = abstractTransition,
+                                    traversedEdges = traversedEdges,
+                                    pathType = pathType,
+                                    atuaMF = atuaMF,
+                                    prevEdgeId = prevEdgeId,
+                                    root = root,
+                                    pathTracking = pathTracking,
+                                    maxCost = maxCost,
+                                    foundPaths = foundPaths,
+                                    abstractStateStack = abstractStateStack,
+                                    source = source,
+                                    nextTransitions = nextTransitions,
+                                    finalTargets = finalTargets,
+                                    goalsByTarget = goalsByTarget,
+                                    abandonedAppStates = abandonedAppStates,
+                                    windowAsTarget = windowAsTarget,
+                                    maximumDSTG = pathContraints[PathConstraint.MAXIMUM_DSTG]?:false
+                                )
                             }
                         }
                     }
+                    val isAllImplicitTransitions = abstractTransitions.all { it.interactions.isEmpty() }
+                    val isNonDeterministic = mostPertinentAbstractTransitions.all {it.nondeterministic}
+                    /*val isManyCardinalityAVM = if (abstractAction.isWidgetAction()) {
+                        if (source.avmCardinalities[abstractAction.attributeValuationMap!!] == Cardinality.MANY) {
+                            true
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }*/
+                    val isManyCardinalityAVM = false
+                    val isTransitionsEmpty = abstractTransitions.isEmpty()
+                    val similarAbstractAction = if (atuaMF.dstg.abstractActionEnables.containsKey(abstractAction)) {
+                        abstractAction
+                    } else{
+                        atuaMF.dstg.abstractActionEnables.entries.find {
+                            it.key.isWidgetAction() && it.key.window == abstractAction.window
+                                    && it.key.actionType == abstractAction.actionType
+                                    && it.key.extra == abstractAction.extra
+                                    && (abstractAction.attributeValuationMap?.isDerivedFrom(it.key.attributeValuationMap!!,abstractAction.window)?:false
+                                    || (abstractAction.isWidgetAction() && ModelBackwardAdapter.instance.matchingAVMs[abstractAction.attributeValuationMap!!]?.contains(it.key.attributeValuationMap!!)?:false)) }?.key
+                    }
+                    if (similarAbstractAction!=null
+                        && isConsideredForPredicting(similarAbstractAction!!)
+                        && (mostPertinentAbstractTransitions.isEmpty() || isNonDeterministic
+                                || isTransitionsEmpty || isAllImplicitTransitions || isManyCardinalityAVM )
+                        && (pathType == PathFindingHelper.PathType.WIDGET_AS_TARGET || pathType == PathFindingHelper.PathType.WTG)
+                        && (goalsByTarget.isNotEmpty() || windowAsTarget)) {
+                        var predictedAction = false
+                        if (traveredAbstractTransitions.any {
+                                it.dest is PredictedAbstractState
+                                        && it.abstractAction == abstractAction }) {
+                            predictedAction = true
+                        }
+//                    predictedAction = false
+                        if (!predictedAction) {
+                            val exisitingPredictedTransitions =
+                                abstractTransitions.filter { it.dest is PredictedAbstractState }
+                            if (exisitingPredictedTransitions.isNotEmpty()) {
+                                if (!traveredAbstractTransitions.any { it.abstractAction == abstractAction && it.dest is PredictedAbstractState }) {
+                                    exisitingPredictedTransitions.forEach {
+                                        processAbstractTransition(
+                                            abstractTransition = it,
+                                            traversedEdges = traversedEdges,
+                                            pathType = pathType,
+                                            atuaMF = atuaMF,
+                                            prevEdgeId = prevEdgeId,
+                                            root = root,
+                                            pathTracking = pathTracking,
+                                            maxCost = maxCost,
+                                            foundPaths = foundPaths,
+                                            abstractStateStack = abstractStateStack,
+                                            source = source,
+                                            nextTransitions = nextTransitions,
+                                            finalTargets = finalTargets,
+                                            goalsByTarget = goalsByTarget,
+                                            abandonedAppStates = abandonedAppStates,
+                                            windowAsTarget = windowAsTarget,
+                                            maximumDSTG = pathContraints[PathConstraint.MAXIMUM_DSTG]?:false
+                                        )
+                                    }
+                                }
+                            } else {
+                                // predict destination
+                                if ( similarAbstractAction.isWidgetAction() || similarAbstractAction.actionType == AbstractActionType.PRESS_BACK || true
+                                ) {
+                                    var reachableAbstractActionsByWindow: HashMap<Window,HashMap<AbstractAction, Int>> = HashMap()
+                                    val totalcntByWindow = HashMap<Window, Int>()
+                                    val enabledAbstractActions =  atuaMF.dstg.abstractActionEnables[similarAbstractAction]!!
 
+                                    for (abstractState in filterAbstractStateStack.reversed()) {
+                                        val dependentWindow = abstractState.window
+
+                                        if (enabledAbstractActions.contains(dependentWindow)
+                                        ) {
+                                            reachableAbstractActionsByWindow.put(dependentWindow, HashMap())
+                                            reachableAbstractActionsByWindow[dependentWindow]!!.putAll(
+                                                enabledAbstractActions[dependentWindow]!!.filter {
+                                                    it.key.actionType != AbstractActionType.RESET_APP
+                                                            && it.key.isWidgetAction()
+                                                })
+                                            val count1 =  atuaMF.dstg.abstractActionCounts[dependentWindow]!![similarAbstractAction]!!
+
+                                            totalcntByWindow.put(dependentWindow,
+                                                count1
+                                            )
+                                            break
+                                        }
+                                    }
+
+                                    if(enabledAbstractActions.any { it.key is FakeWindow }) {
+                                        val fakeWindow = FakeWindow.getOrCreateNode(false)
+                                        reachableAbstractActionsByWindow.put(fakeWindow,HashMap())
+                                        reachableAbstractActionsByWindow[fakeWindow]!!.putAll(enabledAbstractActions[fakeWindow]!!.filter {
+                                            it.key.actionType != AbstractActionType.RESET_APP
+                                                    && it.key.isWidgetAction()
+                                        })
+                                        val count2 = atuaMF.dstg.abstractActionCounts[fakeWindow]!![similarAbstractAction]!!
+
+                                        totalcntByWindow.put(fakeWindow, count2)
+                                    }
+
+                                    val reachableStates = atuaMF.dstg.abstractActionStateEnable[similarAbstractAction]!!
+
+                                    reachableAbstractActionsByWindow.keys.forEach { dependentWindow->
+                                        val reachableAbstractActions = reachableAbstractActionsByWindow[dependentWindow]!!
+                                        val disableActions = disableActionsTriggeredByActions[similarAbstractAction]?.get(dependentWindow)?:emptyList<AbstractAction>()
+                                        val abstractActionsByWindow = reachableAbstractActions.keys.groupBy { it.window }
+                                        abstractActionsByWindow.filter { it.key !is Launcher }. forEach { window, abstractActions ->
+                                            val activity = window.classType
+                                            val predictAbstractState = PredictedAbstractState(
+                                                activity = activity,
+                                                window = window,
+                                                rotation = Rotation.PORTRAIT,
+                                                isOutOfApplication = (window is OutOfApp),
+                                                isOpeningMenus = false,
+                                                isRequestRuntimePermissionDialogBox = false,
+                                                isOpeningKeyboard = false,
+                                                inputMappings = HashMap()
+                                            )
+                                            abstractActions.forEach { action ->
+                                                val totalCnt = totalcntByWindow[dependentWindow]!!
+                                                val prob =
+                                                    reachableAbstractActions[action]!! * 1.0 / totalCnt
+                                                if (prob>=0.4 && !disableActions.contains(action)){
+                                                    if (!action.isWidgetAction()) {
+                                                        if (!predictAbstractState.containsActionCount(action,atuaMF))
+                                                            predictAbstractState.setActionCount(action, 0,atuaMF)
+                                                    }
+                                                    if (action.attributeValuationMap != null && !predictAbstractState.attributeValuationMaps.contains(
+                                                            action.attributeValuationMap
+                                                        )
+                                                    ) {
+                                                        predictAbstractState.attributeValuationMaps.add(action.attributeValuationMap)
+                                                        predictAbstractState.avmCardinalities.putIfAbsent(
+                                                            action.attributeValuationMap,
+                                                            Cardinality.ONE
+                                                        )
+                                                    }
+                                                    val inputs =
+                                                        EWTG_DSTGMapping.INSTANCE.inputsByAbstractActions.get(action)
+                                                    inputs?.forEach {
+                                                        predictAbstractState.associateAbstractActionWithInputs(action, it)
+                                                    }
+                                                    predictAbstractState.abstractActionsProbability.put(action, prob)
+
+
+                                                    val effectiveness = if (totalCnt == 1) 0.0
+                                                    else  reachableStates.size.toDouble() / totalCnt
+                                                    predictAbstractState.abstractActionsEffectivenss.put(action,effectiveness)
+                                                }
+//                                            AbstractStateManager.INSTANCE.initAbstractInteractions(predictAbstractState)
+
+                                            }
+                                            if (predictAbstractState.attributeValuationMaps.isNotEmpty()) {
+                                                predictAbstractState.updateHashCode()
+                                                val newAbstractTransition = AbstractTransition(
+                                                    abstractAction = abstractAction,
+                                                    source = source,
+                                                    dest = predictAbstractState,
+                                                    isImplicit = true
+                                                )
+                                                source.abstractTransitions.add(newAbstractTransition)
+                                                atuaMF.dstg.add(source, predictAbstractState, newAbstractTransition)
+
+                                                processAbstractTransition(
+                                                    abstractTransition = newAbstractTransition,
+                                                    traversedEdges = traversedEdges,
+                                                    pathType = pathType,
+                                                    prevEdgeId = prevEdgeId,
+                                                    root = root,
+                                                    pathTracking = pathTracking,
+                                                    foundPaths = foundPaths,
+                                                    abstractStateStack = abstractStateStack,
+                                                    source = source,
+                                                    nextTransitions = nextTransitions,
+                                                    finalTargets = finalTargets,
+                                                    maxCost = maxCost,
+                                                    goalsByTarget = goalsByTarget,
+                                                    atuaMF = atuaMF,
+                                                    abandonedAppStates = abandonedAppStates,
+                                                    windowAsTarget = windowAsTarget,
+                                                    maximumDSTG = pathContraints[PathConstraint.MAXIMUM_DSTG]?:false
+                                                )
+                                            }
+
+                                        }
+                                    }
+
+                                }
+                            }
+                        }
+
+                    }
                 }
+
             }
         }
 
@@ -642,19 +712,24 @@ class ProbabilityBasedPathFinder {
                             }
                     fullGraph.goal.addAll(targetInputs)
                     cost = fullGraph.cost(final = true)
-                    val finalmaxCost = foundPaths.map { it.cost(final = true) }.minOrNull()?:maxCost
-                    if (cost <= finalmaxCost || (maximumDSTG
+                    if (foundPaths.isNotEmpty()) {
+                        val finalmaxCost = foundPaths.map { it.cost(final = true) }.minOrNull()!!
+                        if (cost <= finalmaxCost) {
+                            foundPaths.add(fullGraph)
+                        }
+                    } else
+                        foundPaths.add(fullGraph)
+                    /*if (cost <= finalmaxCost || (maximumDSTG
                                 && fullGraph.path.values.all {
                             it.dest.guiStates.isNotEmpty()
                                    })) {
-                        foundPaths.add(fullGraph)
-                    }
+                    }*/
                 } else {
                     cost = fullGraph.cost(final = false)
                 }
-                if (/*cost <= maxCost || (maximumDSTG
+                if (cost < maxCost /*|| (maximumDSTG
                             && fullGraph.path.values.all {
-                        it.dest.guiStates.isNotEmpty() })*/true) {
+                        it.dest.guiStates.isNotEmpty() })*/) {
                     if (!isDisablePath(fullGraph, pathType)) {
                         result = true
                         val nextAbstateStack = if (abstractTransition.abstractAction.isLaunchOrReset()) {
@@ -800,5 +875,6 @@ enum class PathConstraint {
     FORCING_RESET,
     INCLUDE_LAUNCH,
     INCLUDE_WTG,
-    MAXIMUM_DSTG
+    MAXIMUM_DSTG,
+    TARGET_ABSTRACT_ACTION
 }

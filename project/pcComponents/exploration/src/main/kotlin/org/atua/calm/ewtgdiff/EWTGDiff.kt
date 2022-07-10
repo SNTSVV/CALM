@@ -457,14 +457,15 @@ class EWTGDiff private constructor(){
                         extra = abstractAction.extra,
                         window = replacement.new
                     )
-                    val actionCount = abstractState.getActionCount(abstractAction)
+                    val actionCount = abstractState.getActionCount(abstractAction,atuamf)
                     abstractState.removeAction(abstractAction)
-                    abstractState.setActionCount(replacedAbstractAction, actionCount)
+                    abstractState.setActionCount(replacedAbstractAction, actionCount,atuamf)
                     abstractTransitions.forEach {
                         it.abstractAction = replacedAbstractAction
                     }
                     abstractState.removeInputAssociatedAbstractAction(abstractAction)
-                    Input.getOrCreateInputFromAbstractAction(abstractState,replacedAbstractAction, ModelVersion.RUNNING)
+                    Input.getOrCreateInputFromAbstractAction(abstractState,replacedAbstractAction, ModelVersion.RUNNING)!!
+
                 }
             //TODO update abstractAction's window
         }

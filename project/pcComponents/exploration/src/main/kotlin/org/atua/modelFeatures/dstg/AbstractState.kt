@@ -14,6 +14,7 @@ package org.atua.modelFeatures.dstg
 
 import org.atua.calm.modelReuse.ModelHistoryInformation
 import org.atua.calm.modelReuse.ModelVersion
+import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.dstg.reducer.WidgetReducer
 import org.atua.modelFeatures.ewtg.*
 import org.atua.modelFeatures.ewtg.window.Activity
@@ -29,6 +30,8 @@ import org.droidmate.explorationModel.toUUID
 import java.io.File
 import java.nio.file.Path
 import java.util.*
+import kotlin.collections.ArrayList
+import kotlin.collections.HashSet
 
 open class AbstractState(
     val activity: String,
@@ -51,13 +54,14 @@ open class AbstractState(
     reuseAbstractStateId: UUID? = null
 ) {
     var ignored: Boolean = false
-    private val actionCount = HashMap<AbstractAction, Int>()
+//    private val actionCount = HashMap<AbstractAction, Int>()
     val abstractStateId: String
     var hashCode: Int = 0
     var isInitalState = false
 
     var hasOptionsMenu: Boolean = true
     var shouldNotCloseKeyboard: Boolean = false
+    val availableAbstractActions = HashSet<AbstractAction>()
 
     init {
         window.mappedStates.add(this)
@@ -99,7 +103,7 @@ open class AbstractState(
 
     private fun isValidAction(abstractAction: AbstractAction): Boolean {
         if (!abstractAction.isWidgetAction()) {
-            return actionCount.containsKey(abstractAction)
+            return availableAbstractActions.contains(abstractAction)
         }
         return abstractAction.attributeValuationMap!!.containsAction(abstractAction)
     }
@@ -140,39 +144,45 @@ open class AbstractState(
         return hashCode == other.hashCode
     }
 
-    fun initAction() {
+    fun initAction(atuaMF: ATUAMF) {
+        var input: Input?
         val resetAction = AbstractAction.getOrCreateAbstractAction(
             actionType = AbstractActionType.RESET_APP,
             attributeValuationMap = null,
             extra = null,
-            window = Launcher.getOrCreateNode()
+            window = window
         )
-        actionCount.put(resetAction, 0)
-        var input = Input.getOrCreateInput(
-            HashSet(),
-            EventType.resetApp.toString(),
-            null,
-            Launcher.getOrCreateNode(),
-            true,
-            modelVersion
-        )
-        associateAbstractActionWithInputs(resetAction, input!!)
+        addAndInitAction(resetAction, atuaMF)
+        if (!inputMappings.containsKey(resetAction)) {
+            input = Input.getOrCreateInput(
+                HashSet(),
+                EventType.resetApp.toString(),
+                null,
+                Launcher.getOrCreateNode(),
+                true,
+                modelVersion
+            )
+            associateAbstractActionWithInputs(resetAction, input!!)
+        }
         val launchAction = AbstractAction.getOrCreateAbstractAction(
             actionType = AbstractActionType.LAUNCH_APP,
             attributeValuationMap = null,
             extra = null,
             window = window
         )
-        actionCount.put(launchAction, 0)
-        input = Input.getOrCreateInput(
-            HashSet(),
-            EventType.implicit_launch_event.toString(),
-            null,
-            window,
-            true,
-            modelVersion
-        )
-        associateAbstractActionWithInputs(launchAction, input!!)
+        addAndInitAction(launchAction,atuaMF)
+
+        if (!inputMappings.containsKey(launchAction)) {
+            input = Input.getOrCreateInput(
+                HashSet(),
+                EventType.implicit_launch_event.toString(),
+                null,
+                window,
+                true,
+                modelVersion
+            )
+            associateAbstractActionWithInputs(launchAction, input!!)
+        }
         if (isOpeningKeyboard) {
             val closeKeyboardAction = AbstractAction.getOrCreateAbstractAction(
                 actionType = AbstractActionType.CLOSE_KEYBOARD,
@@ -180,10 +190,14 @@ open class AbstractState(
                 extra = null,
                 window = window
             )
-            actionCount.put(closeKeyboardAction, 0)
-            input =
-                Input.getOrCreateInput(HashSet(), EventType.closeKeyboard.toString(), null, window, true, modelVersion)
-            associateAbstractActionWithInputs(closeKeyboardAction, input!!)
+            addAndInitAction(closeKeyboardAction,atuaMF)
+
+            if (!inputMappings.containsKey(closeKeyboardAction)) {
+                input =
+                    Input.getOrCreateInput(HashSet(), EventType.closeKeyboard.toString(), null, window, true, modelVersion)
+                associateAbstractActionWithInputs(closeKeyboardAction, input!!)
+            }
+
         } else {
             val pressBackAction = AbstractAction.getOrCreateAbstractAction(
                 actionType = AbstractActionType.PRESS_BACK,
@@ -191,9 +205,12 @@ open class AbstractState(
                 attributeValuationMap = null,
                 extra = null
             )
-            actionCount.put(pressBackAction, 0)
-            input = Input.getOrCreateInput(HashSet(), EventType.press_back.toString(), null, window, true, modelVersion)
-            associateAbstractActionWithInputs(pressBackAction, input!!)
+            addAndInitAction(pressBackAction,atuaMF)
+
+            if (!inputMappings.containsKey(pressBackAction)) {
+                input = Input.getOrCreateInput(HashSet(), EventType.press_back.toString(), null, window, true, modelVersion)
+                associateAbstractActionWithInputs(pressBackAction, input!!)
+            }
             /*if (!this.isMenusOpened && this.hasOptionsMenu && this.window !is Dialog) {
                 val pressMenuAction = AbstractAction(
                         actionType = AbstractActionType.PRESS_MENU
@@ -205,31 +222,37 @@ open class AbstractState(
                     actionType = AbstractActionType.MINIMIZE_MAXIMIZE,
                     window = window
                 )
-                actionCount.put(minmaxAction, 0)
-                input = Input.getOrCreateInput(
-                    HashSet(),
-                    EventType.implicit_lifecycle_event.toString(),
-                    null,
-                    window,
-                    true,
-                    modelVersion
-                )
-                associateAbstractActionWithInputs(minmaxAction, input!!)
-                if (window is Activity || rotation == org.atua.modelFeatures.Rotation.LANDSCAPE) {
-                    val rotationAction = AbstractAction.getOrCreateAbstractAction(
-                        actionType = AbstractActionType.ROTATE_UI,
-                        window = window
-                    )
-                    actionCount.put(rotationAction, 0)
+                addAndInitAction(minmaxAction,atuaMF)
+
+                if (!inputMappings.containsKey(minmaxAction)) {
                     input = Input.getOrCreateInput(
                         HashSet(),
-                        EventType.implicit_rotate_event.toString(),
+                        EventType.implicit_lifecycle_event.toString(),
                         null,
                         window,
                         true,
                         modelVersion
                     )
-                    associateAbstractActionWithInputs(rotationAction, input!!)
+                    associateAbstractActionWithInputs(minmaxAction, input!!)
+                }
+                if (window is Activity || rotation == org.atua.modelFeatures.Rotation.LANDSCAPE) {
+                    val rotationAction = AbstractAction.getOrCreateAbstractAction(
+                        actionType = AbstractActionType.ROTATE_UI,
+                        window = window
+                    )
+                    addAndInitAction(rotationAction,atuaMF)
+
+                    if (!inputMappings.containsKey(rotationAction)) {
+                        input = Input.getOrCreateInput(
+                            HashSet(),
+                            EventType.implicit_rotate_event.toString(),
+                            null,
+                            window,
+                            true,
+                            modelVersion
+                        )
+                        associateAbstractActionWithInputs(rotationAction, input!!)
+                    }
                 }
             }
             if (window is Dialog) {
@@ -237,98 +260,130 @@ open class AbstractState(
                     actionType = AbstractActionType.CLICK_OUTBOUND,
                     window = window
                 )
-                actionCount.put(clickOutDialog, 0)
-                input = Input.getOrCreateInput(HashSet(), EventType.click.toString(), null, window, true, modelVersion)
-                associateAbstractActionWithInputs(clickOutDialog, input!!)
+                addAndInitAction(clickOutDialog,atuaMF)
+
+                if (!inputMappings.containsKey(clickOutDialog)) {
+                    input = Input.getOrCreateInput(HashSet(), EventType.click.toString(), null, window, true, modelVersion)
+                    associateAbstractActionWithInputs(clickOutDialog, input!!)
+                }
             }
         }
         EWTGWidgetMapping.forEach { avm, ewgtwidget ->
             avm.getAvailableActions().forEach { abstractAction ->
                 if (abstractAction.actionType == AbstractActionType.CLICK) {
-                    input = Input.getOrCreateInput(
-                        HashSet(),
-                        EventType.click.toString(),
-                        ewgtwidget,
-                        window,
-                        true,
-                        modelVersion
-                    )
-                    associateAbstractActionWithInputs(abstractAction, input!!)
+                    if (!inputMappings.containsKey(abstractAction)) {
+                        input = Input.getOrCreateInput(
+                            HashSet(),
+                            EventType.click.toString(),
+                            ewgtwidget,
+                            window,
+                            true,
+                            modelVersion
+                        )
+                        associateAbstractActionWithInputs(abstractAction, input!!)
+                    }
                 }
                 if (abstractAction.actionType == AbstractActionType.LONGCLICK) {
-                    input = Input.getOrCreateInput(
-                        HashSet(),
-                        EventType.long_click.toString(),
-                        ewgtwidget,
-                        window,
-                        true,
-                        modelVersion
-                    )
-                    associateAbstractActionWithInputs(abstractAction, input!!)
+                    if (!inputMappings.containsKey(abstractAction)) {
+
+                        input = Input.getOrCreateInput(
+                            HashSet(),
+                            EventType.long_click.toString(),
+                            ewgtwidget,
+                            window,
+                            true,
+                            modelVersion
+                        )
+                        associateAbstractActionWithInputs(abstractAction, input!!)
+                    }
                 }
                 if (abstractAction.actionType == AbstractActionType.ITEM_CLICK) {
-                    input = Input.getOrCreateInput(
-                        HashSet(),
-                        EventType.item_click.toString(),
-                        ewgtwidget,
-                        window,
-                        true,
-                        modelVersion
-                    )
-                    associateAbstractActionWithInputs(abstractAction, input!!)
+                    if (!inputMappings.containsKey(abstractAction)) {
+
+                        input = Input.getOrCreateInput(
+                            HashSet(),
+                            EventType.item_click.toString(),
+                            ewgtwidget,
+                            window,
+                            true,
+                            modelVersion
+                        )
+                        associateAbstractActionWithInputs(abstractAction, input!!)
+                    }
                 }
                 if (abstractAction.actionType == AbstractActionType.ITEM_LONGCLICK) {
-                    input = Input.getOrCreateInput(
-                        HashSet(),
-                        EventType.item_long_click.toString(),
-                        ewgtwidget,
-                        window,
-                        true,
-                        modelVersion
-                    )
-                    associateAbstractActionWithInputs(abstractAction, input!!)
+                    if (!inputMappings.containsKey(abstractAction)) {
+
+                        input = Input.getOrCreateInput(
+                            HashSet(),
+                            EventType.item_long_click.toString(),
+                            ewgtwidget,
+                            window,
+                            true,
+                            modelVersion
+                        )
+                        associateAbstractActionWithInputs(abstractAction, input!!)
+                    }
                 }
                 if (abstractAction.actionType == AbstractActionType.TEXT_INSERT) {
-                    input = Input.getOrCreateInput(
-                        HashSet(),
-                        EventType.enter_text.toString(),
-                        ewgtwidget,
-                        window,
-                        true,
-                        modelVersion
-                    )
-                    associateAbstractActionWithInputs(abstractAction, input!!)
+                    if (!inputMappings.containsKey(abstractAction)) {
+
+                        input = Input.getOrCreateInput(
+                            HashSet(),
+                            EventType.enter_text.toString(),
+                            ewgtwidget,
+                            window,
+                            true,
+                            modelVersion
+                        )
+                        associateAbstractActionWithInputs(abstractAction, input!!)
+                    }
                 }
                 if (abstractAction.actionType == AbstractActionType.SWIPE) {
-                    input = Input.getOrCreateInput(
-                        HashSet(),
-                        EventType.swipe.toString(),
-                        ewgtwidget,
-                        window,
-                        true,
-                        modelVersion
-                    )
-                    associateAbstractActionWithInputs(abstractAction, input!!)
+                    if (!inputMappings.containsKey(abstractAction)) {
+
+                        input = Input.getOrCreateInput(
+                            HashSet(),
+                            EventType.swipe.toString(),
+                            ewgtwidget,
+                            window,
+                            true,
+                            modelVersion
+                        )
+                        associateAbstractActionWithInputs(abstractAction, input!!)
+                    }
                 }
             }
         }
 
     }
 
-    fun addAction(action: AbstractAction) {
+    private fun addAndInitAction(
+        abstractAction: AbstractAction,
+        atuaMF: ATUAMF
+    ) {
+        if (!abstractAction.isWidgetAction()) {
+            availableAbstractActions.add(abstractAction)
+            if (!containsActionCount(abstractAction, atuaMF)) {
+                atuaMF.actionCount.abstractActionCount.put(abstractAction, 0)
+            }
+        } else {
+            abstractAction.attributeValuationMap!!.addAndInitCount(abstractAction,atuaMF)
+        }
+    }
+
+    fun addAction(action: AbstractAction,atuaMF: ATUAMF) {
         if (action.actionType == AbstractActionType.PRESS_HOME) {
             return
         }
         if (action.attributeValuationMap == null) {
             if (action.actionType == AbstractActionType.CLICK)
                 return
-            if (!actionCount.containsKey(action)) {
-                actionCount[action] = 0
-            }
+            addAndInitAction(action,atuaMF)
             return
         }
-        if (action.attributeValuationMap.getActionCount(action) == -1) {
-            action.attributeValuationMap.setActionCount(action, 0)
+        if (!action.attributeValuationMap.containsAction(action)) {
+            action.attributeValuationMap.setActionCount(action, 0,atuaMF)
         }
     }
 
@@ -409,7 +464,7 @@ open class AbstractState(
                         && it.actionType != AbstractActionType.DISABLE_DATA
                         && it.actionType != AbstractActionType.WAIT
                         && it.actionType != AbstractActionType.SEND_INTENT
-                        && !AbstractStateManager.INSTANCE.goBackAbstractActions.contains(it)
+
             }
             .filterNot { (it.actionType == AbstractActionType.CLICK && !it.isWidgetAction()) }
         return potentialActions
@@ -452,30 +507,40 @@ open class AbstractState(
                 !actionsWithTransitions.contains(action) }
         )
         return unexcerisedActions.toList()*/
-        unexcerisedActions.addAll(actionCount.filter {
-            it.key.actionType != AbstractActionType.FAKE_ACTION
-                    && !it.key.isWidgetAction()
-                    && it.key.actionType != AbstractActionType.LAUNCH_APP
-                    && it.key.actionType != AbstractActionType.RESET_APP
-                    && it.key.actionType != AbstractActionType.ENABLE_DATA
-                    && it.key.actionType != AbstractActionType.DISABLE_DATA
-                    && it.key.actionType != AbstractActionType.WAIT
-                    && it.key.actionType != AbstractActionType.CLICK
-                    && it.key.actionType != AbstractActionType.LONGCLICK
-                    && it.key.actionType != AbstractActionType.SEND_INTENT
-                    && it.key.actionType != AbstractActionType.CLOSE_KEYBOARD
-                    && getInputsByAbstractAction(it.key).any { it.meaningfulScore > 0
-                        && it.exerciseCount==0
-                         &&(!atuaMF.reuseBaseModel
-                    || ModelHistoryInformation.INSTANCE.inputUsefulness[it]?.second?:1>0)}
-                    && it.value==0
-        }.map { it.key })
+        val unexerciseWindowActions = availableAbstractActions.filter {
+            it.actionType != AbstractActionType.FAKE_ACTION
+                    && !it.isWidgetAction()
+                    && it.actionType != AbstractActionType.LAUNCH_APP
+                    && it.actionType != AbstractActionType.RESET_APP
+                    && it.actionType != AbstractActionType.ENABLE_DATA
+                    && it.actionType != AbstractActionType.DISABLE_DATA
+                    && it.actionType != AbstractActionType.WAIT
+                    && it.actionType != AbstractActionType.CLICK
+                    && it.actionType != AbstractActionType.LONGCLICK
+                    && it.actionType != AbstractActionType.SEND_INTENT
+                    && it.actionType != AbstractActionType.CLOSE_KEYBOARD
+                    && ((!this.isOpeningKeyboard && !this.isOpeningMenus) || it.actionType != AbstractActionType.PRESS_BACK)
+                    && atuaMF.actionCount.abstractActionCount[it]==0
+                    &&   getInputsByAbstractAction(it).any {
+                        it.exerciseCount==0
+            }
+        }
+        val meaningfulWindowActions = unexerciseWindowActions.filter {
+            getInputsByAbstractAction(it).any { it.meaningfulScore > 0
+                    &&( !atuaMF.reuseBaseModel
+                        || !ModelHistoryInformation.INSTANCE.inputUsefulness.containsKey(it)
+                        || ModelHistoryInformation.INSTANCE.inputUsefulness[it]!!.first ==0
+                        || (ModelHistoryInformation.INSTANCE.inputUsefulness[it]!!.first > 0
+                            && ModelHistoryInformation.INSTANCE.inputUsefulness[it]!!.second>0))
+            }
+        }
+        unexcerisedActions.addAll(meaningfulWindowActions)
         val widgetActionCounts = if (currentState != null) {
             widget_WidgetGroupMap.values.filter { !it.isUserLikeInput(this) }.distinct()
-                .map { w -> w.getAvailableActionsWithExercisingCount() }
+                .map { w -> w.getAvailableActionsWithExercisingCount(atuaMF) }
         } else {
             attributeValuationMaps
-                .filter { !it.isUserLikeInput(this) }.map { w -> w.getAvailableActionsWithExercisingCount() }
+                .filter { !it.isUserLikeInput(this) }.map { w -> w.getAvailableActionsWithExercisingCount(atuaMF) }
         }
         widgetActionCounts.forEach {
             val actions = it.filterNot {
@@ -541,18 +606,18 @@ open class AbstractState(
     }
 
 
-    fun setActionCount(action: AbstractAction, count: Int) {
+    fun setActionCount(action: AbstractAction, count: Int,atuaMF: ATUAMF) {
         if (action.attributeValuationMap == null) {
-            actionCount[action] = count
+            atuaMF.actionCount.abstractActionCount[action] = count
             return
         }
-        if (action.attributeValuationMap.getActionCount(action) == -1) {
-            action.attributeValuationMap.setActionCount(action, count)
+        if (!action.attributeValuationMap.containsAction(action))  {
+            action.attributeValuationMap.setActionCount(action, count,atuaMF)
         }
     }
 
-    fun increaseActionCount2(abstractAction: AbstractAction, updateSimilarAbstractStates: Boolean) {
-        this.increaseActionCount(abstractAction)
+    fun increaseActionCount2(abstractAction: AbstractAction, atuaMF: ATUAMF) {
+        this.increaseActionCount(abstractAction,atuaMF)
         /* if (updateSimilarAbstractStates) {
              if (!abstractAction.isWidgetAction()) {
                  AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
@@ -565,29 +630,26 @@ open class AbstractState(
          }*/
     }
 
-    private fun increaseActionCount(action: AbstractAction) {
+    private fun increaseActionCount(action: AbstractAction,atuaMF: ATUAMF) {
         if (action.attributeValuationMap == null) {
-            if (actionCount.containsKey(action)) {
-                actionCount[action] = actionCount[action]!! + 1
+            if (atuaMF.actionCount.abstractActionCount.containsKey(action)) {
+                atuaMF.actionCount.abstractActionCount[action] = atuaMF.actionCount.abstractActionCount[action]!! + 1
             } else {
                 if (validateActionType(action.actionType, false))
-                    actionCount[action] = 1
-                else {
-                    val a = 1
-                }
+                    atuaMF.actionCount.abstractActionCount[action] = 1
             }
             val nonDataAction = AbstractAction.getOrCreateAbstractAction(
                 actionType = action.actionType,
                 window = window
             )
-            if (actionCount.containsKey(nonDataAction) && nonDataAction != action) {
-                actionCount[nonDataAction] = actionCount[nonDataAction]!! + 1
+            if (atuaMF.actionCount.abstractActionCount.containsKey(nonDataAction) && nonDataAction != action) {
+                atuaMF.actionCount.abstractActionCount[nonDataAction] = atuaMF.actionCount.abstractActionCount[nonDataAction]!! + 1
             }
 
         } else if (attributeValuationMaps.contains(action.attributeValuationMap)) {
             val widgetGroup = attributeValuationMaps.find { it.equals(action.attributeValuationMap) }!!
-            if (widgetGroup.containsAction(action)) {
-                widgetGroup.increaseActionCount(action)
+            if (atuaMF.actionCount.abstractActionCount.contains(action)) {
+                atuaMF.actionCount.abstractActionCount[action] = atuaMF.actionCount.abstractActionCount[action]!! + 1
                 widgetGroup.exerciseCount++
             } /*else {
                 widgetGroup.actionCount[action] = 1
@@ -597,8 +659,8 @@ open class AbstractState(
                 attributeValuationMap = widgetGroup,
                 window = window
             )
-            if (widgetGroup.containsAction(nonDataAction) && nonDataAction != action) {
-                widgetGroup.increaseActionCount(nonDataAction)
+            if (atuaMF.actionCount.abstractActionCount.contains(nonDataAction) && nonDataAction != action) {
+                atuaMF.actionCount.abstractActionCount[nonDataAction] = atuaMF.actionCount.abstractActionCount[nonDataAction]!! + 1
             }
         }
         if (action.isWidgetAction()) {
@@ -607,7 +669,7 @@ open class AbstractState(
             if (virtualAbstractState != null) {
                 if (!virtualAbstractState.attributeValuationMaps.contains(action.attributeValuationMap!!)) {
                     virtualAbstractState.attributeValuationMaps.add(action.attributeValuationMap!!)
-                    virtualAbstractState.addAction(action)
+                    virtualAbstractState.addAction(action,atuaMF)
                 }
             }
         }
@@ -616,31 +678,31 @@ open class AbstractState(
           }*/
     }
 
-    fun increaseSimilarActionCount(action: AbstractAction) {
+    /*fun increaseSimilarActionCount(action: AbstractAction,atuaMF: ATUAMF) {
         AbstractStateManager.INSTANCE.ABSTRACT_STATES
             .filter { it.window == this.window && it != this }
             .forEach {
                 if (it.getAvailableActions().contains(action)) {
-                    it.increaseActionCount(action)
+                    it.increaseActionCount(action,atuaMF = )
                 }
             }
-    }
+    }*/
 
     fun removeAction(action: AbstractAction) {
+        availableAbstractActions.remove(action)
         inputMappings.remove(action)
     }
 
-    fun getActionCount(action: AbstractAction): Int {
-        if (action.attributeValuationMap == null) {
-            return actionCount[action] ?: -1
-        }
-        return action.attributeValuationMap.getActionCount(action)
+    fun getActionCount(action: AbstractAction,atuaMF: ATUAMF): Int {
+       return atuaMF.actionCount.abstractActionCount[action]?:0
     }
 
-    fun getActionCountMap(): Map<AbstractAction, Int> {
+    fun getActionCountMap(atuaMF: ATUAMF): Map<AbstractAction, Int> {
         val result = HashMap<AbstractAction, Int>()
-        result.putAll(actionCount)
-        attributeValuationMaps.map { it.getAvailableActionsWithExercisingCount() }.forEach {
+        availableAbstractActions.forEach {
+            result.put(it,atuaMF.actionCount.abstractActionCount[it]?:-1)
+        }
+        attributeValuationMaps.map { it.getAvailableActionsWithExercisingCount(atuaMF) }.forEach {
             result.putAll(it)
         }
         return result
@@ -668,7 +730,7 @@ open class AbstractState(
             else
                 localScore += actionScore
         }
-        localScore += this.getActionCountMap().map { it.value }.sum()
+        localScore += this.getActionCountMap(atuaMF = autautMF).map { it.value }.sum()
         this.guiStates.forEach {
             localScore += autautMF.actionCount.getUnexploredWidget2(it).size
         }
@@ -849,10 +911,10 @@ open class AbstractState(
         updateHashCode()
     }
 
-    fun containsActionCount(abstractAction: AbstractAction): Boolean {
+    fun containsActionCount(abstractAction: AbstractAction,atuaMF: ATUAMF): Boolean {
         if (abstractAction.isWidgetAction())
             return abstractAction.attributeValuationMap!!.containsAction(abstractAction)
-        return actionCount.containsKey(abstractAction)
+        return atuaMF.actionCount.abstractActionCount.containsKey(abstractAction)
     }
 
     companion object {

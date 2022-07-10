@@ -71,6 +71,11 @@ open class Input{
         }
     }
 
+    fun isSimilar(input: Input): Boolean {
+        return input.eventType == this.eventType
+                && ( (input.widget == null && this.widget == null)
+                || (input.widget?.structure == this.widget?.structure && input.widget?.resourceIdName == this.widget?.resourceIdName))
+    }
     fun convertToExplorationActionName(): AbstractActionType{
         return when (eventType){
             EventType.click, EventType.touch -> AbstractActionType.CLICK
@@ -100,7 +105,6 @@ open class Input{
             }
         }
     }
-
 
     override fun toString(): String {
         return "$sourceWindow-->$eventType-->[$widget]"
@@ -334,13 +338,16 @@ open class Input{
 
         fun getOrCreateInputFromAbstractAction(abstractState: AbstractState, abstractAction: AbstractAction,modelVersion: ModelVersion) {
             val eventType = Input.getEventTypeFromActionName(abstractAction.actionType)
-            if (eventType == EventType.fake_action || eventType == EventType.resetApp)
+            if (eventType == EventType.fake_action)
                 return
             var newInput: Input?
             if (abstractAction.attributeValuationMap == null) {
-                val exisitingInput = abstractState.window.inputs.find {
-                    it.eventType == eventType
-                }
+                val exisitingInput = if (eventType == EventType.resetApp) {
+                     Input.allInputs.find { it.eventType == EventType.resetApp }
+                } else
+                    abstractState.window.inputs.find {
+                        it.eventType == eventType
+                    }
                 if (exisitingInput!=null)
                     newInput = exisitingInput
                 else {

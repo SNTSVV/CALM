@@ -14,6 +14,7 @@ package org.atua.calm
 
 import org.atua.calm.modelReuse.ModelHistoryInformation
 import org.atua.calm.modelReuse.ModelVersion
+import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractState
@@ -22,12 +23,14 @@ import org.atua.modelFeatures.dstg.AbstractTransition
 import org.atua.modelFeatures.dstg.AttributeType
 import org.atua.modelFeatures.dstg.AttributeValuationMap
 import org.atua.modelFeatures.dstg.Cardinality
+import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.modelFeatures.dstg.reducer.AbstractionFunction2
 import org.atua.modelFeatures.dstg.reducer.DecisionNode2
 import org.atua.modelFeatures.ewtg.EWTGWidget
 import org.atua.modelFeatures.ewtg.EventType
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.Input
+import org.atua.modelFeatures.ewtg.ScrollDirection
 import org.atua.modelFeatures.ewtg.WindowManager
 import org.atua.modelFeatures.ewtg.WindowTransition
 import org.atua.modelFeatures.ewtg.window.Activity
@@ -311,7 +314,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             val abstractStateFilePath: Path = getAbstractStateListFilePath(dstgFolderPath)
             if (!abstractStateFilePath.toFile().exists())
                 return
-            loadAbstractStates(abstractStateFilePath, dstgFolderPath)
+            loadAbstractStates(abstractStateFilePath, dstgFolderPath,autAutMF)
             val dstgFilePath: Path = getDSTGFilePath(dstgFolderPath)
             if (!dstgFilePath.toFile().exists())
                 return
@@ -516,7 +519,8 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                         val newUUID = updatedAbstractStateId.get(dependentAbstractStateId)
                         AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.abstractStateId == newUUID }
                     } else {
-                        AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.abstractStateId == dependentAbstractStateId }
+                        AbstractStateManager.INSTANCE.ABSTRACT_STATES.find { it.abstractStateId == dependentAbstractStateId &&
+                                (it !is VirtualAbstractState || it.window is Launcher)}
                     }
                 }
                 if (dependentAbstractState != null)
@@ -799,18 +803,18 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             return lines
         }
 
-        private fun loadAbstractStates(abstractStateFilePath: Path, dstgFolderPath: Path) {
+        private fun loadAbstractStates(abstractStateFilePath: Path, dstgFolderPath: Path,atuaMF: ATUAMF) {
             val lines: List<String> = readAllLines(abstractStateFilePath)
 
             lines.forEach { line ->
-                loadAbstractState(line, dstgFolderPath)
+                loadAbstractState(line, dstgFolderPath,atuaMF)
             }
         }
 
         val updatedAbstractStateId = HashMap<String, String>()
         val updatedAVMId = HashMap<String, String>()
 
-        private fun loadAbstractState(line: String, dstgFolderPath: Path) {
+        private fun loadAbstractState(line: String, dstgFolderPath: Path,atuaMF: ATUAMF) {
             val data = splitCSVLineToField(line)
             val uuid = data[0]
             val activity = data[1]
@@ -839,7 +843,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             val widgetIdMapping: HashMap<AttributeValuationMap, String> = HashMap()
             val avmCardinalities = HashMap<AttributeValuationMap, Cardinality>()
             val attributeValuationSets =
-                loadAttributeValuationSets(uuid, dstgFolderPath, widgetIdMapping, avmCardinalities, window)
+                loadAttributeValuationSets(uuid, dstgFolderPath, widgetIdMapping, avmCardinalities, window,atuaMF)
             val widgetMapping = HashMap<AttributeValuationMap, EWTGWidget>()
             widgetIdMapping.forEach { avs, widgetId ->
                 val widget = window.widgets.find { it.widgetId == widgetId }
@@ -889,7 +893,8 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             uuid: String, dstgFolderPath: Path,
             widgetMapping: HashMap<AttributeValuationMap, String>,
             avmCardinaties: HashMap<AttributeValuationMap, Cardinality>,
-            window: Window
+            window: Window,
+            atuaMF: ATUAMF
         ): List<AttributeValuationMap> {
             val capturedAttributeValuationSets = ArrayList<AttributeValuationMap>()
             val abstractStateFilePath = dstgFolderPath.resolve("AbstractStates").resolve("AbstractState_$uuid.csv")
@@ -921,7 +926,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                 } else {
                     attributeValuationMap = createAttributeValuationMap(
                         attributeValuationSetRecord.value, capturedAttributeValuationSets,
-                        window, widgetMapping, avmCardinaties
+                        window, widgetMapping, avmCardinaties,atuaMF
                     )
                     if (attributeValuationMap.avmId != avmuuid)
                         updatedAVMId.put(avmuuid, attributeValuationMap.avmId)
@@ -952,7 +957,8 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             attributeValuationMaps: ArrayList<AttributeValuationMap>,
             window: Window,
             widgetMapping: HashMap<AttributeValuationMap, String>,
-            avmCardinaties: HashMap<AttributeValuationMap, Cardinality>
+            avmCardinaties: HashMap<AttributeValuationMap, Cardinality>,
+            atuaMF: ATUAMF
         ): AttributeValuationMap {
             //TODO("Not implemented")
             val parentAVSId =
@@ -973,7 +979,8 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                 avmId = attributeValuationSetRawRecord[AttributeValuationMapPropertyIndex.AttributeValuationSetID],
                 localAttributes = attributes,
                 parentAVMId = parentAVSId,
-                window = window
+                window = window,
+                atuaMF = atuaMF
             )
             val existingAVM = AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP[window]!!
                 .values.find { it != attributeValuationMap && it.hashCode == attributeValuationMap.hashCode }
@@ -1006,11 +1013,12 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             val clickable = attributeValuationSetRawDatum[9]
             val longClickable = attributeValuationSetRawDatum[10]
             val scrollable = attributeValuationSetRawDatum[11]
-            val checked = attributeValuationSetRawDatum[12]
-            val isLeaf = attributeValuationSetRawDatum[13]
-            val childrenStructure = attributeValuationSetRawDatum[14]
-            val childrenText = attributeValuationSetRawDatum[15]
-            val siblingInfo = attributeValuationSetRawDatum[16]
+            val scrollDirection = attributeValuationSetRawDatum[12]
+            val checked = attributeValuationSetRawDatum[13]
+            val isLeaf = attributeValuationSetRawDatum[14]
+            val childrenStructure = attributeValuationSetRawDatum[15]
+            val childrenText = attributeValuationSetRawDatum[16]
+            val siblingInfo = attributeValuationSetRawDatum[17]
 
             addAttributeIfNotNull(AttributeType.className, className, attributes)
             addAttributeIfNotNull(AttributeType.resourceId, resourceId, attributes)
@@ -1023,6 +1031,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             addAttributeIfNotNull(AttributeType.clickable, clickable, attributes)
             addAttributeIfNotNull(AttributeType.longClickable, longClickable, attributes)
             addAttributeIfNotNull(AttributeType.scrollable, scrollable, attributes)
+
             addAttributeIfNotNull(AttributeType.checked, checked, attributes)
             addAttributeIfNotNull(AttributeType.isLeaf, isLeaf, attributes)
             addAttributeIfNotNull(AttributeType.childrenStructure, childrenStructure, attributes)
@@ -1038,7 +1047,27 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             attributes: HashMap<AttributeType, String>
         ) {
             if (attributeValue != "null") {
-                attributes.put(attributeType, attributeValue)
+                if (attributeType == AttributeType.scrollDirection) {
+                    if (attributeValue.toIntOrNull() == null) {
+                        // make it compatible with old data
+                        val scrollDirectionInt =
+                            when (attributeValue) {
+                                "HORIZONTAL" -> ScrollDirection.LEFT.flagValue or ScrollDirection.RIGHT.flagValue
+                                "VERTICAL" -> ScrollDirection.UP.flagValue or ScrollDirection.DOWN.flagValue
+                                "UP" -> ScrollDirection.UP.flagValue
+                                "DOWN" -> ScrollDirection.DOWN.flagValue
+                                "LEFT" -> ScrollDirection.LEFT.flagValue
+                                "RIGHT" -> ScrollDirection.RIGHT.flagValue
+                                "UNKNOWN" -> ScrollDirection.LEFT.flagValue or ScrollDirection.RIGHT.flagValue or ScrollDirection.UP.flagValue or ScrollDirection.DOWN.flagValue
+                                else -> 0
+                            }
+                        attributes.put(attributeType, scrollDirectionInt.toString())
+                    } else {
+                        attributes.put(attributeType, attributeValue)
+                    }
+
+                } else
+                    attributes.put(attributeType, attributeValue)
             }
         }
 

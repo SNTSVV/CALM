@@ -98,7 +98,7 @@ class StateReducer
                 processedList.add(element)
                 var avm =  AttributeValuationMap.getExistingObject(element,window)
                 if (avm == null)
-                    avm =  AttributeValuationMap(element,window)
+                    avm =  AttributeValuationMap(element,window,atuaMF)
                 /*val similarAVMs = AttributeValuationMap.ALL_ATTRIBUTE_VALUATION_MAP.get(window)!!.values.filter { it!=attributeValuationSet && it.haveTheSameAttributePath(attributeValuationSet) }
                 if (similarAVMs.isNotEmpty()) {
                     throw Exception()

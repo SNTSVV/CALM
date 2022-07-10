@@ -47,7 +47,6 @@ import org.atua.modelFeatures.ewtg.EventType
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.Input
 import org.atua.modelFeatures.ewtg.WindowManager
-import org.atua.modelFeatures.ewtg.WindowTransition
 import org.atua.modelFeatures.ewtg.window.Activity
 import org.atua.modelFeatures.ewtg.window.Dialog
 import org.atua.modelFeatures.ewtg.window.FakeWindow
@@ -81,6 +80,7 @@ import org.droidmate.exploration.modelFeatures.explorationWatchers.CrashListMF
 import org.droidmate.exploration.modelFeatures.graph.Edge
 import org.droidmate.exploration.modelFeatures.graph.StateGraphMF
 import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF
+import org.droidmate.exploration.strategy.atua.task.FailReachingLog
 import org.droidmate.exploration.strategy.atua.task.GoToAnotherWindowTask
 import org.droidmate.explorationModel.ExplorationTrace
 import org.droidmate.explorationModel.emptyUUID
@@ -99,6 +99,8 @@ import java.time.Duration
 import java.util.*
 import javax.imageio.ImageIO
 import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
+import kotlin.collections.HashSet
 import kotlin.coroutines.CoroutineContext
 import kotlin.random.Random
 import kotlin.system.measureTimeMillis
@@ -206,6 +208,7 @@ class ATUAMF(
     val inputWindowCorrelation = HashMap<Input, HashMap<Window, Double>>()
     val untriggeredTargetHiddenHandlers = hashSetOf<String>()
 
+    val disablePrevAbstractStates = HashMap<AbstractAction, HashMap<AbstractState, HashSet<AbstractState>>>()
 
     private var phase1MethodCoverage: Double = 0.0
     private var phase2MethodCoverage: Double = 0.0
@@ -293,12 +296,17 @@ class ATUAMF(
                 topCallerToModifiedMethods[it]!!.add(entry.key)
             }
         }
-
+        var nondeterminismCnt = 0
         if (reuseBaseModel) {
             org.atua.modelFeatures.ATUAMF.Companion.log.info("Loading base model...")
             loadBaseModel()
             AbstractStateManager.INSTANCE.initVirtualAbstractStates()
-
+            dstg.edges().forEach {
+                if (it.label.nondeterministic) {
+                    it.label.activated = false
+                    nondeterminismCnt++
+                }
+            }
         }
 
         postProcessingTargets()
@@ -384,14 +392,12 @@ class ATUAMF(
                     }
                 }
             }
-
-
-
         if (reuseBaseModel) {
             AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter {
                 it.modelVersion == ModelVersion.BASE
                         && it.window is OutOfApp
             }.forEach {
+                it.initAction(this)
                 it.abstractTransitions.forEach {
                     if (it.modifiedMethods.isNotEmpty()) {
                         modifiedMethodsByWindow.putIfAbsent(it.dest.window, HashSet())
@@ -399,6 +405,7 @@ class ATUAMF(
                     }
                 }
             }
+
             AbstractStateManager.INSTANCE.ABSTRACT_STATES.filter { it.modelVersion == ModelVersion.BASE }
                 .forEach { abSt ->
                     abSt.abstractTransitions.filter { !it.isImplicit }.forEach {
@@ -417,6 +424,25 @@ class ATUAMF(
                         }
                     }
                 }
+
+            val transferTargetMethods = HashMap<Window, ArrayList<String>>()
+            modifiedMethodsByWindow.forEach { window, methods ->
+                   if (window is Dialog) {
+                       window.ownerActivitys.forEach {
+                           if (it is Activity) {
+                               transferTargetMethods.putIfAbsent(it, ArrayList())
+                               transferTargetMethods[it]!!.addAll(methods)
+                           }
+                       }
+                   }
+            }
+            transferTargetMethods.forEach {
+                modifiedMethodsByWindow.putIfAbsent(it.key, HashSet())
+                modifiedMethodsByWindow[it.key]!!.addAll(it.value)
+            }
+            modifiedMethodsByWindow.entries.removeIf {
+                it.key is Dialog && it.key.isRuntimeCreated
+            }
             val newWindows = if (!reuseSameVersionModel)
                 EWTGDiff.instance.windowDifferentSets["AdditionSet"]!! as AdditionSet<Window>
             else
@@ -427,20 +453,25 @@ class ATUAMF(
             val unseenWindows = WindowManager.instance.updatedModelWindows.filterNot {
                 seenWindows.contains(it) || newWindows?.addedElements?.contains(it) ?: false
             }
-            unseenWindows.forEach {
+           /* unseenWindows.forEach {
                 if (modifiedMethodsByWindow.containsKey(it)) {
                     if (it !is OptionsMenu)
                         backupModifiedMethodsByWindow.put(it, modifiedMethodsByWindow[it]!!)
                     modifiedMethodsByWindow.remove(it)
                 }
-            }
+            }*/
             /*notFullyExercisedTargetInputs.removeIf {
                 val toDelete = unseenWindows.contains(it.sourceWindow)
                 if (toDelete)
                     backupNotFullyExercisedTargetInputs.add(it)
                 toDelete
             }*/
-
+            notFullyExercisedTargetInputs.removeIf {
+                val toDelete = it.sourceWindow is Dialog
+                if (toDelete)
+                    backupNotFullyExercisedTargetInputs.add(it)
+                toDelete
+            }
             val seenWidgets = AbstractStateManager.INSTANCE.ABSTRACT_STATES.filterNot { it is VirtualAbstractState }
                 .map { it.EWTGWidgetMapping.values }.flatten().distinct()
             val newWidgets = if (!reuseSameVersionModel)
@@ -448,14 +479,14 @@ class ATUAMF(
             else
                 null
 
-           /* notFullyExercisedTargetInputs.removeIf {
+            notFullyExercisedTargetInputs.removeIf {
                 val toDelete = (it.widget != null
                         && !seenWidgets.contains(it.widget!!)
                         && !(newWidgets?.contains(it.widget!!) ?: false))
                 if (toDelete)
                     backupNotFullyExercisedTargetInputs.add(it)
                 toDelete
-            }*/
+            }
            /* notFullyExercisedTargetInputs.removeIf {
                 val toDelete =
                     (it.coveredMethods.isEmpty() && ModelHistoryInformation.INSTANCE.inputUsefulness.containsKey(it))
@@ -864,8 +895,9 @@ class ATUAMF(
                 }
             }
             if (i == 1 && tempCandidate == null ) {
-                val lastHomeScreen = stateList.findLast { it.isHomeScreen }!!
-                interactionPrevWindowStateMapping[lastInteraction] = lastHomeScreen
+                val lastHomeScreen = stateList.findLast { it.isHomeScreen }
+                if (lastHomeScreen!=null)
+                    interactionPrevWindowStateMapping[lastInteraction] = lastHomeScreen
             }
         }
         if (tempCandidate != null ) {
@@ -981,7 +1013,7 @@ class ATUAMF(
                             lastExecutedTransition!!.dest,
                             input
                         )
-                        AbstractStateManager.INSTANCE.updateEWTGBasedAbstractTranstions(windowTransition)
+                        AbstractStateManager.INSTANCE.updateEWTGAbstractTranstions(windowTransition)
                     }
 
                 }
@@ -1779,14 +1811,27 @@ class ATUAMF(
         if (newAbstractState.abstractTransitions.isEmpty()) {
             AbstractStateManager.INSTANCE.initAbstractInteractions(newAbstractState, newState)
         }
+
+        if (ProbabilityBasedPathFinder.disableWindows1.contains(newAbstractState.window)) {
+            ProbabilityBasedPathFinder.disableWindows1.remove(newAbstractState.window)
+        }
+        if (ProbabilityBasedPathFinder.disableWindows2.contains(newAbstractState.window)) {
+            ProbabilityBasedPathFinder.disableWindows2.remove(newAbstractState.window)
+        }
         newAbstractState.getAvailableActions(newState).forEach {
-            if (ProbabilityBasedPathFinder.disableAbstractActions.contains(it)) {
-                ProbabilityBasedPathFinder.disableAbstractActions.remove(it)
+            if (ProbabilityBasedPathFinder.disableAbstractActions1.contains(it)) {
+                ProbabilityBasedPathFinder.disableAbstractActions1.remove(it)
+            }
+            if (ProbabilityBasedPathFinder.disableAbstractActions2.contains(it)) {
+                ProbabilityBasedPathFinder.disableAbstractActions2.remove(it)
             }
         }
         newAbstractState.getAvailableInputs().forEach {
-            if (ProbabilityBasedPathFinder.disableInputs.contains(it)) {
-                ProbabilityBasedPathFinder.disableInputs.remove(it)
+            if (ProbabilityBasedPathFinder.disableInputs1.contains(it)) {
+                ProbabilityBasedPathFinder.disableInputs1.remove(it)
+            }
+            if (ProbabilityBasedPathFinder.disableInputs2.contains(it)) {
+                ProbabilityBasedPathFinder.disableInputs2.remove(it)
             }
         }
       /*  val windowId =
@@ -1997,6 +2042,7 @@ class ATUAMF(
                     && lastExecutedTransition!!.abstractAction.actionType != AbstractActionType.RANDOM_KEYBOARD
                     && lastInteractions.size == 1
                 ) {
+                    val beforeAT = lastExecutedTransition
                     org.atua.modelFeatures.ATUAMF.Companion.log.info("Refining Abstract Interaction.")
                     prevAbstractStateRefinement = AbstractStateManager.INSTANCE.refineModel(
                         lastInteractions.single(),
@@ -2006,6 +2052,7 @@ class ATUAMF(
                     if (prevAbstractStateRefinement > 0) {
                         recomputeWindowStack()
                     }
+                    lastExecutedTransition = dstg.edges().find { it.label.interactions.intersect(lastInteractions).isNotEmpty() }?.label
                     org.atua.modelFeatures.ATUAMF.Companion.log.info("Refining Abstract Interaction. - DONE")
                 } else {
                     org.atua.modelFeatures.ATUAMF.Companion.log.debug("Return to a previous state. Do not need refine model.")
@@ -2070,7 +2117,7 @@ class ATUAMF(
         }
         val newAbstractState = getAbstractState(newState)!!
         if (lastExecutedTransition != null) {
-            prevAbstractState.increaseActionCount2(lastExecutedTransition!!.abstractAction, true)
+            prevAbstractState.increaseActionCount2(lastExecutedTransition!!.abstractAction, this)
             AbstractStateManager.INSTANCE.addImplicitAbstractInteraction(
                 newState, lastExecutedTransition!!, Pair(traceId, transitionId),prevState,newState,lastInteractions.first()
             )
@@ -2274,8 +2321,12 @@ class ATUAMF(
         val newActionCnt = oldActionCnt + 1
         var newIncreasingCnt = oldIncreasingCnt
         if (oldActionCnt == 0 // this is the first time this input is exercised
-            || input.exerciseCount > 1 // or the input need to be exercised more than twice in current execution
         ) {
+            if (statementMF!!.actionCoverageTracking[interaction.actionId.toString()]!!.size > 0
+            ) {
+                newIncreasingCnt += 1
+            }
+        } else {
             if (statementMF!!.actionIncreasingCoverageTracking[interaction.actionId.toString()]!!.size > 0
             ) {
                 newIncreasingCnt += 1
@@ -2886,6 +2937,7 @@ class ATUAMF(
         }
         produceTargetIdentificationReport(context)
         produceStateUIDFirstReachingReport(context)
+        produceStateReachingFailureReport(context)
     }
 
     private fun produceStateUIDFirstReachingReport(context: ExplorationContext<*, *, *>) {
@@ -2910,6 +2962,16 @@ class ATUAMF(
                 "\n- Absolute path: ${outputFile.toAbsolutePath().fileName}"
         )
         TargetInputClassification.INSTANCE.writeReport(outputFile.toString())
+        log.info("Finished writing report in ${outputFile.fileName}")
+    }
+
+    fun produceStateReachingFailureReport(context: ExplorationContext<*,*,*>) {
+        val outputFile = context.model.config.baseDir.resolve("stateReachingFailureReport.txt")
+        log.info("Prepare writing target indentification report file: " +
+                "\n- File name: ${outputFile.fileName}" +
+                "\n- Absolute path: ${outputFile.toAbsolutePath().fileName}"
+        )
+        FailReachingLog.INSTANCE.writeReport(outputFile.toString())
         log.info("Finished writing report in ${outputFile.fileName}")
     }
 
