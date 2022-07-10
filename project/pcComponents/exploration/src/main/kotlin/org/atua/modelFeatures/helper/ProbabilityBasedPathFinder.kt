@@ -396,7 +396,7 @@ class ProbabilityBasedPathFinder {
                     if (atuaMF.disablePrevAbstractStates.containsKey(abstractAction)) {
                         val ignoreAbstractStates = HashSet<AbstractState>()
                         for (abstractState in abstractStateStack.reversed()) {
-                            if (atuaMF.disablePrevAbstractStates[abstractAction]!!.containsKey(abstractState)) {
+                            if (!ignoreAbstractStates.contains(abstractState) && atuaMF.disablePrevAbstractStates[abstractAction]!!.containsKey(abstractState)) {
                                 ignoreAbstractStates.addAll(atuaMF.disablePrevAbstractStates[abstractAction]!![abstractState]!!)
                             }
                         }

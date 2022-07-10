@@ -975,7 +975,7 @@ class AbstractStateManager() {
         if (windowId != null) {
             val sameWindowIdWindow =
                 WindowManager.instance.updatedModelWindows.find { it.windowRuntimeIds.contains(windowId)
-                        && (it !is Activity || it.classType == activity)}
+                        && ((it !is Activity && it !is OutOfApp) || it.classType == activity)}
             if (sameWindowIdWindow != null) {
                 bestMatchedNode = sameWindowIdWindow
             }
@@ -1807,12 +1807,15 @@ class AbstractStateManager() {
             // process out-edges
 
             val outAbstractEdges = atuaMF.dstg.edges(oldAbstractState).toMutableList()
-            outAbstractEdges.filter { it.label.modelVersion == ModelVersion.RUNNING && it.label.isImplicit }.forEach {
+            outAbstractEdges.filter { it.label.isImplicit
+                    && it.label.interactions.isEmpty()
+            }.forEach {
                 atuaMF.dstg.remove(it)
                 it.source.data.abstractTransitions.remove(it.label)
             }
             val inAbstractEdges = inEdgeMap[oldAbstractState]!!
-            inAbstractEdges.filter { it.label.modelVersion == ModelVersion.RUNNING && it.label.isImplicit }.forEach {
+            inAbstractEdges.filter { it.label.isImplicit
+                    && it.label.interactions.isEmpty() }.forEach {
                 atuaMF.dstg.remove(it)
                 it.source.data.abstractTransitions.remove(it.label)
             }
@@ -3585,12 +3588,10 @@ class AbstractStateManager() {
 
     fun getPrevSameWindowAbstractState(
         currentState: State<*>,
-        traceId: Int,
-        transitionId: Int,
+        abstractStateStack: Stack<AbstractState>,
         isReturnToPrevWindow: Boolean
-    ): List<AbstractState> {
-        val currentStateStack = createAppStack(traceId, transitionId-2)
-        val tmpAppStateStack = currentStateStack.clone() as Stack<AbstractState>
+    ): List<AbstractState>  {
+        val tmpAppStateStack = abstractStateStack.clone() as Stack<AbstractState>
 
         val prevSameWindowAbstractStates = ArrayList<AbstractState>()
         val currentAppState = getAbstractState(currentState)!!
@@ -3614,6 +3615,16 @@ class AbstractStateManager() {
                 prevSameWindowAbstractStates.add(prevAppState)
         }
         return prevSameWindowAbstractStates
+    }
+
+    fun getPrevSameWindowAbstractState(
+        currentState: State<*>,
+        traceId: Int,
+        transitionId: Int,
+        isReturnToPrevWindow: Boolean
+    ): List<AbstractState> {
+        val currentStateStack = createAppStack(traceId, transitionId-2)
+        return getPrevSameWindowAbstractState(currentState,currentStateStack,isReturnToPrevWindow)
     }
 
     fun updateEWTGAbstractTranstions(windowTransition: WindowTransition) {

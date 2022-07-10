@@ -149,7 +149,7 @@ open class GoToAnotherWindowTask constructor(
                 val abstractStateStacks = atuaMF.getAbstractStateStack()
 //                log.debug("Fail to reach $expectedNextAbState")
                 addIncorrectPath(currentAppState)
-                failureLog(lastTransition, atuaMF.getRecentAbstractTransition())
+                failureLog(lastTransition, atuaMF.getRecentAbstractTransition(),prevState)
                 if (isWindowAsTarget && currentAppState.window == destWindow) {
                     log.info("Reached destination.")
                     succeededCount++
@@ -385,33 +385,42 @@ open class GoToAnotherWindowTask constructor(
         }
     }
 
-    private fun failureLog(lastTransition: AbstractTransition, recentAbstractTransition: AbstractTransition?) {
+    private fun failureLog(lastTransition: AbstractTransition, recentAbstractTransition: AbstractTransition?,prevState: State<*>) {
         if (lastTransition.interactions.isEmpty()) {
-            if (lastTransition.source.guiStates.isEmpty() && lastTransition.source !is VirtualAbstractState && lastTransition.source !is PredictedAbstractState) {
+            if ((lastTransition.source.guiStates.isEmpty()
+                        || !lastTransition.source.guiStates.contains(prevState))
+                && lastTransition.dest !is VirtualAbstractState
+                && lastTransition.dest !is PredictedAbstractState) {
                 //Their was a refinement. The abstract state may change.
-                if (lastTransition.abstractAction.isWidgetAction() && recentAbstractTransition!=null && recentAbstractTransition.abstractAction.isWidgetAction()) {
+                if (lastTransition.abstractAction.isWidgetAction()
+                    && recentAbstractTransition!=null
+                    && recentAbstractTransition.abstractAction.isWidgetAction()) {
                     if (recentAbstractTransition.abstractAction.attributeValuationMap!!.isDerivedFrom(recentAbstractTransition.abstractAction.attributeValuationMap!!,recentAbstractTransition.source.window)) {
                         FailReachingLog.INSTANCE.incorrectPathDueToCoarseRefinement += 1
                     } else {
                         FailReachingLog.INSTANCE.incorrectDerivedTransition += 1
                     }
-                } else {
+                } else if (lastTransition.isImplicit) {
                     FailReachingLog.INSTANCE.incorrectDerivedTransition += 1
+                } else {
+                    FailReachingLog.INSTANCE.incorrectPathDueToCoarseRefinement += 1
                 }
             } else if (lastTransition.modelVersion == ModelVersion.BASE) {
                 FailReachingLog.INSTANCE.incorrectBaseTransition += 1
             } else {
-                if (lastTransition.dest is PredictedAbstractState) {
+                if (lastTransition.dest is PredictedAbstractState ) {
                     FailReachingLog.INSTANCE.incorrectPrediction += 1
-                } else {
+                } else if (lastTransition.isImplicit){
                     FailReachingLog.INSTANCE.incorrectDerivedTransition += 1
+                } else {
+                    FailReachingLog.INSTANCE.incorrectPathDueToCoarseRefinement += 1
                 }
             }
         } else {
             if (recentAbstractTransition!=null && lastTransition.dependentAbstractStates.intersect(recentAbstractTransition.dependentAbstractStates).isNotEmpty()) {
                 FailReachingLog.INSTANCE.nonDeterminism += 1
-            } else {
-                FailReachingLog.INSTANCE.incorrectPathDueToCoarseRefinement += 1
+            } else if (recentAbstractTransition != null){
+                FailReachingLog.INSTANCE.differentDependentStateDetected += 1
             }
         }
     }
@@ -1503,6 +1512,7 @@ class FailReachingLog {
     var nonDeterminism: Int = 0
     var incorrectPrediction: Int = 0
     var incorrectPathDueToCoarseRefinement: Int = 0
+    var differentDependentStateDetected: Int = 0
 
     companion object {
         val INSTANCE: FailReachingLog = FailReachingLog()

@@ -173,8 +173,9 @@ class AbstractTransition(
             &&*/ !currentAbstractState.isOpeningMenus
             && this.dest != this.source
         ) {
+            val currentStateStack = AbstractStateManager.INSTANCE.createAppStack(traceId, transitionId-2)
             val previousSameWindowAbstractStates: List<AbstractState> =
-                AbstractStateManager.INSTANCE.getPrevSameWindowAbstractState(currentState, traceId, transitionId, true)
+                AbstractStateManager.INSTANCE.getPrevSameWindowAbstractState(currentState, currentStateStack , true)
                     /*.subtract(listOf(this.source))*/.toList()
             var foundPreviousAbstractStates = false
             for (prevAppState in previousSameWindowAbstractStates) {
@@ -194,7 +195,7 @@ class AbstractTransition(
                     this.dependentAbstractStates.add(prevAppState)
                     atuaMF.disablePrevAbstractStates.putIfAbsent(abstractAction, HashMap())
                     atuaMF.disablePrevAbstractStates[abstractAction]!!.putIfAbsent(prevAppState, HashSet())
-                    atuaMF.disablePrevAbstractStates[abstractAction]!![prevAppState]!!.addAll(previousSameWindowAbstractStates.subtract(
+                    atuaMF.disablePrevAbstractStates[abstractAction]!![prevAppState]!!.addAll(currentStateStack.subtract(
                         listOf(prevAppState)))
                     foundPreviousAbstractStates = true
                     break
@@ -211,7 +212,7 @@ class AbstractTransition(
                     this.dependentAbstractStates.add(maxScores.key)
                     atuaMF.disablePrevAbstractStates.putIfAbsent(abstractAction, HashMap())
                     atuaMF.disablePrevAbstractStates[abstractAction]!!.putIfAbsent(maxScores.key, HashSet())
-                    atuaMF.disablePrevAbstractStates[abstractAction]!![maxScores.key]!!.addAll(previousSameWindowAbstractStates.subtract(
+                    atuaMF.disablePrevAbstractStates[abstractAction]!![maxScores.key]!!.addAll(currentStateStack.subtract(
                         listOf(maxScores.key)))
                 }
             }
