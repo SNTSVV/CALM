@@ -582,7 +582,7 @@ class ProbabilityBasedPathFinder {
                                                 val totalCnt = totalcntByWindow[dependentWindow]!!
                                                 val prob =
                                                     reachableAbstractActions[action]!! * 1.0 / totalCnt
-                                                if (prob>=0.4 && !disableActions.contains(action)){
+                                                if (prob>=0.75 && !disableActions.contains(action)){
                                                     if (!action.isWidgetAction()) {
                                                         if (!predictAbstractState.containsActionCount(action,atuaMF))
                                                             predictAbstractState.setActionCount(action, 0,atuaMF)
