@@ -258,6 +258,7 @@ class AbstractTransition(
                 nondeterministicTransitions.forEach {
                     it.nondeterministic = true
                     it.nondeterministicCount = nondeterministicTransitions.size+1
+                    it.activated = false
                 }
             }
         } else {
@@ -276,6 +277,7 @@ class AbstractTransition(
                 nondeterministicTransitions.forEach {
                     it.nondeterministic = true
                     it.nondeterministicCount = nondeterministicTransitions.size+1
+                    it.activated = false
                 }
             }
         }

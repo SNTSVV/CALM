@@ -1801,6 +1801,8 @@ class AbstractStateManager() {
         newEdges: ArrayList<Edge<AbstractState, AbstractTransition>>
     ) {
         var guiInteractionCount = 0
+        val interactionsWithOldEdge = HashMap<Interaction<*>,Edge<AbstractState,AbstractTransition>>()
+        val toUpdateMeaningfulScoreActions = ArrayList<AbstractAction>()
         old_newAbstractStates.entries.forEach {
             val oldAbstractState = it.key
             val newAbstractStates = it.value
@@ -1819,89 +1821,46 @@ class AbstractStateManager() {
                 atuaMF.dstg.remove(it)
                 it.source.data.abstractTransitions.remove(it.label)
             }
-            val toUpdateMeaningfulScoreActions = ArrayList<AbstractAction>()
+
             val explicitOutAbstractEdges = outAbstractEdges.filter { it.label.interactions.isNotEmpty() }
 
             explicitOutAbstractEdges.groupBy { it.label.abstractAction }. forEach {
                 it.key.reset()
                 toUpdateMeaningfulScoreActions.add(it.key)
             }
-            explicitOutAbstractEdges.forEach { oldAbstractEdge ->
 
-                if (oldAbstractEdge.label.abstractAction.actionType == AbstractActionType.RESET_APP) {
-                    atuaMF.dstg.remove(oldAbstractEdge)
-                    oldAbstractEdge.source.data.abstractTransitions.remove(oldAbstractEdge.label)
-                } else if (oldAbstractEdge.label.abstractAction.isActionQueue()) {
-                    // Remove the edge first
-                    guiInteractionCount += 1
-                    atuaMF.dstg.remove(oldAbstractEdge)
-                    oldAbstractEdge.source.data.abstractTransitions.remove(oldAbstractEdge.label)
-                    val newAbstractTransition = recomputeActionQueueAbstractTransition(oldAbstractEdge)
-                    newAbstractTransitions.add(newAbstractTransition)
-                } else {
-//                    val isTarget = oldAbstractState.targetActions.contains(oldAbstractEdge.label.abstractAction)
-                    val interactions = oldAbstractEdge.label.interactions.toList()
-                    oldAbstractEdge.label.interactions.clear()
-                    interactions.forEach { interaction ->
-                        if (processedGUIInteractions.contains(interaction)) {
-                            //log.debug("Processed interaction in refining model")
-                        } else {
-                            guiInteractionCount += 1
-                            processedGUIInteractions.add(interaction)
-                            val newEdge = deriveGUIInteraction(interaction, oldAbstractEdge,toUpdateMeaningfulScoreActions)
-
-                            if (newEdge != null) {
-                                newEdges.add(newEdge)
-                                if (oldAbstractEdge.label != newEdge.label) {
-                                    oldAbstractEdge.source.data.abstractTransitions.remove(oldAbstractEdge.label)
-                                    atuaMF.dstg.remove(oldAbstractEdge)
-                                    atuaMF.dstg.removeAbstractActionEnabiblity(oldAbstractEdge.label,atuaMF)
-                                }
-                                newAbstractTransitions.add(newEdge.label)
-
-                            }
-                        }
-                    }
+            for (explicitOutAbstractEdge in explicitOutAbstractEdges) {
+                explicitOutAbstractEdge.label.interactions.forEach {
+                    interactionsWithOldEdge.put(it,explicitOutAbstractEdge)
                 }
             }
 
-            // process in-edges
+            for (inAbstractEdge in inAbstractEdges) {
+                inAbstractEdge.label.interactions.forEach {
+                    interactionsWithOldEdge.put(it,inAbstractEdge)
+                }
+            }
 
-            val explicitInAbstractEdges = inAbstractEdges.filter { it.label.interactions.isNotEmpty() }
+        }
 
-            explicitInAbstractEdges.forEach { oldAbstractEdge ->
-                if (oldAbstractEdge.label.abstractAction.actionType == AbstractActionType.RESET_APP) {
-                    atuaMF.dstg.remove(oldAbstractEdge)
-                    oldAbstractEdge.source.data.abstractTransitions.remove(oldAbstractEdge.label)
-                    // log.debug("LaunchApp or ResetApp interaction. Do nothing.")
-                } else if (oldAbstractEdge.label.abstractAction.isActionQueue()) {
-                    guiInteractionCount += 1
-                    // Remove the edge first
-                    atuaMF.dstg.remove(oldAbstractEdge)
-                    oldAbstractEdge.source.data.abstractTransitions.remove(oldAbstractEdge.label)
-                    val newAbstractTransition = recomputeActionQueueAbstractTransition(oldAbstractEdge)
+        interactionsWithOldEdge.entries.sortedBy { it.key.actionId}.forEach { (interaction, edge) ->
+            if (!processedGUIInteractions.contains(interaction)) {
+                processedGUIInteractions.add(interaction)
+                guiInteractionCount++
+                if (edge.label.abstractAction.isActionQueue()) {
+                    atuaMF.dstg.remove(edge)
+                    edge.source.data.abstractTransitions.remove(edge.label)
+                    val newAbstractTransition = recomputeActionQueueAbstractTransition(edge)
                     newAbstractTransitions.add(newAbstractTransition)
                 } else {
-//                    val isTarget = oldAbstractState.targetActions.contains(oldAbstractEdge.label.abstractAction)
-                    val interactions = oldAbstractEdge.label.interactions.toList()
-                    oldAbstractEdge.label.interactions.clear()
-                    interactions.forEach { interaction ->
-                        if (processedGUIInteractions.contains(interaction)) {
-                            // log.debug("Processed interaction in refining model")
-                        } else {
-                            guiInteractionCount += 1
-                            processedGUIInteractions.add(interaction)
-                            val newEdge = deriveGUIInteraction(interaction, oldAbstractEdge,toUpdateMeaningfulScoreActions)
-                            if (newEdge != null) {
-                                newAbstractTransitions.add(newEdge.label)
-                                newEdges.add(newEdge)
-                                if (oldAbstractEdge.label != newEdge.label) {
-                                    oldAbstractEdge.source.data.abstractTransitions.remove(oldAbstractEdge.label)
-                                    atuaMF.dstg.remove(oldAbstractEdge)
-                                    atuaMF.dstg.removeAbstractActionEnabiblity(oldAbstractEdge.label,atuaMF)
-                                }
-                            }
-
+                    val newEdge = deriveGUIInteraction(interaction, edge,toUpdateMeaningfulScoreActions)
+                    if (newEdge != null) {
+                        newAbstractTransitions.add(newEdge.label)
+                        newEdges.add(newEdge)
+                        if (edge.label != newEdge.label) {
+                            edge.source.data.abstractTransitions.remove(edge.label)
+                            atuaMF.dstg.remove(edge)
+                            atuaMF.dstg.removeAbstractActionEnabiblity(edge.label,atuaMF)
                         }
                     }
                 }
@@ -2344,6 +2303,7 @@ class AbstractStateManager() {
                 && !newAbstractionTransition.dest.ignored)
                 atuaMF.dstg.updateAbstractActionEnability(newAbstractionTransition, atuaMF)
             newAbstractionTransition!!.markNondeterministicTransitions()
+            newAbstractionTransition!!.activated = true
         }
 
         return newEdge

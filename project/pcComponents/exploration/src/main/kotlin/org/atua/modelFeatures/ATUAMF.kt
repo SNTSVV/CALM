@@ -985,6 +985,7 @@ class ATUAMF(
             if (lastExecutedTransition!!.abstractAction.actionType != AbstractActionType.RESET_APP) {
                 lastExecutedTransition!!.updateDependentAppState(currentState,traceId,transitionId,this)
                 lastExecutedTransition!!.markNondeterministicTransitions()
+                lastExecutedTransition!!.activated = true
                 dstg.updateAbstractActionEnability(lastExecutedTransition!!, this)
                 AbstractStateManager.INSTANCE.updateImplicitAppTransitions(prevAbstractState,lastExecutedTransition!!)
                 val sourceAbstractState = lastExecutedTransition!!.source
