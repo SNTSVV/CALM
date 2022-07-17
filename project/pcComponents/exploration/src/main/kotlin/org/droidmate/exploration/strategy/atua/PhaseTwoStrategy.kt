@@ -1270,7 +1270,7 @@ class PhaseTwoStrategy(
             }
         if (meaningfulAbstractActions.isNotEmpty()
             ) {
-            setRandomExploration(randomExplorationTask, currentState, currentAppState)
+            setRandomExploration(randomExplorationTask, currentState, currentAppState,false,false,20)
             return
         }
         if (goToAnotherNode.isAvailable(currentState)) {
@@ -1335,7 +1335,7 @@ class PhaseTwoStrategy(
         val currentAbstractState = atuaMF.getAbstractState(currentState)!!
         strategyTask = randomExplorationTask.also {
             it.initialize(currentState)
-            it.setMaxiumAttempt((5 * scaleFactor).toInt())
+            it.setMaxiumAttempt((10 * scaleFactor).toInt())
             it.isPureRandom = true
             it.environmentChange = true
             it.alwaysUseRandomInput = true

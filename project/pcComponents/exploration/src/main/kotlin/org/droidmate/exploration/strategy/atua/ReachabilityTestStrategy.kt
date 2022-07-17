@@ -2053,6 +2053,7 @@ class ReachabilityTestStrategy(
                 .filter {
                     it.interactions.isEmpty()
                             && it.activated == true
+                            && it.ignored == false
                             && it.abstractAction.isWidgetAction()
                             && it.modelVersion == ModelVersion.BASE
                             && it.modifiedMethods.isNotEmpty()

@@ -227,14 +227,14 @@ class ModelBackwardAdapter {
     ): List<AbstractTransition> {
         val obsoleteBaseAbstractTransitions = ArrayList<AbstractTransition>()
         val sameActionBaseAbstractTransitions = abstractTransition.source.abstractTransitions.filter {
-            it.activated &&
+            it.activated && !it.ignored &&
             it.abstractAction == abstractTransition.abstractAction
                     && it.modelVersion == ModelVersion.BASE
                     && it.interactions.isEmpty()
                     && it.isImplicit
         }
         val reliableTransitions = sameActionBaseAbstractTransitions.filter {
-            it.activated &&
+            it.activated && !it.ignored &&
             (!it.guardEnabled || it.dependentAbstractStates.isEmpty()
                     || (prevWindowAbstractState != null &&
                     (it.dependentAbstractStates.contains(prevWindowAbstractState)
@@ -266,6 +266,21 @@ class ModelBackwardAdapter {
         updatedAVMsByBaseAVMsMatching.forEach { t, u ->
             matchingAVMs.putIfAbsent(t, HashSet())
             matchingAVMs[t]!!.addAll(u)
+            val t_associatedActions = atuamf.dstg.abstractActionEnables.filter { it.key.attributeValuationMap == t }
+            t_associatedActions.forEach {
+                val newAbstractActions = observedAbstractState.getAvailableActions().filter { action -> action.isWidgetAction() && u.contains(action.attributeValuationMap)
+                        && action.actionType == it.key.actionType && action.extra == it.key.extra}
+                newAbstractActions.forEach { newAction->
+                    atuamf.dstg.abstractActionEnables.put(newAction, it.value)
+                    atuamf.dstg.abstractActionCounts.entries.filter { entry-> entry.value.containsKey(it.key) }.forEach { entry ->
+                        entry.value.put(newAction,entry.value.get(it.key)!!)
+                    }
+                }
+                if (!newAbstractActions.contains(it.key)) {
+                    atuamf.dstg.abstractActionEnables.remove(it.key)
+                    atuamf.dstg.abstractActionStateEnable
+                }
+            }
         }
         matchingInputs(updatedAVMsByBaseAVMsMatching, expectedAbstractState, observedAbstractState, atuamf)
         copyAbstractTransitions(observedAbstractState, expectedAbstractState, atuamf, updatedAVMsByBaseAVMsMatching,true)
@@ -282,6 +297,9 @@ class ModelBackwardAdapter {
                     fromWTG = at.fromWTG,
                     interactions = at.interactions
                 )
+                newAbstractTransition.interactions.forEach {
+                    AbstractTransition.interaction_AbstractTransitionMapping.put(it,newAbstractTransition)
+                }
                 if (at.dest.ignored == false)
                     atuamf.dstg.updateAbstractActionEnability(newAbstractTransition,atuamf)
                 newAbstractTransition.copyPotentialInfoFrom(at)
@@ -387,6 +405,7 @@ class ModelBackwardAdapter {
         source.abstractTransitions.filter {
             it.modelVersion == ModelVersion.BASE
                     && it.activated
+                    && !it.ignored
                     /*&& !incorrectTransitions.contains(it)*/
 //                    && it.abstractAction.isWidgetAction()
 //                    && it.abstractAction.actionType != AbstractActionType.SWIPE

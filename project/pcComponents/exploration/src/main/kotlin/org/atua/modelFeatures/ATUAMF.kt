@@ -116,6 +116,7 @@ class ATUAMF(
     private val getCurrentActivity: suspend () -> String,
     private val getDeviceRotation: suspend () -> Int
 ) : ModelFeature() {
+    private var extraWebViewAbstractTransition: AbstractTransition? = null
     val packageName = appName
     var portraitScreenSurface = Rectangle.empty()
     private var portraitVisibleScreenSurface = Rectangle.empty()
@@ -925,6 +926,7 @@ class ATUAMF(
         statementCovered: Boolean
     ) {
         log.info("Computing Abstract Interaction.")
+        extraWebViewAbstractTransition = null
         if (interactions.isEmpty())
             return
         val prevAbstractState = AbstractStateManager.INSTANCE.getAbstractState(prevState)
@@ -982,6 +984,63 @@ class ATUAMF(
             tracingInteractionsMap[Pair(traceId, transitionId)] = interactions
             lastExecutedTransition!!.tracing.add(Pair(traceId, transitionId))
 
+            if (lastExecutedTransition!!.abstractAction.actionType == AbstractActionType.WAIT){
+                if (transitionId>1) {
+                    // Reconnect previous abstract transitions
+                    var previousNotWaitTransition: AbstractTransition? = null
+                    var prevTransitionId = transitionId-1
+                    while (prevTransitionId>1) {
+                        val prevInteraction = tracingInteractionsMap[Pair(traceId,prevTransitionId)]?.first()
+                        prevTransitionId--
+                        if (prevInteraction == null)
+                            break
+                        val prevAbstractTransition = AbstractTransition.interaction_AbstractTransitionMapping[prevInteraction]
+                        if (prevAbstractTransition == null)
+                            break
+                        if (prevAbstractTransition.abstractAction.actionType != AbstractActionType.WAIT) {
+                            previousNotWaitTransition = prevAbstractTransition
+                            break
+                        }
+                    }
+                    if (previousNotWaitTransition != null) {
+                        val newAbstractTransition = AbstractTransition(
+                            source = previousNotWaitTransition.source,
+                            dest = lastExecutedTransition!!.dest,
+                            abstractAction = previousNotWaitTransition.abstractAction,
+                            interactions = HashSet(),
+                            data = previousNotWaitTransition.data,
+                            fromWTG = false,
+                            modelVersion = ModelVersion.RUNNING,
+                            isImplicit = false
+                        )
+                        val prevInteraction = previousNotWaitTransition.interactions.last()
+                        val newInteraction = Interaction<Widget>(
+                            actionType = prevInteraction.actionType,
+                            data = prevInteraction.data,
+                            actionId = prevInteraction.actionId,
+                            deviceLogs = prevInteraction.deviceLogs.union(interactions.first().deviceLogs).toList(),
+                            startTimestamp = prevInteraction.startTimestamp,
+                            endTimestamp = interactions.first().endTimestamp,
+                            exception = prevInteraction.exception.plus(interactions.first().exception),
+                            meta = prevInteraction.meta.plus(interactions.first().meta),
+                            prevState = prevInteraction.prevState,
+                            resState = interactions.first().resState,
+                            successful = true,
+                            targetWidget = prevInteraction.targetWidget
+                        )
+                        newAbstractTransition.interactions.add(newInteraction)
+                        newAbstractTransition.interactions.forEach {
+                            AbstractTransition.interaction_AbstractTransitionMapping.put(it,newAbstractTransition)
+                        }
+
+                        newAbstractTransition.copyPotentialInfoFrom(previousNotWaitTransition)
+                        newAbstractTransition.requireWaitAction = true
+                        previousNotWaitTransition.source.abstractTransitions.remove(previousNotWaitTransition)
+                        lastExecutedTransition!!.source.abstractTransitions.remove(lastExecutedTransition!!)
+                        lastExecutedTransition = newAbstractTransition
+                    }
+                }
+            }
             if (lastExecutedTransition!!.abstractAction.actionType != AbstractActionType.RESET_APP) {
                 lastExecutedTransition!!.updateDependentAppState(currentState,traceId,transitionId,this)
                 lastExecutedTransition!!.markNondeterministicTransitions()
@@ -1179,6 +1238,7 @@ class ATUAMF(
                         interactionData,
                         prevWindowAbstractState
                     )
+                    extraWebViewAbstractTransition = lastExecutedTransition
                     lastExecutedTransition = tmpLastExecutedTransition
                 }
             } else {
@@ -1368,6 +1428,7 @@ class ATUAMF(
                     }
                     prevAbstractState.abstractTransitions.remove(abTransition)
                 }
+
             }
         }
 
@@ -1454,11 +1515,13 @@ class ATUAMF(
         prevWindowAbstractState: AbstractState?
     ) {
         existingTransition.interactions.add(interaction)
+        AbstractTransition.interaction_AbstractTransitionMapping.put(interaction,existingTransition)
         existingTransition.isImplicit = false
         existingTransition.activated = true
         if (interactionData != null) {
             existingTransition.data = interactionData
         }
+
         /*if (prevWindowAbstractState != null && !existingTransition.dependentAbstractStates.contains(
                 prevWindowAbstractState
             )
@@ -1692,6 +1755,7 @@ class ATUAMF(
                 abstractTransition.isImplicit = false
                 lastExecutedTransition = abstractTransition
                 lastExecutedTransition!!.interactions.add(interaction)
+                AbstractTransition.interaction_AbstractTransitionMapping.put(interaction,lastExecutedTransition!!)
             } else {
                 val attributeValuationMap: AttributeValuationMap? = null
                 createNewAbstractTransition(
@@ -1738,6 +1802,7 @@ class ATUAMF(
             dest = destAbstractState
         )
         newAbstractInteraction.interactions.add(interaction)
+        AbstractTransition.interaction_AbstractTransitionMapping.put(interaction,newAbstractInteraction)
         /*if (prevWindowAbstractState != null)
             newAbstractInteraction.dependentAbstractStates.add(prevWindowAbstractState)*/
         /*if (newAbstractInteraction.dependentAbstractStates.map { it.window }.contains(destAbstractState.window)
@@ -2118,9 +2183,11 @@ class ATUAMF(
         }
         val newAbstractState = getAbstractState(newState)!!
         if (lastExecutedTransition != null) {
+
+
             prevAbstractState.increaseActionCount2(lastExecutedTransition!!.abstractAction, this)
             AbstractStateManager.INSTANCE.addImplicitAbstractInteraction(
-                newState, lastExecutedTransition!!, Pair(traceId, transitionId),prevState,newState,lastInteractions.first()
+                newState, lastExecutedTransition!!, Pair(traceId, transitionId),prevState,newState
             )
 
             if (lastExecutedTransition!!.abstractAction.actionType == AbstractActionType.CLOSE_KEYBOARD) {
@@ -2172,11 +2239,13 @@ class ATUAMF(
             val interaction = lastInteractions.first()
             randomInteractions.add(interaction.actionId)
             abstractInteraction.abstractAction.updateMeaningfulScore(interaction, newState, prevState,coverageIncrease>0,isRandomExploration, this)
+            if (extraWebViewAbstractTransition!=null) {
+                extraWebViewAbstractTransition!!.abstractAction.updateMeaningfulScore(interaction,newState,prevState,coverageIncrease>0,isRandomExploration,this)
+            }
         }
         //create StaticEvent if it dose not exist in case this abstract Interaction triggered modified methods
 
         if (!prevAbstractState.isRequestRuntimePermissionDialogBox && !ignoredStates.contains(prevState)) {
-
             if (prevAbstractState.isOutOfApplication && newAbstractState.belongToAUT() && !abstractInteraction.abstractAction.isLaunchOrReset() && lastOpeningAnotherAppInteraction != null) {
                 val lastAppState = stateList.find { it.stateId == lastOpeningAnotherAppInteraction!!.prevState }!!
                 val lastAppAbstractState = getAbstractState(lastAppState)!!

@@ -519,6 +519,7 @@ class AbstractStateManager() {
                 //we will not process any self edge
                 (it.interactions.isNotEmpty() || it.modelVersion == ModelVersion.BASE)
                         && it.activated == true
+                        && it.ignored == false
                         && consideredForImplicitAbstractStateAction(it.abstractAction)
             }
         }.flatten()
@@ -1414,7 +1415,7 @@ class AbstractStateManager() {
         similarAbstractTransitions.addAll(similarATFromActionAS)
         similarAbstractTransitions.removeIf {
             AbstractionFunction2.INSTANCE.isAbandonedAbstractTransition(actionAbstractState.activity, it)
-                    || it.activated == false
+                    || it.ignored == true
         }
         val sameWindowsAbstractStates = getSimilarAbstractStates(actionAbstractState, abstractTransition)
         val similarAbstractStates = getSlightlyDifferentAbstractStates(actionAbstractState, sameWindowsAbstractStates)
@@ -1424,7 +1425,8 @@ class AbstractStateManager() {
         }
         similarAbstractTransitions.removeIf {
             AbstractionFunction2.INSTANCE.isAbandonedAbstractTransition(actionAbstractState.activity, it)
-                    || it.activated == false
+                    || it.ignored == true
+
         }
         if (abstractTransition.abstractAction.attributeValuationMap == null) {
             similarAbstractTransitions.forEach {
@@ -1459,7 +1461,7 @@ class AbstractStateManager() {
             if (abstractTransition.abstractAction.isWebViewAction()) {
                 similarAbstractTransitions.forEach {
                     if (it != abstractTransition) {
-                        it.activated = false
+                        it.ignored = true
                     }
                 }
                 return true
@@ -1492,7 +1494,7 @@ class AbstractStateManager() {
             if (abstractTransition.abstractAction.isWebViewAction()) {
                 similarAbstractTransitions.forEach {
                     if (it != abstractTransition) {
-                        it.activated = false
+                        it.ignored = true
                     }
                 }
                 return true
@@ -1561,7 +1563,7 @@ class AbstractStateManager() {
         val output = ArrayList<AbstractTransition>()
         val similarExplicitEdges = sourceState.abstractTransitions.filter {
             it != abstractTransition
-                    && it.activated == true
+                    && it.ignored == false
                     && it.abstractAction == abstractTransition.abstractAction
                     && !it.dest.isRequestRuntimePermissionDialogBox
                     /*&& it.data == abstractTransition.data*/
@@ -1589,7 +1591,7 @@ class AbstractStateManager() {
         val output = ArrayList<AbstractTransition>()
         val similarExplicitEdges = sourceState.abstractTransitions.filter {
             it != abstractTransition
-                    && it.activated == true
+                    && it.ignored == false
                     && it.abstractAction == abstractTransition.abstractAction
                     && !it.dest.isRequestRuntimePermissionDialogBox
                     /*&& it.data == abstractTransition.data*/
@@ -1930,7 +1932,7 @@ class AbstractStateManager() {
         if (destinationAbstractState == null) {
             throw Exception("Cannot find new resState's abstract state")
         }
-        val newEdge = updateAbstractTransition(
+        val newEdge = rederiveAbstractTransition(
             oldAbstractEdge,
             sourceAbstractState!!,
             destinationAbstractState!!,
@@ -2097,7 +2099,7 @@ class AbstractStateManager() {
 
     }
 
-    private fun updateAbstractTransition(
+    private fun rederiveAbstractTransition(
         oldAbstractEdge: Edge<AbstractState, AbstractTransition>,
         sourceAbstractState: AbstractState,
         destinationAbstractState: AbstractState,
@@ -2166,6 +2168,7 @@ class AbstractStateManager() {
                 newEdge = atuaMF.dstg.add(sourceAbstractState, destinationAbstractState, exisitingAbstractTransition)
                 newAbstractionTransition = exisitingAbstractTransition
                 exisitingAbstractTransition.interactions.add(interaction)
+                AbstractTransition.interaction_AbstractTransitionMapping.put(interaction,exisitingAbstractTransition)
                 if (oldAbstractEdge.label.inputGUIStates.isNotEmpty()) {
                     newAbstractionTransition.inputGUIStates.add(interaction.prevState)
                 }
@@ -2243,6 +2246,7 @@ class AbstractStateManager() {
                         atuaMF.dstg.add(sourceAbstractState, destinationAbstractState, exisitingAbstractTransition)
                     newAbstractionTransition = exisitingAbstractTransition
                     exisitingAbstractTransition.interactions.add(interaction)
+                    AbstractTransition.interaction_AbstractTransitionMapping.put(interaction,exisitingAbstractTransition)
                     if (oldAbstractEdge.label.inputGUIStates.isNotEmpty()) {
                         newAbstractionTransition.inputGUIStates.add(interaction.prevState)
                     }
@@ -2298,7 +2302,7 @@ class AbstractStateManager() {
                     atuaMF)
             }
             newAbstractionTransition.source.increaseActionCount2(newAbstractionTransition.abstractAction,atuaMF)
-            addImplicitAbstractInteraction(destState, newAbstractionTransition, tracing,sourceState, destState, interaction, false)
+            addImplicitAbstractInteraction(destState, newAbstractionTransition, tracing,sourceState, destState, false)
             if (newAbstractionTransition.source != newAbstractionTransition.dest
                 && !newAbstractionTransition.dest.ignored)
                 atuaMF.dstg.updateAbstractActionEnability(newAbstractionTransition, atuaMF)
@@ -2333,6 +2337,7 @@ class AbstractStateManager() {
             modelVersion = modelVersion
         )
         newAbstractionTransition1.interactions.add(interaction)
+        AbstractTransition.interaction_AbstractTransitionMapping.put(interaction,newAbstractionTransition1)
         /*if (prevWindowAbstractState != null)
             newAbstractionTransition1.dependentAbstractStates.add(prevWindowAbstractState)
         */
@@ -2360,6 +2365,7 @@ class AbstractStateManager() {
             newAbstractionTransition1.guardEnabled = true
         }*/
         newAbstractionTransition1.activated = oldAbstractEdge.label.activated
+        newAbstractionTransition1.ignored = oldAbstractEdge.label.ignored
         return Pair(newAbstractionTransition1, newEdge1)
     }
 
@@ -2387,6 +2393,7 @@ class AbstractStateManager() {
             modelVersion = modeVersion
         )
         newAbstractionTransition.interactions.add(interaction)
+        AbstractTransition.interaction_AbstractTransitionMapping.put(interaction,newAbstractionTransition)
         /*if (prevWindowAbstractState != null)
             newAbstractionTransition.dependentAbstractStates.add(prevWindowAbstractState)*/
         newAbstractionTransition.computeGuaranteedAVMs()
@@ -2408,6 +2415,7 @@ class AbstractStateManager() {
             newAbstractionTransition.guardEnabled = true
         }*/
         newAbstractionTransition.activated = oldAbstractEdge.label.activated
+        newAbstractionTransition.ignored = oldAbstractEdge.label.ignored
         return Pair(newAbstractionTransition, newEdge1)
     }
 
@@ -2420,7 +2428,6 @@ class AbstractStateManager() {
         transitionId: Pair<Int, Int>?,
         sourceState: State<*>,
         destState: State<*>,
-        interaction: Interaction<*>,
         addImplicitAbstractTransitionToOtherStates: Boolean = true
     ) {
         //AutAutMF.log.debug("Add implicit abstract interaction")
@@ -2564,13 +2571,13 @@ class AbstractStateManager() {
             createImplicitTransitionForOtherAbstractStates(prevAbstractState, processedStateCount, abstractTransition)
         }*/
         inferItemActionTransitions(action = abstractTransition.abstractAction.actionType,
-        abstractTransition = abstractTransition,
-        prevAbstractState = prevAbstractState,
-        currentAbstractState = currentAbstractState,
-        sourceState = sourceState,
-        destState = destState,
-        interaction = interaction,
-        atuamf = atuaMF)
+            abstractTransition = abstractTransition,
+            prevAbstractState = prevAbstractState,
+            currentAbstractState = currentAbstractState,
+            sourceState = sourceState,
+            destState = destState,
+            interaction = abstractTransition.interactions.sortedBy { it.actionId }.last(),
+            atuamf = atuaMF)
 
     }
 
@@ -2667,7 +2674,9 @@ class AbstractStateManager() {
         if (itemAction == null)
             throw Exception("Action $action cannot be inferred as item action.")
         //val parentWidgetGroups = HashSet<WidgetGroup>()
-        val widget = interaction.targetWidget!!
+        val widget = interaction.targetWidget
+        if (widget == null)
+            return
         var parentWidget = sourceState.widgets.find { it.id == widget.parentId }
         while (parentWidget!=null) {
             val parentAVS = AttributeValuationMap.allWidgetAVMHashMap[prevAbstractState.window]!!.get(

@@ -420,7 +420,11 @@ open class GoToAnotherWindowTask constructor(
             if (recentAbstractTransition!=null && lastTransition.dependentAbstractStates.intersect(recentAbstractTransition.dependentAbstractStates).isNotEmpty()) {
                 FailReachingLog.INSTANCE.nonDeterminism += 1
             } else if (recentAbstractTransition != null){
-                FailReachingLog.INSTANCE.differentDependentStateDetected += 1
+                if (recentAbstractTransition.dependentAbstractStates.isNotEmpty() && lastTransition.dependentAbstractStates.isNotEmpty()) {
+                    FailReachingLog.INSTANCE.differentDependentStateDetected += 1
+                } else {
+                    FailReachingLog.INSTANCE.nonDeterminism += 1
+                }
             }
         }
     }
@@ -1237,7 +1241,10 @@ open class GoToAnotherWindowTask constructor(
                 if (pathTraverser!!.transitionPath.pathType != PathFindingHelper.PathType.FULLTRACE
                     && pathTraverser!!.transitionPath.pathType != PathFindingHelper.PathType.PARTIAL_TRACE
                 ) {
-                    if (nextTransition.userInputs.isNotEmpty() && !nextTransition.abstractAction.isCheckableOrTextInput(currentAbstractState)) {
+                    if (nextTransition.userInputs.isNotEmpty()
+//                        && !nextTransition.abstractAction.isCheckableOrTextInput(currentAbstractState)
+                        && nextTransition.abstractAction.actionType != AbstractActionType.TEXT_INSERT
+                    ) {
                         val inputData = nextTransition!!.userInputs.random()
                         inputData.forEach {
                             val inputWidget = currentState.visibleTargets.find { w -> it.key.equals(w.uid) }
@@ -1504,6 +1511,7 @@ class FailReachingLog {
         sb.appendLine("Incorrect Derived Transition,$incorrectDerivedTransition")
         sb.appendLine("Non determinism,$nonDeterminism")
         sb.appendLine("Incorrect transition due to coarse refinement,$incorrectPathDueToCoarseRefinement")
+        sb.appendLine("Incorrect transition due to new historical dependency,$differentDependentStateDetected")
         Files.write(Paths.get(filePath), sb.lines())
     }
 

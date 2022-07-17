@@ -37,6 +37,7 @@ class AbstractTransition(
         val modelVersion: ModelVersion = ModelVersion.RUNNING
 ) {
 
+    var requireWaitAction: Boolean = false
     val guaranteedRetainedAVMs = ArrayList<AttributeValuationMap>() // guaranteedAVMsInDest
     val guaranteedNewAVMs = ArrayList<AttributeValuationMap>()
     val modifiedMethods = HashMap<String,Boolean>() //method id,
@@ -66,6 +67,8 @@ class AbstractTransition(
             }
             field = value
         }
+
+    var ignored: Boolean = false
     var isUsefullOnce: Boolean = true
     var nondeterministic: Boolean = false
     var nondeterministicCount: Int = 0
@@ -155,6 +158,7 @@ class AbstractTransition(
         this.methodCoverage.addAll(other.methodCoverage)
         this.statementCoverage.addAll(other.statementCoverage)
         this.activated = other.activated
+        this.ignored = other.ignored
         this.computeGuaranteedAVMs()
     }
 
@@ -165,13 +169,14 @@ class AbstractTransition(
                                 atuaMF: ATUAMF
     ) {
         val currentAbstractState = this.dest
+        if (currentAbstractState.attributeValuationMaps.isEmpty())
+            return
         /*val p_prevWindowAbstractState = if (transitionId != 0) {
             atuaMF.getPrevWindowAbstractState(traceId, transitionId )
         } else
             null*/
         if (/*p_prevWindowAbstractState != null
             &&*/ !currentAbstractState.isOpeningMenus
-            && this.dest != this.source
         ) {
             val currentStateStack = AbstractStateManager.INSTANCE.createAppStack(traceId, transitionId-2)
             val previousSameWindowAbstractStates: List<AbstractState> =
@@ -202,18 +207,24 @@ class AbstractTransition(
                 }
             }
             if (!foundPreviousAbstractStates && previousSameWindowAbstractStates.isNotEmpty()) {
-                val notSourceStatePrevWindowAppStates = previousSameWindowAbstractStates.filterNot { it == source }
+                val notSourceStatePrevWindowAppStates = previousSameWindowAbstractStates
                 if (notSourceStatePrevWindowAppStates.isNotEmpty()) {
                     val similarScores =
-                        notSourceStatePrevWindowAppStates   .associateWith { it.similarScore(currentAbstractState) }
+                        notSourceStatePrevWindowAppStates.associateWith { it.similarScore(currentAbstractState) }
                     val maxScores = similarScores.maxByOrNull { it.value }!!
-
-                    this.guardEnabled = true
-                    this.dependentAbstractStates.add(maxScores.key)
-                    atuaMF.disablePrevAbstractStates.putIfAbsent(abstractAction, HashMap())
-                    atuaMF.disablePrevAbstractStates[abstractAction]!!.putIfAbsent(maxScores.key, HashSet())
-                    atuaMF.disablePrevAbstractStates[abstractAction]!![maxScores.key]!!.addAll(currentStateStack.subtract(
-                        listOf(maxScores.key)))
+                    if (maxScores.value>0.1) {
+                        this.guardEnabled = true
+                        this.dependentAbstractStates.add(maxScores.key)
+                        atuaMF.disablePrevAbstractStates.putIfAbsent(abstractAction, HashMap())
+                        atuaMF.disablePrevAbstractStates[abstractAction]!!.putIfAbsent(maxScores.key, HashSet())
+                        atuaMF.disablePrevAbstractStates[abstractAction]!![maxScores.key]!!.addAll(
+                            currentStateStack.subtract(
+                                listOf(maxScores.key)
+                            )
+                        )
+                    } else {
+                        println("It seems that no previous states are similar to the resulting state.")
+                    }
                 }
             }
            /* if (currentAbstractState.window == p_prevWindowAbstractState.window) {
@@ -283,6 +294,8 @@ class AbstractTransition(
         }
     }
     companion object{
+        val interaction_AbstractTransitionMapping = HashMap<Interaction<Widget>,AbstractTransition>()
+        
         val disableAbstractTransitions = HashMap<AbstractTransition, Int>()
         fun updateDisableTransitions() {
             disableAbstractTransitions.keys.forEach {

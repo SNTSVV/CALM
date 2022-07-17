@@ -763,16 +763,10 @@ open class AbstractState(
             val attributes = it.localAttributes
             val lv1Attributes = java.util.HashMap<AttributeType, String>()
             attributes.forEach {
-                if (it.key != AttributeType.childrenStructure
-                    && it.key != AttributeType.checked
-                    && it.key != AttributeType.contentDesc
+                if (it.key != AttributeType.checked
                     && it.key != AttributeType.scrollable
                     && it.key != AttributeType.scrollDirection
-                    && it.key != AttributeType.text
-                    && it.key != AttributeType.siblingsInfo
-                    && it.key != AttributeType.isLeaf
                     && it.key != AttributeType.childrenText
-                    && it.key != AttributeType.xpath
                 ) {
                     lv1Attributes.put(it.key, it.value)
                 }
@@ -810,12 +804,8 @@ open class AbstractState(
         if (this.hashCode == comparedAppState.hashCode)
             return true
         var isSimilar1 = false
-        var diff = 0
-        val lv1Attributes1 = this.extractGeneralAVMs()
-        val lv1Attributes2 = comparedAppState.extractGeneralAVMs()
-        diff += lv1Attributes1.filter { !lv1Attributes2.contains(it) }.size
-        diff += lv1Attributes2.filter { !lv1Attributes1.contains(it) }.size
-        if (diff * 1.0 / (lv1Attributes1.size + lv1Attributes2.size) <= (1 - threshold)) {
+        var similarScore = this.similarScore(comparedAppState)
+        if (similarScore >= threshold) {
             isSimilar1 = true
         } else {
             isSimilar1 = false
@@ -835,7 +825,8 @@ open class AbstractState(
         val lv1Attributes2 = comparedAppState.extractGeneralAVMs()
         diff += lv1Attributes1.filter { !lv1Attributes2.contains(it) }.size
         diff += lv1Attributes2.filter { !lv1Attributes1.contains(it) }.size
-        return 1.0 - diff * 1.0 / (lv1Attributes1.size + lv1Attributes2.size)
+        val score = 1.0 - diff * 1.0 / (lv1Attributes1.size + lv1Attributes2.size)
+        return score
 
     }
 
