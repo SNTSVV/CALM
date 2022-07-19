@@ -47,7 +47,7 @@ import org.droidmate.exploration.modelFeatures.reporter.*
 import org.droidmate.exploration.strategy.*
 import org.droidmate.exploration.strategy.login.LoginWithGoogle
 import org.droidmate.exploration.strategy.playback.Playback
-import org.droidmate.exploration.strategy.atua.ATUATestingStrategy
+import org.atua.strategy.ATUATestingStrategy
 import org.droidmate.exploration.strategy.widget.DFS
 import org.droidmate.exploration.strategy.widget.RandomWidget
 import org.droidmate.explorationModel.ModelFeatureI
@@ -61,6 +61,7 @@ import org.droidmate.tools.IDeviceTools
 import java.nio.file.Path
 import java.util.*
 import org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy
+import java.nio.file.Paths
 
 @Suppress("unused", "MemberVisibilityCanBePrivate")
 open class ExploreCommandBuilder(
@@ -251,11 +252,13 @@ open class ExploreCommandBuilder(
     }
 
     fun addATUATestingStrategy(budgetScale: Double, timeoutMS: Int, randomTimeMS: Int, randomStrategy: Int): ExploreCommandBuilder{
-        strategies.add(ATUATestingStrategy(getNextSelectorPriority(),
+        strategies.add(
+            ATUATestingStrategy(getNextSelectorPriority(),
              scaleFactor= budgetScale,
         timeout = timeoutMS,
             randomTimeout = randomTimeMS,
-        randomStrategy = randomStrategy ))
+        randomStrategy = randomStrategy )
+        )
 
         return this
     }

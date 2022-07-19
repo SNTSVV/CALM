@@ -26,6 +26,7 @@
 package org.droidmate.command
 
 import kotlinx.coroutines.*
+import org.atua.modelFeatures.VerifyTracesMF
 import org.droidmate.configuration.ConfigProperties
 import org.droidmate.configuration.ConfigProperties.Deploy.shuffleApks
 import org.droidmate.configuration.ConfigProperties.Exploration.apkNames
@@ -48,7 +49,6 @@ import org.droidmate.device.logcat.ApiLogcatMessageListExtensions
 import org.droidmate.deviceInterface.exploration.*
 import org.droidmate.exploration.ExplorationContext
 import org.droidmate.exploration.actions.launchApp
-import org.droidmate.exploration.actions.resetApp
 import org.droidmate.exploration.modelFeatures.ModelFeature
 import org.droidmate.exploration.strategy.ExplorationStrategyPool
 import org.droidmate.explorationModel.ModelFeatureI
@@ -89,7 +89,7 @@ open class ExploreCommand<M,S,W>(
 	}
 
 	suspend fun execute(cfg: ConfigurationWrapper): Map<Apk, FailableExploration> = supervisorScope {
-		if (cfg[cleanDirs]) {
+		if (cfg[cleanDirs] && !watcher.any { it is VerifyTracesMF }) {
 			cleanOutputDir(cfg)
 		}
 

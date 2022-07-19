@@ -27,7 +27,7 @@ package org.droidmate.exploration
 
 import com.natpryce.konfig.Configuration
 import kotlinx.coroutines.*
-import org.atua.modelFeatures.ewtg.Helper
+import org.atua.modelFeatures.VerifyTracesMF
 import org.droidmate.configuration.ConfigProperties
 import org.droidmate.device.android_sdk.IApk
 import org.droidmate.deviceInterface.exploration.*
@@ -93,12 +93,12 @@ class ExplorationContext<M,S,W> @JvmOverloads constructor(val cfg: Configuration
 	init {
 		debugOutput = model.config[debugMode] // disable debug outputs if not in debug mode
 		measurePerformance = model.config[debugMode]
-		if (model.config[enableCoverage]){
+		if (model.config[enableCoverage] && !watcher.any { it is VerifyTracesMF }){
 			val coverageDir = Paths.get(cfg[ConfigProperties.Output.outputDir].path).toAbsolutePath().resolve(cfg[coverageDir]).toAbsolutePath()
 			//val resourceDir = Paths.get(cfg[ConfigProperties.Output.outputDir].path).toAbsolutePath().resolve(EnvironmentConstants.dir_name_temp_extracted_resources).toAbsolutePath()
 			val resourceDir = Paths.get(cfg[ConfigProperties.Exploration.apksDir].path).toAbsolutePath()
 			addWatcher(StatementCoverageMF(coverageDir, readDeviceStatements, model.config.appName, resourceDir))
-			if (true || model.config[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.use]) {
+			if (model.config[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.use]) {
 				val manualInput = model.config[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.manualInput]
 				val manualIntent = model.config[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.manualIntent]
 				val reuseBaseModel = model.config[org.atua.modelFeatures.ATUAMF.Companion.RegressionStrategy.reuseBaseModel]
@@ -144,10 +144,16 @@ class ExplorationContext<M,S,W> @JvmOverloads constructor(val cfg: Configuration
 		model.updateModel(result, explorationTrace)
 		this.also { context ->
 			lastTarget = explorationTrace.getExploredWidgets().lastOrNull() // this may be used by some strategies or ModelFeatures
+			val jobs = ArrayList<Job>()
 			watcher.forEach { feature ->
 				(feature as? ModelFeature)?.let {
-					it.launch { it.onContextUpdate(context) }
+					it.launch { it.onContextUpdate(context) }.also {
+						jobs.add(it)
+					}
 				}
+			}
+			jobs.forEach {
+				it.join()
 			}
 		}
 	}

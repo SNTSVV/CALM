@@ -30,6 +30,9 @@ import com.natpryce.konfig.CommandLineOption
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
+import org.atua.modelFeatures.ATUAMF
+import org.atua.modelFeatures.VerifyTracesMF
+import org.atua.strategy.ReplayTraces
 import org.droidmate.command.ExploreCommand
 import org.droidmate.command.ExploreCommandBuilder
 import org.droidmate.configuration.ConfigProperties
@@ -38,6 +41,7 @@ import org.droidmate.configuration.ConfigurationWrapper
 import org.droidmate.device.android_sdk.Apk
 
 import org.droidmate.exploration.modelFeatures.reporter.ActivitySeenSummaryMF
+import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF
 import org.droidmate.exploration.modelFeatures.reporter.VisualizationGraphMF
 import org.droidmate.exploration.strategy.AExplorationStrategy
 import org.droidmate.exploration.strategy.AStrategySelector
@@ -136,7 +140,20 @@ object ExplorationAPI {
 	                                                                 modelProvider: ModelProvider<M>? = null
 	): Map<Apk, FailableExploration> = coroutineScope {
 		val builder = commandBuilder ?: ExploreCommandBuilder.fromConfig(cfg)
-		explore( cfg, builder.strategies, builder.selectors, watcher?.toMutableList(), modelProvider )
+		val watchers = watcher?.toMutableList()?: defaultReporter(cfg)
+		explore( cfg, builder.strategies, builder.selectors, watchers, modelProvider ).also {
+			if (cfg[ATUAMF.Companion.RegressionStrategy.identifyObsolescentState]) {
+				builder.strategies.clear()
+				val atuamf = watchers.find { it is ATUAMF }
+				if (atuamf != null) {
+					builder.strategies.add(ReplayTraces(atuamf as ATUAMF,delay = 0,useCoordinateClicks = true))
+					watchers.clear()
+					watchers.addAll(defaultReporter(cfg))
+					watchers.add(VerifyTracesMF(atuamf))
+					explore(cfg,builder.strategies, emptyList(), watchers,modelProvider)
+				}
+			}
+		}
 	}
 
 	/**

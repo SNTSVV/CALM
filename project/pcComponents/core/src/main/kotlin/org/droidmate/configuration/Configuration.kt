@@ -31,7 +31,7 @@ import java.net.URI
 import java.nio.file.*
 import java.util.*
 
-class ConfigurationWrapper @JvmOverloads constructor(private val cfg: Configuration,
+class ConfigurationWrapper @JvmOverloads constructor(private var cfg: Configuration,
 													 private val fileSystem: FileSystem = FileSystems.getDefault()) : Configuration by cfg {
 
 	val randomSeed by lazy {
@@ -121,6 +121,8 @@ class ConfigurationWrapper @JvmOverloads constructor(private val cfg: Configurat
 		return getPath(uri.path)
 	}
 
+
+
 	companion object {
 		@Throws(ConfigurationException::class)
 		@JvmOverloads
@@ -139,4 +141,3 @@ class ConfigurationWrapper @JvmOverloads constructor(private val cfg: Configurat
 		const val log_dir_name = "logs"
 	}
 }
-

@@ -24,14 +24,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.atua.calm.AppModelLoader
-import org.atua.calm.ModelBackwardAdapter
-import org.atua.calm.TargetInputClassification
-import org.atua.calm.TargetInputReport
-import org.atua.calm.ewtgdiff.AdditionSet
-import org.atua.calm.ewtgdiff.EWTGDiff
-import org.atua.calm.modelReuse.ModelHistoryInformation
-import org.atua.calm.modelReuse.ModelVersion
+import org.calm.AppModelLoader
+import org.calm.ModelBackwardAdapter
+import org.calm.TargetInputClassification
+import org.calm.TargetInputReport
+import org.calm.ewtgdiff.AdditionSet
+import org.calm.ewtgdiff.EWTGDiff
+import org.calm.modelReuse.ModelHistoryInformation
+import org.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractState
@@ -80,8 +80,8 @@ import org.droidmate.exploration.modelFeatures.explorationWatchers.CrashListMF
 import org.droidmate.exploration.modelFeatures.graph.Edge
 import org.droidmate.exploration.modelFeatures.graph.StateGraphMF
 import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF
-import org.droidmate.exploration.strategy.atua.task.FailReachingLog
-import org.droidmate.exploration.strategy.atua.task.GoToAnotherWindowTask
+import org.atua.strategy.task.FailReachingLog
+import org.atua.strategy.task.GoToAnotherWindowTask
 import org.droidmate.explorationModel.ExplorationTrace
 import org.droidmate.explorationModel.emptyUUID
 import org.droidmate.explorationModel.interaction.Interaction
@@ -113,9 +113,10 @@ class ATUAMF(
     val reuseBaseModel: Boolean,
     val reuseSameVersionModel: Boolean,
     private val baseModelDir: Path,
-    private val getCurrentActivity: suspend () -> String,
-    private val getDeviceRotation: suspend () -> Int
+    val getCurrentActivity: suspend () -> String,
+    val getDeviceRotation: suspend () -> Int
 ) : ModelFeature() {
+    var doNotRefine: Boolean = false
     private var extraWebViewAbstractTransition: AbstractTransition? = null
     val packageName = appName
     var portraitScreenSurface = Rectangle.empty()
@@ -724,7 +725,12 @@ class ATUAMF(
                     lastExecutedTransition = null
                     updateAppModel(prevState, newState, interactions, context)
                     //validateModel(newState)
-                }
+                } /*else {
+                    val newState2 = prevState
+                    currentRotation = computeRotation()
+                    lastExecutedTransition = null
+                    updateAppModel(prevState, newState2, interactions, context)
+                }*/
                 isRandomExploration = false
             }
         } finally {
@@ -1042,8 +1048,8 @@ class ATUAMF(
                 }
             }
             if (lastExecutedTransition!!.abstractAction.actionType != AbstractActionType.RESET_APP) {
-                lastExecutedTransition!!.updateDependentAppState(currentState,traceId,transitionId,this)
-                lastExecutedTransition!!.markNondeterministicTransitions()
+                lastExecutedTransition!!.computeMemoryBasedGuards(currentState,traceId,transitionId,this)
+                lastExecutedTransition!!.markNondeterministicTransitions(this)
                 lastExecutedTransition!!.activated = true
                 dstg.updateAbstractActionEnability(lastExecutedTransition!!, this)
                 AbstractStateManager.INSTANCE.updateImplicitAppTransitions(prevAbstractState,lastExecutedTransition!!)
@@ -1968,15 +1974,18 @@ class ATUAMF(
     ): Boolean {
         //update lastChildExecutedEvent
         log.info("Updating App Model")
-        measureTimeMillis {
-            runBlocking {
-                while (!statementMF!!.statementRead) {
-                    delay(1)
+        if (statementMF != null) {
+            measureTimeMillis {
+                runBlocking {
+                    while (!statementMF!!.statementRead) {
+                        delay(1)
+                    }
                 }
+            }.let {
+                log.debug("Wait for reading coverage took $it millis")
             }
-        }.let {
-            log.debug("Wait for reading coverage took $it millis")
         }
+
         var updated: Boolean = false
         val statementCovered: Boolean
         if (statementMF!!.recentExecutedStatements.isEmpty())
@@ -2097,7 +2106,7 @@ class ATUAMF(
                 }
                 if (lastExecutedTransition == null) {
                     org.atua.modelFeatures.ATUAMF.Companion.log.debug("Last executed Interaction is null")
-                } else if (necessaryCheckModel
+                } else if (!doNotRefine && necessaryCheckModel
                     && lastExecutedTransition!!.abstractAction.actionType != AbstractActionType.UNKNOWN
                     && lastExecutedTransition!!.abstractAction.actionType != AbstractActionType.WAIT
                     && lastExecutedTransition!!.abstractAction.actionType != AbstractActionType.ACTION_QUEUE
@@ -2109,6 +2118,7 @@ class ATUAMF(
                     && lastInteractions.size == 1
                 ) {
                     val beforeAT = lastExecutedTransition
+
                     org.atua.modelFeatures.ATUAMF.Companion.log.info("Refining Abstract Interaction.")
                     prevAbstractStateRefinement = AbstractStateManager.INSTANCE.refineModel(
                         lastInteractions.single(),
@@ -3371,6 +3381,7 @@ class ATUAMF(
             val randomAfterTesting by booleanType
             val randomTimeout by intType
             val randomStrategy by intType
+            val identifyObsolescentState by booleanType
         }
     }
 }
