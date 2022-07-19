@@ -10,7 +10,7 @@
  *
  */
 
-package org.atua.calm.ewtgdiff
+package org.calm.ewtgdiff
 
 class DeletionSet<T>: DifferentSet<T>() {
     val deletedElements: ArrayList<T> = ArrayList()

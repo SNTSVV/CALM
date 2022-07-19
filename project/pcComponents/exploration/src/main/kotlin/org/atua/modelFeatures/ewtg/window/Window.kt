@@ -12,7 +12,7 @@
 
 package org.atua.modelFeatures.ewtg.window
 
-import org.atua.calm.modelReuse.ModelHistoryInformation
+import org.calm.modelReuse.ModelHistoryInformation
 import org.droidmate.deviceInterface.exploration.Rectangle
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.ewtg.EWTGWidget
@@ -28,6 +28,7 @@ abstract class Window(var classType: String,
                       val isRuntimeCreated: Boolean,
                       baseModel: Boolean)
 {
+    var guardNeeded: Boolean = false
     val MAX_SCORE: Int = 100
     var ignored: Boolean = false
 

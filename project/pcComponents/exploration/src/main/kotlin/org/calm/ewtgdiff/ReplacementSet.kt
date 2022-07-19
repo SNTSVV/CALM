@@ -10,7 +10,7 @@
  *
  */
 
-package org.atua.calm.ewtgdiff
+package org.calm.ewtgdiff
 
 class ReplacementSet<T>: DifferentSet<T>() {
     val replacedElements: ArrayList<Replacement<T>> = ArrayList()

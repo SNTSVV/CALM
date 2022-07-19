@@ -1,8 +1,19 @@
-package org.droidmate.exploration.strategy.atua.task
+/*
+ * ATUA is a test automation tool for mobile Apps, which focuses on testing methods updated in each software release.
+ * Copyright (C) 2019 - 2021 University of Luxembourg
+ *
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
+package org.atua.strategy.task
 
 import kotlinx.coroutines.runBlocking
-import org.atua.calm.modelReuse.ModelHistoryInformation
-import org.atua.modelFeatures.Rotation
+import org.calm.modelReuse.ModelHistoryInformation
 import org.droidmate.deviceInterface.exploration.*
 import org.droidmate.exploration.actions.*
 import org.atua.modelFeatures.dstg.AbstractAction
@@ -17,9 +28,8 @@ import org.atua.modelFeatures.ewtg.WindowManager
 import org.atua.modelFeatures.ewtg.window.Dialog
 import org.atua.modelFeatures.ewtg.window.Window
 import org.atua.modelFeatures.ewtg.window.OutOfApp
-import org.atua.modelFeatures.helper.ProbabilityBasedPathFinder
 import org.atua.modelFeatures.helper.ProbabilityDistribution
-import org.droidmate.exploration.strategy.atua.ATUATestingStrategy
+import org.atua.strategy.ATUATestingStrategy
 import org.droidmate.explorationModel.ExplorationTrace
 import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
@@ -48,7 +58,8 @@ class RandomExplorationTask constructor(
     private var qlearningRunning = false
     private var qlearningSteps = 0
     var goToLockedWindowTask: GoToAnotherWindowTask? = null
-    protected var openNavigationBarTask = OpenNavigationBarTask.getInstance(regressionTestingMF, atuaTestingStrategy, delay, useCoordinateClicks)
+    protected var openNavigationBarTask =
+        OpenNavigationBarTask.getInstance(regressionTestingMF, atuaTestingStrategy, delay, useCoordinateClicks)
     var fillingData = false
     var dataFilled = false
     private var initialExerciseCount = -1

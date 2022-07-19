@@ -1,8 +1,20 @@
-package org.droidmate.exploration.strategy.atua
+/*
+ * ATUA is a test automation tool for mobile Apps, which focuses on testing methods updated in each software release.
+ * Copyright (C) 2019 - 2021 University of Luxembourg
+ *
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
 
-import org.atua.calm.ewtgdiff.EWTGDiff
-import org.atua.calm.modelReuse.ModelHistoryInformation
-import org.atua.calm.modelReuse.ModelVersion
+package org.atua.strategy
+
+import org.calm.ewtgdiff.EWTGDiff
+import org.calm.modelReuse.ModelHistoryInformation
+import org.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
@@ -29,12 +41,12 @@ import org.droidmate.deviceInterface.exploration.isLaunchApp
 import org.droidmate.exploration.ExplorationContext
 import org.droidmate.exploration.actions.pressBack
 import org.droidmate.exploration.actions.resetApp
-import org.droidmate.exploration.strategy.atua.task.ExerciseTargetComponentTask
-import org.droidmate.exploration.strategy.atua.task.GoToAnotherWindowTask
-import org.droidmate.exploration.strategy.atua.task.GoToTargetWindowTask
-import org.droidmate.exploration.strategy.atua.task.OpenNavigationBarTask
-import org.droidmate.exploration.strategy.atua.task.PrepareContextTask
-import org.droidmate.exploration.strategy.atua.task.RandomExplorationTask
+import org.atua.strategy.task.ExerciseTargetComponentTask
+import org.atua.strategy.task.GoToAnotherWindowTask
+import org.atua.strategy.task.GoToTargetWindowTask
+import org.atua.strategy.task.OpenNavigationBarTask
+import org.atua.strategy.task.PrepareContextTask
+import org.atua.strategy.task.RandomExplorationTask
 import org.droidmate.explorationModel.ExplorationTrace
 import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
@@ -724,7 +736,7 @@ class PhaseOneStrategy(
                 }*//*
             }*/
         }
-        if (episodeCountDown < 0  && strategyTask !is GoToTargetWindowTask ) {
+        if (episodeCountDown < 0  && strategyTask !is GoToTargetWindowTask) {
             if (targetWindow != null) {
                 if (!isTargetAppState && (!isCandidateWindow(targetWindow!!) || unreachableWindows.contains(targetWindow!!))) {
                     if (unreachableWindows.contains(targetWindow)) {
@@ -735,7 +747,8 @@ class PhaseOneStrategy(
                     else if (!isCandidateWindow(targetWindow!!)) {
                          if (isExplicitCandidateWindow(targetWindow!!) ){
                             if (strategyTask !is GoToTargetWindowTask
-                                && strategyTask !is ExerciseTargetComponentTask) {
+                                && strategyTask !is ExerciseTargetComponentTask
+                            ) {
                                 log.info("Unset target window.")
                                 targetWindow = null
                                 resetStrategyTask(currentState)

@@ -10,7 +10,7 @@
  *
  */
 
-package org.atua.calm.ewtgdiff
+package org.calm.ewtgdiff
 
 abstract class DifferenceElement {
 }

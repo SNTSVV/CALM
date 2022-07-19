@@ -10,11 +10,11 @@
  *
  */
 
-package org.atua.calm.ewtgdiff
+package org.calm.ewtgdiff
 
-import org.atua.calm.TargetInputReport
-import org.atua.calm.modelReuse.ModelHistoryInformation
-import org.atua.calm.modelReuse.ModelVersion
+import org.calm.TargetInputReport
+import org.calm.modelReuse.ModelHistoryInformation
+import org.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractState

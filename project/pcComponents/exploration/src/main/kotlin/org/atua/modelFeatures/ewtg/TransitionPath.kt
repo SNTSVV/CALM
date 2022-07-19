@@ -12,12 +12,9 @@
 
 package org.atua.modelFeatures.ewtg
 
-import org.atua.calm.ModelBackwardAdapter
-import org.atua.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractTransition
 import org.atua.modelFeatures.dstg.AbstractState
-import org.atua.modelFeatures.dstg.AttributeValuationMap
 import org.atua.modelFeatures.dstg.PredictedAbstractState
 import org.atua.modelFeatures.ewtg.window.Dialog
 import org.atua.modelFeatures.helper.Goal

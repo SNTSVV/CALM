@@ -1,4 +1,4 @@
-package org.droidmate.exploration.strategy.atua
+package org.atua.strategy
 
 enum class PhaseState {
     NULL,

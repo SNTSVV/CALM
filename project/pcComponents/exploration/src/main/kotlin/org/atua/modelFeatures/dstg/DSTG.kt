@@ -12,7 +12,7 @@
 
 package org.atua.modelFeatures.dstg
 
-import org.atua.calm.modelReuse.ModelVersion
+import org.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.ewtg.window.FakeWindow
 import org.atua.modelFeatures.ewtg.window.Window
@@ -21,7 +21,6 @@ import org.droidmate.exploration.ExplorationContext
 import org.droidmate.exploration.modelFeatures.graph.*
 import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF
 import org.droidmate.explorationModel.removeNewLineAndSemicolon
-import org.droidmate.explorationModel.sanitize
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.BufferedWriter

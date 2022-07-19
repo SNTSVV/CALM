@@ -10,7 +10,7 @@
  *
  */
 
-package org.atua.calm.modelReuse
+package org.calm.modelReuse
 
 enum class ModelVersion {
     BASE,

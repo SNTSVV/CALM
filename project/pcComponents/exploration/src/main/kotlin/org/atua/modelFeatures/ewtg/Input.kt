@@ -12,7 +12,7 @@
 
 package org.atua.modelFeatures.ewtg
 
-import org.atua.calm.modelReuse.ModelVersion
+import org.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractState

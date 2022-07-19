@@ -10,10 +10,10 @@
  *
  */
 
-package org.atua.calm
+package org.calm
 
-import org.atua.calm.modelReuse.ModelHistoryInformation
-import org.atua.calm.modelReuse.ModelVersion
+import org.calm.modelReuse.ModelHistoryInformation
+import org.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractActionType
@@ -32,7 +32,6 @@ import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.Input
 import org.atua.modelFeatures.ewtg.ScrollDirection
 import org.atua.modelFeatures.ewtg.WindowManager
-import org.atua.modelFeatures.ewtg.WindowTransition
 import org.atua.modelFeatures.ewtg.window.Activity
 import org.atua.modelFeatures.ewtg.window.ContextMenu
 import org.atua.modelFeatures.ewtg.window.Dialog
@@ -42,7 +41,6 @@ import org.atua.modelFeatures.ewtg.window.OptionsMenu
 import org.atua.modelFeatures.ewtg.window.OutOfApp
 import org.atua.modelFeatures.ewtg.window.Window
 import org.droidmate.deviceInterface.exploration.Rectangle
-import org.droidmate.explorationModel.sanitize
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.BufferedReader
@@ -609,7 +607,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                         transitionId = null
                 )*/
                 newAbstractTransition.userInputs.addAll (userlikeInputList)
-                newAbstractTransition.markNondeterministicTransitions()
+                newAbstractTransition.markNondeterministicTransitions(atuaMF)
             }
             else {
                 abstractTransition.userInputs.addAll(userlikeInputList)

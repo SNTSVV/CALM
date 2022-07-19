@@ -10,7 +10,7 @@
  *
  */
 
-package org.atua.calm.simmetrics
+package org.calm.simmetrics
 
 import com.google.common.base.Preconditions
 import org.simmetrics.ListDistance

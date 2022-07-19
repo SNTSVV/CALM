@@ -10,7 +10,7 @@
  *
  */
 
-package org.atua.calm.ewtgdiff
+package org.calm.ewtgdiff
 
 data class Replacement<T>(val old: T, val new: T) {
 

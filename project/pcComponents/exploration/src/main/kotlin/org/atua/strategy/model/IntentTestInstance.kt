@@ -1,4 +1,4 @@
-package org.droidmate.exploration.strategy.atua.model
+package org.atua.strategy.model
 
 data class IntentTestInstance (
         val activity: String,

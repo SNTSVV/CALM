@@ -10,7 +10,7 @@
  *
  */
 
-package org.atua.calm
+package org.calm
 
 import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.ewtg.Input

@@ -12,12 +12,10 @@
 
 package org.atua.modelFeatures.dstg
 
-import org.atua.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.Rotation
 import org.atua.modelFeatures.ewtg.EWTGWidget
 import org.atua.modelFeatures.ewtg.Input
 import org.atua.modelFeatures.ewtg.window.Window
-import org.droidmate.explorationModel.interaction.State
 
 class PredictedAbstractState(
     activity: String,

@@ -12,7 +12,7 @@
 
 package org.atua.modelFeatures
 
-import org.atua.calm.modelReuse.ModelVersion
+import org.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.ewtg.EWTG
 import org.atua.modelFeatures.ewtg.EWTGWidget
 import org.atua.modelFeatures.ewtg.EventType

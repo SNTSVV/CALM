@@ -12,7 +12,7 @@
 
 package org.atua.modelFeatures.ewtg
 
-import org.atua.calm.modelReuse.ModelVersion
+import org.calm.modelReuse.ModelVersion
 import org.droidmate.exploration.modelFeatures.graph.*
 import org.atua.modelFeatures.*
 import org.atua.modelFeatures.ewtg.window.Activity

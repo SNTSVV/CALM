@@ -10,9 +10,9 @@
  *
  */
 
-package org.atua.calm
+package org.calm
 
-import org.atua.calm.simmetrics.LevenshteinList
+import org.calm.simmetrics.LevenshteinList
 import org.simmetrics.StringMetric
 import org.simmetrics.builders.StringMetricBuilder.with
 import org.simmetrics.metrics.CosineSimilarity

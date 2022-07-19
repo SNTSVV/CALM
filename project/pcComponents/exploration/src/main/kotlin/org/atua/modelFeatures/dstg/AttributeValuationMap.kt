@@ -12,17 +12,12 @@
 
 package org.atua.modelFeatures.dstg
 
-import org.atua.calm.AppModelLoader
-import org.atua.calm.StringComparison
+import org.calm.AppModelLoader
+import org.calm.StringComparison
 import org.atua.modelFeatures.ATUAMF
-import org.atua.modelFeatures.ewtg.EWTGWidget
 import org.atua.modelFeatures.ewtg.ScrollDirection
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.window.Window
-import org.droidmate.exploration.actions.swipeDown
-import org.droidmate.exploration.actions.swipeLeft
-import org.droidmate.exploration.actions.swipeRight
-import org.droidmate.exploration.actions.swipeUp
 import org.droidmate.explorationModel.emptyUUID
 import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget

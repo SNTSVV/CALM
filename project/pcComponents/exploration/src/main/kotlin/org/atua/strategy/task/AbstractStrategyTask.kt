@@ -1,7 +1,19 @@
-package org.droidmate.exploration.strategy.atua.task
+/*
+ * ATUA is a test automation tool for mobile Apps, which focuses on testing methods updated in each software release.
+ * Copyright (C) 2019 - 2021 University of Luxembourg
+ *
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
+package org.atua.strategy.task
 
 import kotlinx.coroutines.runBlocking
-import org.atua.calm.StringComparison
+import org.calm.StringComparison
 import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractActionType
 import org.atua.modelFeatures.dstg.AbstractState
@@ -14,14 +26,11 @@ import org.atua.modelFeatures.inputRepo.textInput.TextInput
 import org.droidmate.deviceInterface.exploration.ActionQueue
 import org.droidmate.deviceInterface.exploration.ActionType
 import org.droidmate.deviceInterface.exploration.Click
-import org.droidmate.deviceInterface.exploration.ClickEvent
 import org.droidmate.deviceInterface.exploration.ExplorationAction
 import org.droidmate.deviceInterface.exploration.GlobalAction
 import org.droidmate.deviceInterface.exploration.LongClick
-import org.droidmate.deviceInterface.exploration.LongClickEvent
 import org.droidmate.deviceInterface.exploration.Rectangle
 import org.droidmate.deviceInterface.exploration.Swipe
-import org.droidmate.deviceInterface.exploration.Tick
 import org.droidmate.deviceInterface.exploration.isClick
 import org.droidmate.deviceInterface.exploration.isEnabled
 import org.droidmate.deviceInterface.exploration.isFetch
@@ -49,7 +58,7 @@ import org.droidmate.exploration.actions.swipeUp
 import org.droidmate.exploration.modelFeatures.ActionCounterMF
 import org.droidmate.exploration.modelFeatures.explorationWatchers.BlackListMF
 import org.droidmate.exploration.modelFeatures.listOfSmallest
-import org.droidmate.exploration.strategy.atua.ATUATestingStrategy
+import org.atua.strategy.ATUATestingStrategy
 import org.droidmate.explorationModel.ExplorationTrace
 import org.droidmate.explorationModel.debugT
 import org.droidmate.explorationModel.firstCenter

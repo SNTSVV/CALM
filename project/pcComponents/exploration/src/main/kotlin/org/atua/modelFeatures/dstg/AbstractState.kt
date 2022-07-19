@@ -12,8 +12,8 @@
 
 package org.atua.modelFeatures.dstg
 
-import org.atua.calm.modelReuse.ModelHistoryInformation
-import org.atua.calm.modelReuse.ModelVersion
+import org.calm.modelReuse.ModelHistoryInformation
+import org.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.dstg.reducer.WidgetReducer
 import org.atua.modelFeatures.ewtg.*

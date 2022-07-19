@@ -95,7 +95,8 @@ configurations.all {
 	}
 }
 dependencies {
-	implementation group: 'org.droidmate', name: 'deviceDaemonLib', version: project.ext.driverLib_version
+//	implementation group: 'org.droidmate', name: 'deviceDaemonLib', version: project.ext.driverLib_version
+	implementation project(":deviceDaemonLib")
 //	implementation(dmDriverLib) {
 //		version {
 //			strictly driverLib_version

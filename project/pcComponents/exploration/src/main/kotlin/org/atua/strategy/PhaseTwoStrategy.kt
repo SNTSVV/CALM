@@ -1,8 +1,20 @@
-package org.droidmate.exploration.strategy.atua
+/*
+ * ATUA is a test automation tool for mobile Apps, which focuses on testing methods updated in each software release.
+ * Copyright (C) 2019 - 2021 University of Luxembourg
+ *
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
 
-import org.atua.calm.ewtgdiff.EWTGDiff
-import org.atua.calm.modelReuse.ModelHistoryInformation
-import org.atua.calm.modelReuse.ModelVersion
+package org.atua.strategy
+
+import org.calm.ewtgdiff.EWTGDiff
+import org.calm.modelReuse.ModelHistoryInformation
+import org.calm.modelReuse.ModelVersion
 import org.droidmate.deviceInterface.exploration.ExplorationAction
 import org.droidmate.deviceInterface.exploration.Swipe
 import org.droidmate.deviceInterface.exploration.isLaunchApp
@@ -14,7 +26,6 @@ import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractTransition
 import org.atua.modelFeatures.dstg.AbstractState
 import org.atua.modelFeatures.dstg.AbstractStateManager
-import org.atua.modelFeatures.dstg.PredictedAbstractState
 import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.modelFeatures.helper.PathFindingHelper
 import org.atua.modelFeatures.helper.ProbabilityDistribution
@@ -26,8 +37,12 @@ import org.atua.modelFeatures.ewtg.window.Window
 import org.atua.modelFeatures.helper.Goal
 import org.atua.modelFeatures.helper.PathConstraint
 import org.atua.modelFeatures.helper.ProbabilityBasedPathFinder
+import org.atua.strategy.task.ExerciseTargetComponentTask
+import org.atua.strategy.task.GoToAnotherWindowTask
+import org.atua.strategy.task.GoToTargetWindowTask
+import org.atua.strategy.task.OpenNavigationBarTask
+import org.atua.strategy.task.RandomExplorationTask
 import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF
-import org.droidmate.exploration.strategy.atua.task.*
 import org.droidmate.explorationModel.interaction.State
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -38,11 +53,11 @@ import kotlin.math.max
 import kotlin.math.min
 
 class PhaseTwoStrategy(
-        atuaTestingStrategy: ATUATestingStrategy,
-        budgetScale: Double,
-        delay: Long,
-        useCoordinateClicks: Boolean,
-        val unreachableWindow: Set<Window>
+    atuaTestingStrategy: ATUATestingStrategy,
+    budgetScale: Double,
+    delay: Long,
+    useCoordinateClicks: Boolean,
+    val unreachableWindow: Set<Window>
 ) : AbstractPhaseStrategy(
         atuaTestingStrategy = atuaTestingStrategy,
         scaleFactor = budgetScale,
@@ -1348,7 +1363,7 @@ class PhaseTwoStrategy(
                                      currentAbstractState: AbstractState,
                                      stopWhenTestPathIdentified: Boolean = false,
                                      lockWindow: Boolean = false,
-                                    budget: Int =-1) {
+                                     budget: Int =-1) {
         setRandomExplorationBudget(currentState)
         strategyTask = randomExplorationTask.also {
             it.initialize(currentState)

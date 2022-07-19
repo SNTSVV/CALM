@@ -1,15 +1,27 @@
-package org.droidmate.exploration.strategy.atua.task
+/*
+ * ATUA is a test automation tool for mobile Apps, which focuses on testing methods updated in each software release.
+ * Copyright (C) 2019 - 2021 University of Luxembourg
+ *
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
+package org.atua.strategy.task
 
 import org.droidmate.deviceInterface.exploration.ExplorationAction
 import org.droidmate.exploration.actions.callIntent
 import org.droidmate.exploration.actions.pressBack
-import org.droidmate.exploration.strategy.atua.ATUATestingStrategy
-import org.droidmate.exploration.strategy.atua.model.IntentTestInstance
+import org.atua.strategy.ATUATestingStrategy
+import org.atua.strategy.model.IntentTestInstance
 import org.droidmate.explorationModel.interaction.State
 
 class CallingIntentTask(regressionTestingMF: org.atua.modelFeatures.ATUAMF,
                         atuaTestingStrategy: ATUATestingStrategy,
-                        delay: Long, useCoordinateClicks: Boolean):AbstractStrategyTask(atuaMF = regressionTestingMF,
+                        delay: Long, useCoordinateClicks: Boolean): AbstractStrategyTask(atuaMF = regressionTestingMF,
                         atuaStrategy = atuaTestingStrategy,
                         delay = delay,useCoordinateClicks = useCoordinateClicks) {
     val targetIntentTestInstances = ArrayList<IntentTestInstance>()
@@ -46,8 +58,10 @@ class CallingIntentTask(regressionTestingMF: org.atua.modelFeatures.ATUAMF,
                     val datas = it.getDatas()
                     datas.forEach {data->
                         val testData = data.testData.random()
-                        targetIntentTestInstances.add(IntentTestInstance(action = action,
-                                category = category, data = testData, activity = it.activity))
+                        targetIntentTestInstances.add(
+                            IntentTestInstance(action = action,
+                                category = category, data = testData, activity = it.activity)
+                        )
                     }
                 }
             }

@@ -10,7 +10,7 @@
  *
  */
 
-package org.atua.calm.ewtgdiff
+package org.calm.ewtgdiff
 
 class AdditionSet<T>: DifferentSet<T>() {
     val addedElements: ArrayList<T> = ArrayList()

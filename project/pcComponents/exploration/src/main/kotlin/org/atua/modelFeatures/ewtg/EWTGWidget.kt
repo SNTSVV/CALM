@@ -13,7 +13,7 @@
 package org.atua.modelFeatures.ewtg
 
 import org.atua.modelFeatures.ewtg.window.Window
-import org.atua.calm.modelReuse.ModelVersion
+import org.calm.modelReuse.ModelVersion
 import java.lang.StringBuilder
 import kotlin.collections.ArrayList
 import kotlin.random.Random

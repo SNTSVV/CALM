@@ -253,6 +253,9 @@ object DefaultStrategies: Logging {
 						}
 					}
 				}
+				s == eContext.model.emptyState -> {
+					eContext.resetApp()
+				}
 				s.isHomeScreen  -> {
 					/*if (lastActionType.isPressBack()
 						|| lastActionType=="PressHome" || lastActionType=="MinimizeMaximize" )*/

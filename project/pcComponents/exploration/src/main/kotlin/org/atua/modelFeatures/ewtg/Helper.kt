@@ -12,9 +12,7 @@
 
 package org.atua.modelFeatures.ewtg
 
-import org.atua.calm.StringComparison
-import org.atua.modelFeatures.dstg.AbstractAction
-import org.atua.modelFeatures.dstg.AbstractActionType
+import org.calm.StringComparison
 import org.droidmate.deviceInterface.exploration.ExplorationAction
 import org.droidmate.deviceInterface.exploration.Rectangle
 import org.droidmate.deviceInterface.exploration.Swipe

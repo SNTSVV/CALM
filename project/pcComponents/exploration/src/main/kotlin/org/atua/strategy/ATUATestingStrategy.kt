@@ -1,4 +1,16 @@
-package org.droidmate.exploration.strategy.atua
+/*
+ * ATUA is a test automation tool for mobile Apps, which focuses on testing methods updated in each software release.
+ * Copyright (C) 2019 - 2021 University of Luxembourg
+ *
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
+package org.atua.strategy
 
 
 import kotlinx.coroutines.delay
@@ -16,8 +28,8 @@ import org.atua.modelFeatures.dstg.AbstractStateManager
 import org.atua.modelFeatures.dstg.VirtualAbstractState
 import org.atua.modelFeatures.ewtg.EventType
 import org.atua.modelFeatures.ewtg.window.Launcher
+import org.atua.strategy.task.AbstractStrategyTask
 import org.droidmate.exploration.strategy.AExplorationStrategy
-import org.droidmate.exploration.strategy.atua.task.*
 import org.droidmate.explorationModel.ExplorationTrace
 import org.droidmate.explorationModel.factory.AbstractModel
 import org.droidmate.explorationModel.interaction.State
@@ -38,7 +50,7 @@ open class ATUATestingStrategy @JvmOverloads constructor(priority: Int,
     protected val statementWatcher: StatementCoverageMF
     get() = (eContext.findWatcher { it is StatementCoverageMF } as StatementCoverageMF)
 
-    val handleTargetAbsent = org.droidmate.exploration.strategy.atua.HandleTargetAbsent()
+    val handleTargetAbsent = HandleTargetAbsent()
     protected val stateGraph: StateGraphMF by lazy { eContext.getOrCreateWatcher<StateGraphMF>() }
 
     private val maximumActionCount = 10

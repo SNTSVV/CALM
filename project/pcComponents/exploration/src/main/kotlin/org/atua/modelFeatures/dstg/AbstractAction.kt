@@ -12,14 +12,13 @@
 
 package org.atua.modelFeatures.dstg
 
-import org.atua.calm.ModelBackwardAdapter
+import org.calm.ModelBackwardAdapter
 import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.window.Dialog
 import org.atua.modelFeatures.ewtg.window.Launcher
 import org.atua.modelFeatures.ewtg.window.OutOfApp
 import org.atua.modelFeatures.ewtg.window.Window
-import org.droidmate.exploration.modelFeatures.reporter.StatementCoverageMF
 import org.droidmate.explorationModel.interaction.Interaction
 import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget

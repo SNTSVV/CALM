@@ -142,6 +142,9 @@ data class ActionQueue(val actions: List<ExplorationAction>, val delay: Long): E
  * @since API Level 18
  */
 data class Swipe(val start:Pair<Int,Int>,val end:Pair<Int,Int>,val stepSize:Int = 35, override val hasWidgetTarget: Boolean = false): ExplorationAction() {
+	companion object {
+		val name: String = this::class.java.declaringClass.simpleName
+	}
 	override fun toString(): String = "Swipe[(${start.first},${start.second}) to (${end.first},${end.second}) with stepSize=$stepSize]"
 }
 

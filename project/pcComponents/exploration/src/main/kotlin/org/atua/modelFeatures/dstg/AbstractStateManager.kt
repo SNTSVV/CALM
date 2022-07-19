@@ -12,9 +12,9 @@
 
 package org.atua.modelFeatures.dstg
 
-import org.atua.calm.ModelBackwardAdapter
-import org.atua.calm.ewtgdiff.EWTGDiff
-import org.atua.calm.modelReuse.ModelVersion
+import org.calm.ModelBackwardAdapter
+import org.calm.ewtgdiff.EWTGDiff
+import org.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.dstg.reducer.AbstractionFunction2
 import org.atua.modelFeatures.dstg.reducer.StateReducer
@@ -2285,7 +2285,7 @@ class AbstractStateManager() {
                 }
             }
             if (tracing != null) {
-                newAbstractionTransition.updateDependentAppState(destState,tracing.first,tracing.second,atuaMF)
+                newAbstractionTransition.computeMemoryBasedGuards(destState,tracing.first,tracing.second,atuaMF)
                 updateImplicitAppTransitions(sourceAbstractState,newAbstractionTransition)
             }
             if (toUpdateMeaningfulScoreActions.contains(newAbstractionTransition.abstractAction)) {
@@ -2306,7 +2306,7 @@ class AbstractStateManager() {
             if (newAbstractionTransition.source != newAbstractionTransition.dest
                 && !newAbstractionTransition.dest.ignored)
                 atuaMF.dstg.updateAbstractActionEnability(newAbstractionTransition, atuaMF)
-            newAbstractionTransition!!.markNondeterministicTransitions()
+            newAbstractionTransition!!.markNondeterministicTransitions(atuaMF)
             newAbstractionTransition!!.activated = true
         }
 
@@ -3474,6 +3474,39 @@ class AbstractStateManager() {
 
     fun getVirtualAbstractState(window: Window): AbstractState? {
         val result = ABSTRACT_STATES.find { it is VirtualAbstractState && it.window == window }
+        return result
+    }
+
+    fun getLatestStates(traceId:Int, transitionId: Int, window: Window):  List<AbstractState> {
+        val result = ArrayList<AbstractState>()
+        val guiStateStack = ArrayList<State<*>>()
+        // construct gui states stack
+        for (i in 1..transitionId+1) {
+            val traveredInteraction = atuaMF.tracingInteractionsMap.get(Pair(traceId, i))
+            if (traveredInteraction == null)
+                throw Exception()
+            if (i == 1) {
+                val prevState = atuaMF.stateList.find { it.stateId == traveredInteraction.last().prevState }!!
+                guiStateStack.add(prevState)
+            }
+            val state = atuaMF.stateList.find { it.stateId == traveredInteraction.last().resState }!!
+            guiStateStack.add(state)
+        }
+        for (i in 0..guiStateStack.size-2) {
+            val prevState = guiStateStack[i]
+            val destState = guiStateStack[i+1]
+            val prevAbstractState = getAbstractState(prevState)
+            val destAbstractState = getAbstractState(destState)
+            if (prevAbstractState == null)
+                continue
+            if (destAbstractState == null)
+                continue
+            if (i==0) {
+                result.add(prevAbstractState)
+            }
+            result.removeIf { it.isSimlarAbstractState(destAbstractState,0.8) }
+            result.add(destAbstractState)
+        }
         return result
     }
 

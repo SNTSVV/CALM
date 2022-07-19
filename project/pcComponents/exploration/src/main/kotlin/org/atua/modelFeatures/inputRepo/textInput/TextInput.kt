@@ -16,7 +16,7 @@ import org.atua.modelFeatures.dstg.reducer.AbstractionFunction2
 import org.atua.modelFeatures.ewtg.EWTGWidget
 import org.atua.modelFeatures.ewtg.WindowManager
 import org.droidmate.deviceInterface.exploration.isEnabled
-import org.droidmate.exploration.strategy.atua.task.InputCoverage
+import org.atua.strategy.task.InputCoverage
 import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
 import java.lang.Integer.max

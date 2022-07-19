@@ -12,7 +12,7 @@
 
 package org.atua.modelFeatures.helper
 
-import org.atua.calm.ModelBackwardAdapter
+import org.calm.ModelBackwardAdapter
 import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.Rotation
 import org.atua.modelFeatures.dstg.AbstractAction
@@ -39,7 +39,6 @@ import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 import kotlin.collections.HashSet
-import kotlin.math.cos
 
 class ProbabilityBasedPathFinder {
     companion object {

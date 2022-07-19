@@ -10,9 +10,8 @@
  *
  */
 
-package org.atua.calm.modelReuse
+package org.calm.modelReuse
 
-import org.atua.calm.ModelBackwardAdapter
 import org.atua.modelFeatures.ewtg.Input
 
 class ModelHistoryInformation {

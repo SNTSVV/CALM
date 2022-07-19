@@ -10,7 +10,7 @@
  *
  */
 
-package org.atua.calm
+package org.calm
 
 import org.droidmate.exploration.ExplorationContext
 import org.atua.modelFeatures.dstg.AbstractAction
@@ -21,11 +21,11 @@ import org.atua.modelFeatures.dstg.AbstractTransition
 import org.atua.modelFeatures.dstg.AttributeValuationMap
 import org.atua.modelFeatures.dstg.DSTG
 import org.atua.modelFeatures.dstg.VirtualAbstractState
-import org.atua.calm.ewtgdiff.AdditionSet
-import org.atua.calm.ewtgdiff.EWTGDiff
-import org.atua.calm.ewtgdiff.Replacement
-import org.atua.calm.ewtgdiff.ReplacementSet
-import org.atua.calm.modelReuse.ModelVersion
+import org.calm.ewtgdiff.AdditionSet
+import org.calm.ewtgdiff.EWTGDiff
+import org.calm.ewtgdiff.Replacement
+import org.calm.ewtgdiff.ReplacementSet
+import org.calm.modelReuse.ModelVersion
 import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.dstg.AttributeType
 import org.atua.modelFeatures.ewtg.EWTGWidget
@@ -614,7 +614,7 @@ class ModelBackwardAdapter {
             }
             val possiblyCoveredUpdatedMethods = baseTransition.methodCoverage.filter { atuamf.statementMF!!.isModifiedMethod(it) }
             newAbstractTransition.modifiedMethods.putAll(possiblyCoveredUpdatedMethods.associateWith { false })
-            newAbstractTransition.markNondeterministicTransitions()
+            newAbstractTransition.markNondeterministicTransitions(atuamf)
             val inputs = updatedAbstractState.getInputsByAbstractAction(updatedAbstractAction)
             backwardEquivalentAbstractTransitionMapping.put(newAbstractTransition, HashSet())
             backwardEquivalentAbstractTransitionMapping[newAbstractTransition]!!.add(baseTransition)
@@ -626,7 +626,7 @@ class ModelBackwardAdapter {
             }
             val possiblyCoveredUpdatedMethods = baseTransition.methodCoverage.filter { atuamf.statementMF!!.isModifiedMethod(it) }
             existingAbstractTransition.modifiedMethods.putAll(possiblyCoveredUpdatedMethods.associateWith { false })
-            existingAbstractTransition.markNondeterministicTransitions()
+            existingAbstractTransition.markNondeterministicTransitions(atuamf)
             val inputs = updatedAbstractState.getInputsByAbstractAction(updatedAbstractAction)
             backwardEquivalentAbstractTransitionMapping.putIfAbsent(existingAbstractTransition, HashSet())
             backwardEquivalentAbstractTransitionMapping[existingAbstractTransition]!!.add(baseTransition)
