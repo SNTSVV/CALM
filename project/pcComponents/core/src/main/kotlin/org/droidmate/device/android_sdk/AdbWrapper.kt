@@ -258,7 +258,7 @@ class AdbWrapper constructor(private val cfg: ConfigurationWrapper,
 			val commandDescription =
 				"Executing adb (Android Debug Bridge) to reboot android device with s/n $deviceSerialNumber."
 
-			sysCmdExecutor.execute(
+			/*sysCmdExecutor.execute(
 				commandDescription,
 				cfg.adbCommand,
 				"-H",
@@ -267,7 +267,32 @@ class AdbWrapper constructor(private val cfg: ConfigurationWrapper,
 				deviceSerialNumber,
 				"reboot"
 			)
+*/
+			sysCmdExecutor.execute(
+				commandDescription,
+				cfg.adbCommand,
+				"-H",
+				cfg[hostIp],
+				"-s",
+				deviceSerialNumber,
+				"shell",
+				"su",
+				"0",
+				"stop"
+			)
 
+			sysCmdExecutor.execute(
+				commandDescription,
+				cfg.adbCommand,
+				"-H",
+				cfg[hostIp],
+				"-s",
+				deviceSerialNumber,
+				"shell",
+				"su",
+				"0",
+				"start"
+			)
 		} catch (e: SysCmdExecutorException) {
 			throw AdbWrapperException("Executing 'adb reboot' failed. Oh my.", e)
 		}

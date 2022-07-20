@@ -124,6 +124,8 @@ private suspend fun resetApp(app: IApk, device: IRobustDevice){
 	log.debug("ResetApp action was issued. This will kill the current app process if it is active and re-launch it.")
 	log.debug("Try to terminate app process.")
 	device.clearPackage(app.packageName)
+	log.debug("Restart the device")
+	device.reboot()
 	log.debug("Ensure home screen is displayed.")
 	device.ensureHomeScreenIsDisplayed()
 
