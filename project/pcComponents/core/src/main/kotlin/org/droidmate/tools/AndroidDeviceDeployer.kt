@@ -190,7 +190,6 @@ class AndroidDeviceDeployer constructor(private val cfg: ConfigurationWrapper,
 			apks.forEachIndexed { i, apk ->
 				if (!encounteredApkExplorationsStoppingException) {
 					log.info(Markers.appHealth, "Processing ${i + 1} out of ${apks.size} apks: ${apk.fileName}")
-
 					// explore this apk on device and store it in explorationResults
 					apkDeployer.withDeployedApk(device, apk, exploreFn).let{ result ->
 						explorationResults[apk] = result

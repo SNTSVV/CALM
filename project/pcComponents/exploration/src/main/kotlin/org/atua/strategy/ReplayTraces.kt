@@ -14,7 +14,10 @@ package org.atua.strategy
 
 import kotlinx.coroutines.runBlocking
 import org.atua.modelFeatures.ATUAMF
+import org.atua.modelFeatures.VerifyTracesMF
+import org.atua.modelFeatures.dstg.AbstractAction
 import org.atua.modelFeatures.dstg.AbstractState
+import org.atua.modelFeatures.dstg.AbstractStateManager
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.Input
 import org.calm.StringComparison
@@ -46,14 +49,19 @@ import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.lang.StringBuilder
+import java.nio.file.Files
 
 
 class ReplayTraces(
+    val verifyTracesMF: VerifyTracesMF,
     val atuaMF: ATUAMF,
     val delay: Long,
     val useCoordinateClicks: Boolean
 ) : AExplorationStrategy()  {
 
+    lateinit var eContext: ExplorationContext<*,*,*>
+    private var prevState: State<Widget>? = null
     private var expectedStateId: ConcreteId? = null
     var delayCheckingBlockStates = 0
     var tryCount = 0
@@ -68,10 +76,11 @@ class ReplayTraces(
     }
 
     var recentTargetEvent: Input? = null
-    val obsolescentStates = ArrayList<AbstractState>()
+
 
     override fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> initialize(initialContext: ExplorationContext<M, S, W>) {
         super.initialize(initialContext)
+        eContext = initialContext
     }
 
     override suspend fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> hasNext(eContext: ExplorationContext<M, S, W>): Boolean {
@@ -79,37 +88,55 @@ class ReplayTraces(
         return true
     }
 
+    var tryFetch = false
 
     override suspend fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> computeNextAction(eContext: ExplorationContext<M, S, W>): ExplorationAction {
         atuaMF.dstg.cleanPredictedAbstractStates()
         //TODO Update target windows
         val currentState = eContext.getCurrentState()
+        if (currentState == eContext.model.emptyState) {
+            return GlobalAction(ActionType.MinimizeMaximize)
+        }
         val currentAppState = atuaMF.getAbstractState(currentState)
         if (currentAppState == null) {
             throw Exception("DSTG is not updated.")
         }
         log.info("Current abstract state: $currentAppState")
         log.info("Current window: ${currentAppState?.window}")
-        if (obsolescentStates.contains(currentAppState)) {
-            obsolescentStates.remove(currentAppState)
+        if (verifyTracesMF.obsolescentStates.contains(currentAppState)) {
+            verifyTracesMF.obsolescentStates.remove(currentAppState)
         }
+
         if (expectedStateId != null && currentState.stateId != expectedStateId) {
+            if (!tryFetch) {
+                tryFetch = true
+                return GlobalAction(ActionType.FetchGUI)
+            }
             val expectedState = atuaMF.stateList.find { it.stateId == expectedStateId }!!
-            val expectedAbstractState = atuaMF.getAbstractState(expectedState)
-            if (expectedAbstractState != null)
-                obsolescentStates.add(expectedAbstractState)
+            val expectedAbstractState = atuaMF.getAbstractState(expectedState)!!
+            if (expectedAbstractState != currentAppState) {
+                verifyTracesMF.obsolescentStates.add(expectedAbstractState)
+
+                //TODO We should log the differencies between the expected app state and observed app state
+
+            }
         }
         var chosenAction: ExplorationAction? = null
         ExplorationTrace.widgetTargets.clear()
-        if (traceId > stopTrace) {
-            log.info("No more sequences.")
-            return ExplorationAction.terminateApp()
-        }
+
         while (chosenAction == null) {
-            val interactions = atuaMF.tracingInteractionsMap[Pair(traceId, transitionId)]
+            if (traceId > stopTrace) {
+                log.info("No more sequences.")
+                return ExplorationAction.terminateApp()
+            }
+            val interactions = atuaMF.tracingInteractionsMap.entries.find { it.key.first == traceId && it.key.second == transitionId }?.value
             if (interactions == null) {
                 if (transitionId == 0) {
-                    return eContext.resetApp()
+                    val nextInteractions = atuaMF.tracingInteractionsMap.entries.find { it.key.first == traceId && it.key.second == transitionId+1}!!.value
+                    expectedStateId = nextInteractions.first().prevState
+                    prevState = null
+                    chosenAction =  eContext.resetApp()
+                    break
                 } else {
                     if (atuaMF.tracingInteractionsMap.any { it.key.first > traceId }) {
                         traceId++
@@ -122,45 +149,56 @@ class ReplayTraces(
             } else {
                 if (interactions.size == 1) {
                     val interaction = interactions.single()
-                    log.info("Next action: ${interaction.actionType}")
                     val sourceState = atuaMF.stateList.find { it.stateId == interaction.prevState }!!
                     val sourceAppState = atuaMF.getAbstractState(sourceState)!!
                     if (sourceAppState.window == currentAppState.window) {
-                        expectedStateId = interaction.resState
                         chosenAction =
                             interaction.toExplorationAction(currentState, atuaMF, eContext, delay, useCoordinateClicks)
                         if (chosenAction != null) {
-                            return chosenAction
-                        } else
-                            transitionId++
-                    } else {
-                        // check if any later states having the same window as the current state
-                        transitionId++
-                        var foundNextAction = false
-                        while (true) {
-                            if (!atuaMF.tracingInteractionsMap.containsKey(Pair(traceId,transitionId))){
-                                break
-                            }
-                            val tmp_interaction = atuaMF.tracingInteractionsMap[Pair(traceId, transitionId)]!!.first()
-                            val tmp_srcState = atuaMF.stateList.find { it.stateId == tmp_interaction.prevState }!!
-                            val tmp_srcAppState = atuaMF.getAbstractState(tmp_srcState)!!
-                            if (tmp_srcAppState.window == currentAppState.window) {
-                                foundNextAction = true
-                                break
-                            }
-                            transitionId++
-                        }
-                        if (!foundNextAction) {
-                            if (atuaMF.tracingInteractionsMap.any { it.key.first > traceId }) {
-                                log.info("Could not continue the sequence. Switch to the next sequence.")
-                                traceId++
-                                transitionId = 0
-                            } else {
-                                log.info("No more sequences.")
-                                return ExplorationAction.terminateApp()
-                            }
+                            expectedStateId = interaction.resState
+                            prevState = currentState
+                            break
                         }
                     }
+                    if (currentState == prevState) {
+                        // There could be some errors
+                        // Try MinimizeMaximize action
+//                            return GlobalAction(actionType = ActionType.MinimizeMaximize)
+                        // maybe reexecute the action would help
+                        transitionId--
+                        continue
+                    }
+                    // check if any later states having the same window as the current state
+                    transitionId++
+                    var foundNextAction = false
+                    val missingActions = ArrayList<Interaction<*>>()
+                    while (true) {
+                        if (!atuaMF.tracingInteractionsMap.keys.any{it.first == traceId && it.second == transitionId }){
+                            break
+                        }
+                        val tmp_interaction = atuaMF.tracingInteractionsMap.entries.find { it.key.first == traceId && it.key.second == transitionId }!!.value.first()
+                        val tmp_srcState = atuaMF.stateList.find { it.stateId == tmp_interaction.prevState }!!
+                        val tmp_srcAppState = atuaMF.getAbstractState(tmp_srcState)!!
+                        if (tmp_srcAppState.window == currentAppState.window) {
+                            foundNextAction = true
+                            break
+                        }
+                        missingActions.add(tmp_interaction)
+                        transitionId++
+                    }
+                    if (!foundNextAction) {
+                        if (atuaMF.tracingInteractionsMap.any { it.key.first > traceId }) {
+                            log.info("Could not continue the sequence. Switch to the next sequence.")
+                            traceId++
+                            transitionId = 0
+                        } else {
+                            log.info("No more sequences.")
+                            return ExplorationAction.terminateApp()
+                        }
+                    } else {
+                        continue
+                    }
+
                 } else {
                     //TODO create ActionQueue
                 }
@@ -169,9 +207,21 @@ class ReplayTraces(
         if (chosenAction == null) {
             log.info("No more sequences.")
             return ExplorationAction.terminateApp()
+        } else {
+            tryFetch = false
+            log.info("Trace Id: $traceId - Transition Id: $transitionId")
+            log.info("Action: ${chosenAction.name}")
+            if (ExplorationTrace.widgetTargets.isNotEmpty()) {
+                log.info("Widget: ${ExplorationTrace.widgetTargets.first}")
+            }
+            log.info("Expected stateId: $expectedStateId")
+            val expectedState = atuaMF.stateList.find { it.stateId == expectedStateId }!!
+            val expectedAppState = atuaMF.getAbstractState(expectedState)!!
+            log.info("Expected AppState: $expectedAppState")
         }
         return chosenAction
     }
+
 
 
 
@@ -195,6 +245,16 @@ class ReplayTraces(
     }
 }
 
+private fun doClickOutbound(currentState: State<*>): ExplorationAction? {
+    val guiDimension = Helper.computeGuiTreeDimension(currentState)
+    if (guiDimension.leftX - 50 < 0) {
+        return Click(guiDimension.leftX, y = guiDimension.topY - 50)
+    }
+    if (guiDimension.topY - 50 < 0)
+        return Click(guiDimension.leftX - 50, y = guiDimension.topY)
+    return Click(guiDimension.leftX - 50, y = guiDimension.topY - 50)
+}
+
 private fun <W : Widget> Interaction<W>.toExplorationAction(currentState: State<*>, atuamf: ATUAMF ,eContext: ExplorationContext<*, *, *>,delay: Long,useCoordinateClicks: Boolean): ExplorationAction? {
     if (targetWidget == null) {
         return when (actionType) {
@@ -212,8 +272,12 @@ private fun <W : Widget> Interaction<W>.toExplorationAction(currentState: State<
                 }
             }
             "Click" -> {
-                val coordinator = Helper.parseCoordinationData(data)
-                Click(coordinator.first,coordinator.second)
+                if (data.isBlank()) {
+                    doClickOutbound(currentState)
+                } else {
+                    val coordinator = Helper.parseCoordinationData(data)
+                    Click(coordinator.first, coordinator.second)
+                }
             }
             "LongClick" -> {
                 val coordinator = Helper.parseCoordinationData(data)

@@ -165,6 +165,7 @@ class ExplorationContext<M,S,W> @JvmOverloads constructor(val cfg: Configuration
 			log.info("finishing context updates, dumping data and restarting modelFeatures")
 			dump()
 
+
 			// can use the same auxiliary job as the dump function, as it's already free
 			log.info("preparing modelFeatures for next app")
 			watcher.forEach { feature ->

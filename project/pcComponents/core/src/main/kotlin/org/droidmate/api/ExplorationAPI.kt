@@ -146,10 +146,11 @@ object ExplorationAPI {
 				builder.strategies.clear()
 				val atuamf = watchers.find { it is ATUAMF }
 				if (atuamf != null) {
-					builder.strategies.add(ReplayTraces(atuamf as ATUAMF,delay = 0,useCoordinateClicks = true))
+					val verifyTracesMF = VerifyTracesMF(atuamf as ATUAMF)
 					watchers.clear()
 					watchers.addAll(defaultReporter(cfg))
-					watchers.add(VerifyTracesMF(atuamf))
+					watchers.add(verifyTracesMF)
+					builder.strategies.add(ReplayTraces(verifyTracesMF,  atuamf,delay = 0,useCoordinateClicks = true))
 					explore(cfg,builder.strategies, emptyList(), watchers,modelProvider)
 				}
 			}

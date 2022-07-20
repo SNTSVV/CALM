@@ -14,13 +14,19 @@ package org.atua.modelFeatures
 
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Job
+import org.atua.modelFeatures.dstg.AbstractState
+import org.atua.modelFeatures.dstg.AttributeValuationMap
 import org.droidmate.exploration.ExplorationContext
 import org.droidmate.exploration.modelFeatures.ModelFeature
+import java.lang.StringBuilder
+import java.nio.file.Files
 import kotlin.coroutines.CoroutineContext
 
 class VerifyTracesMF(val atuamf: ATUAMF) : ModelFeature() {
     override val coroutineContext: CoroutineContext
         get() = CoroutineName("VerifyTracesModelFeature") + Job()
+
+    val obsolescentStates = ArrayList<AbstractState>()
 
     override fun onAppExplorationStarted(context: ExplorationContext<*, *, *>) {
         super.onAppExplorationStarted(context)
@@ -28,7 +34,42 @@ class VerifyTracesMF(val atuamf: ATUAMF) : ModelFeature() {
     }
     override suspend fun onContextUpdate(context: ExplorationContext<*, *, *>) {
         super.onContextUpdate(context)
+        atuamf.doNotRefine = true
         atuamf.statementMF!!.onContextUpdate(context)
         atuamf.onContextUpdate(context)
     }
+
+    override suspend fun onAppExplorationFinished(context: ExplorationContext<*, *, *>) {
+        this.join()
+        super.onAppExplorationFinished(context)
+        val sb = StringBuilder()
+        obsolescentStates.forEach {
+            sb.appendLine(it.toString())
+        }
+        val outputFile = context.model.config.baseDir.resolve("obsolescentStates")
+        ATUAMF.log.info(
+            "Prepare writing report file: " +
+                    "\n- File name: ${outputFile.fileName}" +
+                    "\n- Absolute path: ${outputFile.toAbsolutePath().fileName}"
+        )
+
+        Files.write(outputFile, sb.lines())
+        ATUAMF.log.info("Finished writing report in ${outputFile.fileName}")
+    }
+}
+
+data class AbstractStateDifferencies (val appState1:AbstractState, val appState2: AbstractState, val differencies: ArrayList<AVMDiff>)
+
+data class AVMDiff (val type: DiffType, val element1: AttributeValuationMap, val element2: AttributeValuationMap, val diffInfos: ArrayList<DiffDetail>) {
+
+}
+
+enum class DiffType {
+    ADDED,
+    DELETED,
+    CHANGED
+}
+
+class DiffDetail {
+
 }

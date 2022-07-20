@@ -254,7 +254,12 @@ open class ExploreCommand<M,S,W>(
 		log.debug("explorationLoop(app=${app.fileName}, device)")
 
 		// initialize the config and clear the 'currentModel' from the provider if any
-		modelProvider.init(ModelConfig(appName = app.packageName, cfg = cfg))
+		if (!watcher.any { it is VerifyTracesMF }) {
+			modelProvider.init(ModelConfig(appName = app.packageName, cfg = cfg))
+		}
+		else {
+			modelProvider.init(ModelConfig(appName = app.packageName, cfg = cfg,isLoadC = true))
+		}
 		// Use the received exploration eContext (if any) otherwise construct the object that
 		// will hold the exploration output and that will be returned from this method.
 		// Note that a different eContext is created for each exploration if none it provider

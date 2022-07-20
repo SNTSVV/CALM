@@ -950,8 +950,9 @@ class AbstractStateManager() {
         val guiTreeDimension = Helper.computeGuiTreeDimension(guiState)
         val isOpeningKeyboard = guiState.visibleTargets.any { it.isKeyboard }
         val isMenuOpen = Helper.isOptionsMenuLayout(guiState)
+        val isDialog = Helper.isDialog(rotation, guiTreeDimension, guiState, atuaMF)
         var activityNode: Window? = WindowManager.instance.updatedModelWindows.find {
-            it.classType == activity && it is Activity }
+            it.classType == activity && (it is Activity || it is OutOfApp) }
         if (activityNode == null) {
             val visibleWidgets = Helper.getVisibleWidgets(guiState)
             val windowIds = visibleWidgets.map { it.metaInfo?.find { it.contains("windowId") }?.split(" = ")?.get(1) }.distinct()
@@ -973,10 +974,10 @@ class AbstractStateManager() {
         }
         val windowId =
             guiState.widgets.find { !it.isKeyboard }?.metaInfo?.find { it.contains("windowId") }?.split(" = ")?.get(1)
-        if (windowId != null) {
+        if (windowId != null && isDialog) {
             val sameWindowIdWindow =
                 WindowManager.instance.updatedModelWindows.find { it.windowRuntimeIds.contains(windowId)
-                        && ((it !is Activity && it !is OutOfApp) || it.classType == activity)}
+                        && it is Dialog && it.ownerActivitys.contains(activityNode) }
             if (sameWindowIdWindow != null) {
                 bestMatchedNode = sameWindowIdWindow
             }
