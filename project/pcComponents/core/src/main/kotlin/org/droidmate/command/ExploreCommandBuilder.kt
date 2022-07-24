@@ -211,6 +211,7 @@ open class ExploreCommandBuilder(
     fun resetOnInvalidState(): ExploreCommandBuilder {
         strategies.add( DefaultStrategies.handleNoProgress(getNextSelectorPriority()) )
         strategies.add( DefaultStrategies.handleTargetAbsence(getNextSelectorPriority()) )
+        strategies.add( DefaultStrategies.handleUnstableState(getNextSelectorPriority()) )
         return this
     }
 
