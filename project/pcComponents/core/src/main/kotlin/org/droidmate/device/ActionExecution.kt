@@ -35,7 +35,7 @@ private suspend fun performAction(action: ExplorationAction, app: IApk, device: 
 	when {
 		action.name == ActionType.Terminate.name -> terminate(app, device)
 		action is ResetApp-> {
-			device.enableData()
+			/*device.enableData()*/
 			resetApp(app, device)
 			defaultExecution(action,device)
 		}
@@ -128,7 +128,7 @@ private suspend fun resetApp(app: IApk, device: IRobustDevice){
 	device.reboot()
 	log.debug("Ensure home screen is displayed.")
 	device.ensureHomeScreenIsDisplayed()
-
+//	device.installApk(app)
 	log.debug("Ensure app is not running.")
 	if (device.appIsRunning(app.packageName)) {
 		log.trace("App is still running. Clearing package again.")

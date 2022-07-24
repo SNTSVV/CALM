@@ -293,6 +293,8 @@ class AdbWrapper constructor(private val cfg: ConfigurationWrapper,
 				"0",
 				"start"
 			)
+
+
 		} catch (e: SysCmdExecutorException) {
 			throw AdbWrapperException("Executing 'adb reboot' failed. Oh my.", e)
 		}

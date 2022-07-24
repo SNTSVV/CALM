@@ -294,12 +294,11 @@ open class ExploreCommand<M,S,W>(
 						// decide for an action
 						action = strategyScheduler.nextAction(explorationContext) // check if we need to initialize timeProvider.getNow() here
 					}
-
+					result = action.execute(app, device)
 					// execute action
 					if (action is ResetApp) {
 						pushSdcardData(device)
 					}
-					result = action.execute(app, device)
 					if (cfg[ConfigProperties.UiAutomatorServer.delayedImgFetch]) {
 						if (capturedPreviously && action is ActionQueue) {
 							action.actions.forEachIndexed { i, a ->
