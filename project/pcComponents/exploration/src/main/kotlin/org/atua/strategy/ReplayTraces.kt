@@ -15,9 +15,6 @@ package org.atua.strategy
 import kotlinx.coroutines.runBlocking
 import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.VerifyTracesMF
-import org.atua.modelFeatures.dstg.AbstractAction
-import org.atua.modelFeatures.dstg.AbstractState
-import org.atua.modelFeatures.dstg.AbstractStateManager
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.Input
 import org.calm.StringComparison
@@ -49,8 +46,6 @@ import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.lang.StringBuilder
-import java.nio.file.Files
 
 
 class ReplayTraces(
@@ -84,18 +79,37 @@ class ReplayTraces(
     }
 
     override suspend fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> hasNext(eContext: ExplorationContext<M, S, W>): Boolean {
-        transitionId++
+
         return true
     }
 
     var tryFetch = false
-
+    val missingActions = ArrayList<Interaction<*>>()
+    var lastExecutedInteraction: Interaction<*>? = null
     override suspend fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> computeNextAction(eContext: ExplorationContext<M, S, W>): ExplorationAction {
         atuaMF.dstg.cleanPredictedAbstractStates()
         //TODO Update target windows
         val currentState = eContext.getCurrentState()
         if (currentState == eContext.model.emptyState) {
+            if (lastExecutedInteraction == null)
+                lastExecutedInteraction = eContext.getLastAction()
             return GlobalAction(ActionType.MinimizeMaximize)
+        }
+        if (expectedStateId != null && currentState.stateId != expectedStateId) {
+            if (!tryFetch) {
+                if (lastExecutedInteraction == null)
+                    lastExecutedInteraction = eContext.getLastAction()
+                tryFetch = true
+                return GlobalAction(ActionType.FetchGUI)
+            }
+        }
+        if (currentState == prevState) {
+            if (!tryFetch) {
+                if (lastExecutedInteraction == null)
+                    lastExecutedInteraction = eContext.getLastAction()
+                tryFetch = true
+                return GlobalAction(ActionType.FetchGUI)
+            }
         }
         val currentAppState = atuaMF.getAbstractState(currentState)
         if (currentAppState == null) {
@@ -103,24 +117,32 @@ class ReplayTraces(
         }
         log.info("Current abstract state: $currentAppState")
         log.info("Current window: ${currentAppState?.window}")
-        if (verifyTracesMF.obsolescentStates.contains(currentAppState)) {
+       /* if (verifyTracesMF.obsolescentStates.contains(currentAppState)) {
             verifyTracesMF.obsolescentStates.remove(currentAppState)
-        }
+        }*/
 
         if (expectedStateId != null && currentState.stateId != expectedStateId) {
-            if (!tryFetch) {
-                tryFetch = true
-                return GlobalAction(ActionType.FetchGUI)
-            }
             val expectedState = atuaMF.stateList.find { it.stateId == expectedStateId }!!
             val expectedAbstractState = atuaMF.getAbstractState(expectedState)!!
             if (expectedAbstractState != currentAppState) {
-                verifyTracesMF.obsolescentStates.add(expectedAbstractState)
-
-                //TODO We should log the differencies between the expected app state and observed app state
+                if (!expectedAbstractState.ignored) {
+                    val lastReplayedInteraction =
+                        atuaMF.tracingInteractionsMap.entries.find { it.key.first == traceId && it.key.second == transitionId }?.value?.first()
+                    if (lastReplayedInteraction != null) {
+                        if (lastExecutedInteraction == null) {
+                            log.info("Last executed interaction is null.")
+                        }
+                        verifyTracesMF.obsolescentStates.put(
+                            expectedAbstractState,
+                            Triple(lastReplayedInteraction, lastExecutedInteraction, missingActions.toList())
+                        )
+                        verifyTracesMF.computeDifferenceBetweenAbstractStates(currentAppState, expectedAbstractState)
+                    }
+                }
 
             }
         }
+        transitionId++
         var chosenAction: ExplorationAction? = null
         ExplorationTrace.widgetTargets.clear()
 
@@ -135,12 +157,14 @@ class ReplayTraces(
                     val nextInteractions = atuaMF.tracingInteractionsMap.entries.find { it.key.first == traceId && it.key.second == transitionId+1}!!.value
                     expectedStateId = nextInteractions.first().prevState
                     prevState = null
+                    lastExecutedInteraction = null
                     chosenAction =  eContext.resetApp()
                     break
                 } else {
                     if (atuaMF.tracingInteractionsMap.any { it.key.first > traceId }) {
                         traceId++
                         transitionId = 0
+                        missingActions.clear()
                     } else {
                         log.info("No more sequences.")
                         return ExplorationAction.terminateApp()
@@ -160,18 +184,10 @@ class ReplayTraces(
                             break
                         }
                     }
-                    if (currentState == prevState) {
-                        // There could be some errors
-                        // Try MinimizeMaximize action
-//                            return GlobalAction(actionType = ActionType.MinimizeMaximize)
-                        // maybe reexecute the action would help
-                        transitionId--
-                        continue
-                    }
                     // check if any later states having the same window as the current state
                     transitionId++
                     var foundNextAction = false
-                    val missingActions = ArrayList<Interaction<*>>()
+
                     while (true) {
                         if (!atuaMF.tracingInteractionsMap.keys.any{it.first == traceId && it.second == transitionId }){
                             break
@@ -183,7 +199,11 @@ class ReplayTraces(
                             foundNextAction = true
                             break
                         }
-                        missingActions.add(tmp_interaction)
+                        if (tmp_interaction.actionType != "FetchGUI") {
+                            missingActions.add(tmp_interaction)
+                        } else {
+                            log.info("Bypass FetchGUI action")
+                        }
                         transitionId++
                     }
                     if (!foundNextAction) {
@@ -191,6 +211,7 @@ class ReplayTraces(
                             log.info("Could not continue the sequence. Switch to the next sequence.")
                             traceId++
                             transitionId = 0
+                            missingActions.clear()
                         } else {
                             log.info("No more sequences.")
                             return ExplorationAction.terminateApp()
@@ -200,7 +221,7 @@ class ReplayTraces(
                     }
 
                 } else {
-                    //TODO create ActionQueue
+                    throw Exception("ActionQueue replay has not been implemented")
                 }
             }
         }
@@ -209,6 +230,7 @@ class ReplayTraces(
             return ExplorationAction.terminateApp()
         } else {
             tryFetch = false
+            lastExecutedInteraction = null
             log.info("Trace Id: $traceId - Transition Id: $transitionId")
             log.info("Action: ${chosenAction.name}")
             if (ExplorationTrace.widgetTargets.isNotEmpty()) {
