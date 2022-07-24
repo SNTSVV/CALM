@@ -165,6 +165,40 @@ object DefaultStrategies: Logging {
 		}
 
 	}
+	fun handleUnstableState(prio: Int,maxWaitTime: Long = 500, maxTryFetchCnt: Int = 1) = object  : AExplorationStrategy(){
+		override fun getPriority(): Int {
+			return prio
+		}
+
+		var tryFetchCnt: Int = 0
+		override suspend fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> hasNext(eContext: ExplorationContext<M, S, W>): Boolean {
+			val lastAction = eContext.getLastAction()
+			if (lastAction.prevState == eContext.model.emptyState.stateId)
+				return false
+			if (tryFetchCnt<maxTryFetchCnt) {
+				if (lastAction.prevState == lastAction.resState )
+					return true
+				val prevState = eContext.model.getState(lastAction.prevState)
+				val resState =  eContext.model.getState(lastAction.resState)
+				if (prevState!=null && resState!=null && resState.widgets.size>0 ) {
+					val widgets = resState.widgets
+					val visibleWidgets = resState.widgets.filter { it.isVisible }
+					val ratio = visibleWidgets.size*1.0/widgets.size
+					if (ratio<0.5) {
+						return true
+					}
+				}
+			}
+			tryFetchCnt = 0
+			return false
+		}
+
+		override suspend fun <M : AbstractModel<S, W>, S : State<W>, W : Widget> nextAction(eContext: ExplorationContext<M, S, W>): ExplorationAction {
+			tryFetchCnt++
+			return GlobalAction(actionType = ActionType.FetchGUI)
+		}
+	}
+
 	/**
 	 * Check the current state for interactive UI elements to interact with,
 	 * if none are available we try to

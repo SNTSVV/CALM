@@ -258,6 +258,8 @@ class ATUAMF(
     //region Model feature override
     override suspend fun onAppExplorationFinished(context: ExplorationContext<*, *, *>) {
         this.join()
+        traceId++
+        transitionId=0
         produceATUACoverageReport(context)
         ATUAModelOutput.dumpModel(context.model.config, this, context)
     }
@@ -1047,7 +1049,7 @@ class ATUAMF(
                     }
                 }
             }
-            if (lastExecutedTransition!!.abstractAction.actionType != AbstractActionType.RESET_APP) {
+                if (lastExecutedTransition!!.abstractAction.actionType != AbstractActionType.RESET_APP) {
                 lastExecutedTransition!!.computeMemoryBasedGuards(currentState,traceId,transitionId,this)
                 lastExecutedTransition!!.markNondeterministicTransitions(this)
                 lastExecutedTransition!!.activated = true
@@ -2193,8 +2195,6 @@ class ATUAMF(
         }
         val newAbstractState = getAbstractState(newState)!!
         if (lastExecutedTransition != null) {
-
-
             prevAbstractState.increaseActionCount2(lastExecutedTransition!!.abstractAction, this)
             AbstractStateManager.INSTANCE.addImplicitAbstractInteraction(
                 newState, lastExecutedTransition!!, Pair(traceId, transitionId),prevState,newState

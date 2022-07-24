@@ -838,6 +838,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
             val guiStates = data[11]
             val hashcode = data[12].toInt()
             val isInitalState = data[13].toBoolean()
+            val ignored = data[15].toBoolean()
             val widgetIdMapping: HashMap<AttributeValuationMap, String> = HashMap()
             val avmCardinalities = HashMap<AttributeValuationMap, Cardinality>()
             val attributeValuationSets =
@@ -867,6 +868,7 @@ modifiedMethods.filter { it.isNotBlank() }. forEach { method ->
                 loadedFromModel = true,
                 modelVersion = ModelVersion.BASE
             )
+            abstractState.ignored = ignored
             abstractState.hasOptionsMenu = hasOptionsMenu
             abstractState.updateHashCode()
             assert(abstractState.hashCode == hashcode)

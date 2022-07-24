@@ -3447,13 +3447,13 @@ class AbstractStateManager() {
                 "${it.isOutOfApplication};${it.isOpeningKeyboard};" +
                 "${it.hasOptionsMenu};" +
                 "\"${it.guiStates.map { it.stateId }.joinToString(separator = ";")}\";" +
-                "${it.hashCode};${it.isInitalState};${it.modelVersion}"
+                "${it.hashCode};${it.isInitalState};${it.modelVersion};${it.ignored}"
     }
 
     private fun header(): String {
         return "[1]abstractStateID;[2]activity;[3]window;[4]rotation;[5]menuOpen;" +
                 "[6]isHomeScreen;[7]isRequestRuntimePermissionDialogBox;[8]isAppHasStoppedDialogBox;" +
-                "[9]isOutOfApplication;[10]isOpeningKeyboard;[11]hasOptionsMenu;[12]guiStates;[13]hashcode;[14]isInitialState;[15]modelVersion;"
+                "[9]isOutOfApplication;[10]isOpeningKeyboard;[11]hasOptionsMenu;[12]guiStates;[13]hashcode;[14]isInitialState;[15]modelVersion;[16]ignored"
     }
 
     fun removeObsoleteAbsstractTransitions(correctAbstractTransition: AbstractTransition) {

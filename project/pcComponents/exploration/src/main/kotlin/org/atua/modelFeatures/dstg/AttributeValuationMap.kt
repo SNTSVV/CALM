@@ -18,6 +18,7 @@ import org.atua.modelFeatures.ATUAMF
 import org.atua.modelFeatures.ewtg.ScrollDirection
 import org.atua.modelFeatures.ewtg.Helper
 import org.atua.modelFeatures.ewtg.window.Window
+import org.atua.strategy.similarScore
 import org.droidmate.explorationModel.emptyUUID
 import org.droidmate.explorationModel.interaction.State
 import org.droidmate.explorationModel.interaction.Widget
@@ -794,6 +795,7 @@ class AttributeValuationMap {
         }
         return result
     }
+
 
     fun validateAction(abstractAction: AbstractAction): Boolean {
         val result = when(abstractAction.actionType) {

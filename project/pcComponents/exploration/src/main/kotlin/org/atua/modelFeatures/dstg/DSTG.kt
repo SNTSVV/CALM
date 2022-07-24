@@ -204,7 +204,8 @@ class DSTG(private val graph: IGraph<AbstractState, AbstractTransition> =
                     "\"${getCoveredModifiedMethods(edge,statementCoverageMF)}\";" +
                     "\"${getCoveredUpdatedStatements(edge,statementCoverageMF)}\";" +
                     "\"${getCoveredMethods(edge, statementCoverageMF)}\";" +
-                    "\"${edge.interactions.map {String.format("%s_%s",explorationContext.explorationTrace.id,it.actionId)}.joinToString(separator = ";")}\";${edge.modelVersion}"
+                    "\"${edge.interactions.map {String.format("%s_%s",explorationContext.explorationTrace.id,it.actionId)}.joinToString(separator = ";")}\";" +
+                    "${edge.modelVersion}"
             bufferedWriter.newLine()
             bufferedWriter.write(abstractTransitionInfo)
         }
