@@ -300,10 +300,7 @@ suspend fun ExplorationAction.execute(env: UiAutomationEnvironment): Any {
 
 //REMARK keep the order of first wait for windowUpdate, then wait for idle, then extract windows to minimize synchronization issues with opening/closing keyboard windows
 private suspend fun waitForSync(env: UiAutomationEnvironment, afterAction: Boolean, useDefault: Boolean) {
-	val usingIdleTimeout = if (useDefault)
-		500
-	else
-		env.idleTimeout
+	val usingIdleTimeout = env.idleTimeout
 	try {
 		/*if (afterAction) {
 			env.lastWindows.firstOrNull { it.isApp() && !it.isKeyboard && !it.isLauncher }?.let {
@@ -312,7 +309,7 @@ private suspend fun waitForSync(env: UiAutomationEnvironment, afterAction: Boole
 		}*/
 		debugT("wait for IDLE avg = ${time / max(1, cnt)} ms", {
 //			env.device.waitForIdle(usingIdleTimeout)
-			env.automation.waitForIdle(50,usingIdleTimeout)
+			env.automation.waitForIdle(200,usingIdleTimeout)
 			//		env.device.waitForIdle(env.idleTimeout) // this has a minimal delay of 500ms between events until the device is considered idle
 		}, inMillis = true,
 				timer = {
